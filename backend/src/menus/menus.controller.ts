@@ -8,8 +8,11 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
+  UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -17,6 +20,8 @@ import {
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiConsumes,
+  ApiBody,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
@@ -25,6 +30,8 @@ import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
+import { MenuImagesService } from './menu-images.service';
+import { UploadedMenuImageFile } from './menu-image-upload.types';
 import { MenusService } from './menus.service';
 
 interface AuthenticatedRequest extends Request {
@@ -38,7 +45,10 @@ interface AuthenticatedRequest extends Request {
 @UseGuards(JwtAuthGuard)
 @Controller('owner/restaurants/:restaurantId/menus')
 export class MenusController {
-  constructor(private readonly menusService: MenusService) {}
+  constructor(
+    private readonly menusService: MenusService,
+    private readonly menuImagesService: MenuImagesService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -178,6 +188,56 @@ export class MenusController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.menusService.create(restaurantId, dto, request.user);
+  }
+
+  @Post('images')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+      },
+    }),
+  )
+  @ApiOperation({
+    summary: 'Upload menu image',
+    description:
+      'Uploads one menu image to Cloudinary for ID11 image upload area. Use the returned imageUrl when creating or updating a menu item.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'JPG, PNG, or WEBP image. Max 10MB.',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'Image uploaded to Cloudinary.',
+    schema: {
+      example: {
+        imageUrl: 'https://res.cloudinary.com/demo/image/upload/v123/tabelink/restaurants/1/menus/pho-bo.jpg',
+        publicId: 'tabelink/restaurants/1/menus/pho-bo',
+        width: 1200,
+        height: 800,
+        bytes: 245678,
+        format: 'jpg',
+        originalName: 'pho-bo.jpg',
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  uploadImage(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @UploadedFile() file: UploadedMenuImageFile | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menuImagesService.upload(restaurantId, file, request.user);
   }
 
   @Patch(':itemId')

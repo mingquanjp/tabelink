@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 const imgJapaneseCuisine = "/register/register-hero.png";
 const imgStepCheck = "/register/step-check.png";
@@ -7,6 +10,8 @@ const imgSelectArrow = "/register/select-arrow.png";
 const imgButtonArrow = "/register/button-arrow.png";
 
 export default function RegisterPage() {
+  const [role, setRole] = useState("diner");
+
   return (
     <main className="min-h-screen bg-[#f9f9f6] text-[#020202]">
       <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
@@ -104,7 +109,8 @@ export default function RegisterPage() {
                 <div className="relative mt-2">
                   <select
                     className="w-full appearance-none rounded bg-[#f4f4f1] px-4 py-4 pr-12 text-[16px] font-medium text-[#1a1c1b] focus:outline-none focus:ring-2 focus:ring-[#af111c]/30 [font-family:'Noto_Sans_JP',sans-serif]"
-                    defaultValue="diner"
+                    value={role}
+                    onChange={(e) => setRole(e.target.value)}
                   >
                     <option value="diner">一般利用者（ダイナー）</option>
                     <option value="store">加盟店</option>
@@ -131,7 +137,7 @@ export default function RegisterPage() {
 
               <Link
                 className="relative mt-2 flex w-full items-center justify-center gap-3 rounded bg-[linear-gradient(171.87deg,#af111c_0%,#d32f31_100%)] py-5 text-[16px] font-medium text-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] [font-family:'Noto_Sans_JP',sans-serif]"
-                href="/register/customer"
+                href={role === "diner" ? "/register/customer" : "/register/restaurant"}
               >
                 次に進む
                 <img alt="" aria-hidden="true" className="size-4" src={imgButtonArrow} />

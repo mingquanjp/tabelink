@@ -84,6 +84,7 @@ async function bootstrap() {
       'access-token',
     )
     .addTag('auth', 'Xác thực, đăng ký, quên mật khẩu, hồ sơ người dùng')
+    .addTag('analytics', 'ID13 - Owner dashboard analytics: Top 3 menu and insights')
     .addTag('menus', 'ID11 - Owner menu management: thêm, xem, sửa, xóa thực đơn')
     .addTag('verification', 'ID13 - Owner verification application and document upload')
     .addTag('health', 'Kiểm tra trạng thái server')

@@ -17,7 +17,6 @@ import {
   DEFAULT_ACCESS_TTL,
   DEFAULT_REFRESH_TTL,
   DEFAULT_REFRESH_TTL_LONG,
-  PASSWORD_RESET_TTL_MINUTES,
   REGISTER_ROLES,
   UserRole,
 } from './auth.constants';
@@ -26,10 +25,8 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CustomerProfile } from '../entities/customer-profile.entity';
 import { OwnerProfile } from '../entities/owner-profile.entity';
-import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { Restaurant } from '../entities/restaurant.entity';
 import { UserAccount } from '../entities/user-account.entity';
 import { MailService } from '../mail/mail.service';
@@ -43,8 +40,6 @@ export class AuthService {
     private readonly customerRepo: Repository<CustomerProfile>,
     @InjectRepository(OwnerProfile)
     private readonly ownerRepo: Repository<OwnerProfile>,
-    @InjectRepository(PasswordResetToken)
-    private readonly resetRepo: Repository<PasswordResetToken>,
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
     private readonly jwtService: JwtService,
@@ -266,82 +261,37 @@ export class AuthService {
       where: { email: ILike(email) },
     });
 
-    // Always return the same message to prevent email enumeration
     if (!account) {
       return {
-        message: 'If the account exists, a reset link has been sent.',
+        message: 'If the account exists, a temporary password has been sent.',
       };
     }
 
-    // Invalidate all previous unused tokens for this account
-    await this.resetRepo.update(
-      { accountId: account.accountId, usedAt: IsNull() },
-      { usedAt: new Date() },
-    );
+    // Generate a secure random temporary password (8 characters)
+    const tempPassword = randomBytes(4).toString('hex');
+    account.passwordHash = await bcrypt.hash(tempPassword, 10);
+    await this.userRepo.save(account);
 
-    // Generate a secure random token (plain) — only the hash is stored in DB
-    const token = randomBytes(32).toString('base64url');
-    const tokenHash = this.hashResetToken(token);
-    const expiresAt = new Date(
-      Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
-    );
-
-    const resetToken = this.resetRepo.create({
-      accountId: account.accountId,
-      tokenHash,
-      expiresAt,
-    });
-    await this.resetRepo.save(resetToken);
-
-    // Detect preferred language from email domain heuristic (ja for .jp addresses)
+    // Detect preferred language
     const lang: 'vi' | 'ja' = dto.lang ?? (email.endsWith('.jp') ? 'ja' : 'vi');
 
-    // Send the email (non-blocking in dev — failures are logged, not thrown)
-    await this.mailService.sendPasswordReset({ to: account.email, resetToken: token, lang });
+    // Send the email
+    await this.mailService.sendTemporaryPassword({
+      to: account.email,
+      tempPassword,
+      lang,
+    });
 
-    const response: { message: string; resetToken?: string } = {
-      message: 'If the account exists, a reset link has been sent.',
+    const response: { message: string; tempPassword?: string } = {
+      message: 'If the account exists, a temporary password has been sent.',
     };
 
-    // Expose raw token in response only in development for easy API testing
+    // Expose in response only in development
     if (this.configService.get<string>('NODE_ENV') === 'development') {
-      response.resetToken = token;
+      response.tempPassword = tempPassword;
     }
 
     return response;
-  }
-
-  async resetPassword(dto: ResetPasswordDto) {
-    const tokenHash = this.hashResetToken(dto.token);
-    const record = await this.resetRepo.findOne({
-      where: {
-        tokenHash,
-        usedAt: IsNull(),
-        expiresAt: MoreThan(new Date()),
-      },
-    });
-
-    if (!record) {
-      throw new BadRequestException('Reset token is invalid or expired.');
-    }
-
-    const account = await this.userRepo.findOne({
-      where: { accountId: record.accountId },
-    });
-
-    if (!account) {
-      throw new NotFoundException('Account not found.');
-    }
-
-    account.passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.userRepo.save(account);
-
-    record.usedAt = new Date();
-    await this.resetRepo.save(record);
-
-    return {
-      message: 'Password updated successfully.',
-    };
   }
 
   private async issueTokens(account: UserAccount, rememberMe?: boolean) {
@@ -474,9 +424,5 @@ export class AuthService {
     }
 
     return this.getRefreshTtlBase();
-  }
-
-  private hashResetToken(token: string) {
-    return createHash('sha256').update(token).digest('hex');
   }
 }

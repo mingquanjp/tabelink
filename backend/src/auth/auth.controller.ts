@@ -6,7 +6,6 @@ import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { JwtPayload } from './auth.types';
 
@@ -139,20 +138,6 @@ export class AuthController {
     return this.authService.requestPasswordReset(dto);
   }
 
-  @Post('password/reset')
-  @HttpCode(200)
-  @ApiBody({ type: ResetPasswordDto })
-  @ApiOkResponse({
-    description: 'Reset password using token.',
-    schema: {
-      example: {
-        message: 'Password updated successfully.',
-      },
-    },
-  })
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto);
-  }
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')

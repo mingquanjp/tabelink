@@ -4,7 +4,6 @@ import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomerProfile } from '../entities/customer-profile.entity';
 import { OwnerProfile } from '../entities/owner-profile.entity';
-import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { Restaurant } from '../entities/restaurant.entity';
 import { UserAccount } from '../entities/user-account.entity';
 import { MailModule } from '../mail/mail.module';
@@ -18,7 +17,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       UserAccount,
       CustomerProfile,
       OwnerProfile,
-      PasswordResetToken,
       Restaurant,
     ]),
     PassportModule,

@@ -3,9 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 
-export interface PasswordResetMailOptions {
+export interface TemporaryPasswordMailOptions {
   to: string;
-  resetToken: string;
+  tempPassword: string;
   /** 'vi' | 'ja' — defaults to 'vi' */
   lang?: 'vi' | 'ja';
 }
@@ -27,14 +27,8 @@ export class MailService {
     });
   }
 
-  async sendPasswordReset(options: PasswordResetMailOptions): Promise<void> {
-    const { to, resetToken, lang = 'vi' } = options;
-
-    const frontendUrl = this.config.get<string>(
-      'FRONTEND_URL',
-      'http://localhost:3000',
-    );
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+  async sendTemporaryPassword(options: TemporaryPasswordMailOptions): Promise<void> {
+    const { to, tempPassword, lang = 'vi' } = options;
 
     const fromName = this.config.get<string>('SMTP_FROM_NAME', 'Tabelink');
     const fromAddress = this.config.get<string>(
@@ -47,21 +41,20 @@ export class MailService {
 
     const { subject, html } =
       lang === 'ja'
-        ? this.buildJapaneseTemplate(resetUrl)
-        : this.buildVietnameseTemplate(resetUrl);
+        ? this.buildJapaneseTemplate(tempPassword)
+        : this.buildVietnameseTemplate(tempPassword);
 
     try {
       await this.transporter.sendMail({ from, to, subject, html });
-      this.logger.log(`Password reset email sent to ${to} [${lang}]`);
+      this.logger.log(`Temporary password email sent to ${to} [${lang}]`);
     } catch (err: unknown) {
       if (isDev) {
-        // Dev: just log, don't crash the request
         this.logger.warn(
-          `[DEV] Failed to send email to ${to}. Reset URL: ${resetUrl}`,
+          `[DEV] Failed to send email to ${to}. Temp Password: ${tempPassword}`,
         );
         this.logger.warn(err);
       } else {
-        this.logger.error(`Failed to send password reset email to ${to}`, err);
+        this.logger.error(`Failed to send temporary password email to ${to}`, err);
         throw err;
       }
     }
@@ -71,8 +64,8 @@ export class MailService {
   // Private template builders
   // ---------------------------------------------------------------------------
 
-  private buildVietnameseTemplate(resetUrl: string) {
-    const subject = '[Tabelink] Yêu cầu đặt lại mật khẩu';
+  private buildVietnameseTemplate(tempPassword: string) {
+    const subject = '[Tabelink] Mật khẩu tạm thời mới của bạn';
 
     const html = `
 <!DOCTYPE html>
@@ -89,10 +82,9 @@ export class MailService {
     .header p { margin: 4px 0 0; color: rgba(255,255,255,0.85); font-size: 13px; }
     .body { padding: 36px 40px; }
     .body p { margin: 0 0 16px; color: #333333; font-size: 15px; line-height: 1.6; }
-    .btn-wrap { text-align: center; margin: 32px 0; }
-    .btn { display: inline-block; background: #e63946; color: #ffffff !important; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; }
+    .password-box { background: #f8f8f8; border: 2px dashed #e63946; border-radius: 8px; padding: 20px; text-align: center; margin: 32px 0; }
+    .password-text { font-family: 'Courier New', Courier, monospace; font-size: 28px; font-weight: 700; color: #e63946; letter-spacing: 2px; }
     .divider { border: none; border-top: 1px solid #eeeeee; margin: 28px 0; }
-    .link-fallback { background: #f8f8f8; border-radius: 6px; padding: 12px 16px; word-break: break-all; font-size: 12px; color: #666666; }
     .note { color: #999999 !important; font-size: 13px !important; }
     .footer { background: #f8f8f8; padding: 20px 40px; text-align: center; }
     .footer p { margin: 0; color: #aaaaaa; font-size: 12px; }
@@ -106,17 +98,14 @@ export class MailService {
     </div>
     <div class="body">
       <p>Xin chào,</p>
-      <p>Chúng tôi nhận được yêu cầu <strong>đặt lại mật khẩu</strong> cho tài khoản liên kết với địa chỉ email này.</p>
-      <p>Nhấn vào nút bên dưới để tạo mật khẩu mới:</p>
-      <div class="btn-wrap">
-        <a href="${resetUrl}" class="btn">Đặt lại mật khẩu</a>
+      <p>Chúng tôi nhận được yêu cầu khôi phục mật khẩu cho tài khoản của bạn. Mật khẩu của bạn đã được đặt lại thành một mật khẩu tạm thời.</p>
+      <p>Dưới đây là mật khẩu mới của bạn:</p>
+      <div class="password-box">
+        <span class="password-text">${tempPassword}</span>
       </div>
-      <p class="note">⏰ Đường link có hiệu lực trong <strong>60 phút</strong> và chỉ sử dụng được <strong>một lần</strong>.</p>
+      <p class="note">⚠️ <strong>Lưu ý quan trọng:</strong> Vì lý do bảo mật, vui lòng đăng nhập ngay và đổi lại mật khẩu cá nhân của bạn trong phần cài đặt tài khoản.</p>
       <hr class="divider" />
-      <p>Nếu nút không hoạt động, hãy sao chép đường link dưới đây vào trình duyệt:</p>
-      <div class="link-fallback">${resetUrl}</div>
-      <hr class="divider" />
-      <p class="note">Nếu bạn <strong>không</strong> gửi yêu cầu này, hãy bỏ qua email này. Tài khoản của bạn vẫn an toàn.</p>
+      <p class="note">Nếu bạn không gửi yêu cầu này, vui lòng đăng nhập bằng mật khẩu tạm thời này và đổi mật khẩu ngay lập tức để bảo vệ tài khoản.</p>
     </div>
     <div class="footer">
       <p>© ${new Date().getFullYear()} Tabelink. Email này được gửi tự động, vui lòng không trả lời.</p>
@@ -128,8 +117,8 @@ export class MailService {
     return { subject, html };
   }
 
-  private buildJapaneseTemplate(resetUrl: string) {
-    const subject = '[Tabelink] パスワード再設定のご案内';
+  private buildJapaneseTemplate(tempPassword: string) {
+    const subject = '[Tabelink] 仮パスワードの発行について';
 
     const html = `
 <!DOCTYPE html>
@@ -146,10 +135,9 @@ export class MailService {
     .header p { margin: 4px 0 0; color: rgba(255,255,255,0.85); font-size: 13px; }
     .body { padding: 36px 40px; }
     .body p { margin: 0 0 16px; color: #333333; font-size: 15px; line-height: 1.8; }
-    .btn-wrap { text-align: center; margin: 32px 0; }
-    .btn { display: inline-block; background: #e63946; color: #ffffff !important; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: 600; }
+    .password-box { background: #f8f8f8; border: 2px dashed #e63946; border-radius: 8px; padding: 20px; text-align: center; margin: 32px 0; }
+    .password-text { font-family: 'Courier New', Courier, monospace; font-size: 28px; font-weight: 700; color: #e63946; letter-spacing: 2px; }
     .divider { border: none; border-top: 1px solid #eeeeee; margin: 28px 0; }
-    .link-fallback { background: #f8f8f8; border-radius: 6px; padding: 12px 16px; word-break: break-all; font-size: 12px; color: #666666; }
     .note { color: #999999 !important; font-size: 13px !important; }
     .footer { background: #f8f8f8; padding: 20px 40px; text-align: center; }
     .footer p { margin: 0; color: #aaaaaa; font-size: 12px; }
@@ -163,17 +151,14 @@ export class MailService {
     </div>
     <div class="body">
       <p>こんにちは、</p>
-      <p>このメールアドレスに紐づくアカウントに対して、<strong>パスワード再設定</strong>のリクエストを受け付けました。</p>
-      <p>下のボタンをクリックして、新しいパスワードを設定してください：</p>
-      <div class="btn-wrap">
-        <a href="${resetUrl}" class="btn">パスワードを再設定する</a>
+      <p>パスワード再設定のリクエストを受け付けました。あなたのアカウントに新しい仮パスワードを発行いたしました。</p>
+      <p>新しい仮パスワードは以下の通りです：</p>
+      <div class="password-box">
+        <span class="password-text">${tempPassword}</span>
       </div>
-      <p class="note">⏰ このリンクは<strong>60分間</strong>有効で、<strong>1回のみ</strong>使用可能です。</p>
+      <p class="note">⚠️ <strong>重要：</strong> セキュリティのため、ログイン後は速やかに設定画面よりパスワードを変更してください。</p>
       <hr class="divider" />
-      <p>ボタンが機能しない場合は、以下のURLをブラウザに貼り付けてください：</p>
-      <div class="link-fallback">${resetUrl}</div>
-      <hr class="divider" />
-      <p class="note">このリクエストに心当たりがない場合は、このメールを無視してください。アカウントは安全です。</p>
+      <p class="note">このリクエストに心当たりがない場合は、この仮パスワードを使用してログインし、すぐにパスワードを変更してアカウントを保護してください。</p>
     </div>
     <div class="footer">
       <p>© ${new Date().getFullYear()} Tabelink. このメールは自動送信です。返信はご遠慮ください。</p>

@@ -17,21 +17,16 @@ import {
   DEFAULT_ACCESS_TTL,
   DEFAULT_REFRESH_TTL,
   DEFAULT_REFRESH_TTL_LONG,
-  PASSWORD_RESET_TTL_MINUTES,
   REGISTER_ROLES,
   UserRole,
 } from './auth.constants';
 import { JwtPayload } from './auth.types';
-import { DinerProfileDto } from './dto/diner-profile.dto';
 import { LoginDto } from './dto/login.dto';
-import { MerchantProfileDto } from './dto/merchant-profile.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
-import { ResetPasswordDto } from './dto/reset-password.dto';
 import { CustomerProfile } from '../entities/customer-profile.entity';
 import { OwnerProfile } from '../entities/owner-profile.entity';
-import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import { Restaurant } from '../entities/restaurant.entity';
 import { UserAccount } from '../entities/user-account.entity';
 import { MailService } from '../mail/mail.service';
@@ -45,8 +40,6 @@ export class AuthService {
     private readonly customerRepo: Repository<CustomerProfile>,
     @InjectRepository(OwnerProfile)
     private readonly ownerRepo: Repository<OwnerProfile>,
-    @InjectRepository(PasswordResetToken)
-    private readonly resetRepo: Repository<PasswordResetToken>,
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
     private readonly jwtService: JwtService,
@@ -79,27 +72,47 @@ export class AuthService {
 
     const savedAccount = await this.userRepo.save(account);
 
+    let profile: any = null;
     if (dto.role === UserRole.User) {
-      const profile = this.customerRepo.create({
+      const p = this.customerRepo.create({
         accountId: savedAccount.accountId,
         fullName: dto.fullName,
         purpose: dto.purpose,
+        displayName: dto.displayName,
+        dob: dto.dob ? this.normalizeDate(dto.dob) : undefined,
+        gender: dto.gender ? this.normalizeGender(dto.gender) : undefined,
+        nationality: dto.nationality,
       });
-      await this.customerRepo.save(profile);
+      profile = await this.customerRepo.save(p);
     }
 
     if (dto.role === UserRole.Owner) {
-      const profile = this.ownerRepo.create({
+      const p = this.ownerRepo.create({
         accountId: savedAccount.accountId,
-        fullName: dto.fullName,
+        fullName: dto.representativeName ?? dto.fullName,
+        phone: dto.phone,
+        businessName: dto.storeName,
       });
-      await this.ownerRepo.save(profile);
+      profile = await this.ownerRepo.save(p);
+
+      // Create initial restaurant entry for owners
+      const restaurant = this.restaurantRepo.create({
+        ownerAccountId: savedAccount.accountId,
+        nameVn: dto.storeName ?? dto.fullName,
+        nameJp: dto.storeNameJp ?? dto.storeName ?? dto.fullName,
+        address: dto.address ?? 'TBD',
+        phone: dto.phone ?? '',
+        openingHours: dto.openingHours ?? 'TBD',
+        issuesVat: dto.issuesVat ?? false,
+      });
+      await this.restaurantRepo.save(restaurant);
     }
 
     const tokens = await this.issueTokens(savedAccount);
 
     return {
       account: this.sanitizeAccount(savedAccount),
+      profile,
       tokens,
     };
   }
@@ -220,103 +233,6 @@ export class AuthService {
     };
   }
 
-  async completeDinerProfile(accountId: number, dto: DinerProfileDto) {
-    const account = await this.userRepo.findOne({
-      where: { accountId },
-      relations: { customerProfile: true },
-    });
-
-    if (!account) {
-      throw new NotFoundException('Account not found.');
-    }
-
-    if (account.role !== UserRole.User) {
-      throw new ForbiddenException('Only diner accounts can update this profile.');
-    }
-
-    const dob = this.normalizeDate(dto.dob);
-    const gender = this.normalizeGender(dto.gender);
-
-    const profile =
-      account.customerProfile ??
-      this.customerRepo.create({
-        accountId: account.accountId,
-        fullName: dto.displayName,
-      });
-
-    profile.displayName = dto.displayName;
-    profile.dob = dob;
-    profile.gender = gender;
-    profile.nationality = dto.nationality;
-
-    const savedProfile = await this.customerRepo.save(profile);
-
-    return {
-      account: this.sanitizeAccount(account),
-      profile: savedProfile,
-    };
-  }
-
-  async completeMerchantProfile(accountId: number, dto: MerchantProfileDto) {
-    const account = await this.userRepo.findOne({
-      where: { accountId },
-      relations: { ownerProfile: true },
-    });
-
-    if (!account) {
-      throw new NotFoundException('Account not found.');
-    }
-
-    if (account.role !== UserRole.Owner) {
-      throw new ForbiddenException('Only owner accounts can update this profile.');
-    }
-
-    const ownerProfile =
-      account.ownerProfile ??
-      this.ownerRepo.create({
-        accountId: account.accountId,
-        fullName: dto.representativeName,
-      });
-
-    ownerProfile.fullName = dto.representativeName;
-    ownerProfile.phone = dto.phone;
-    ownerProfile.businessName = dto.storeName;
-
-    const savedOwnerProfile = await this.ownerRepo.save(ownerProfile);
-
-    const existingRestaurant = await this.restaurantRepo.findOne({
-      where: { ownerAccountId: account.accountId },
-    });
-
-    const restaurant =
-      existingRestaurant ??
-      this.restaurantRepo.create({
-        ownerAccountId: account.accountId,
-        nameVn: dto.storeName,
-        nameJp: dto.storeNameJp ?? dto.storeName,
-        address: dto.address,
-        phone: dto.phone,
-        openingHours: dto.openingHours,
-        issuesVat: dto.issuesVat ?? false,
-      });
-
-    if (existingRestaurant) {
-      restaurant.nameVn = dto.storeName;
-      restaurant.nameJp = dto.storeNameJp ?? dto.storeName;
-      restaurant.address = dto.address;
-      restaurant.phone = dto.phone;
-      restaurant.openingHours = dto.openingHours;
-      restaurant.issuesVat = dto.issuesVat ?? false;
-    }
-
-    const savedRestaurant = await this.restaurantRepo.save(restaurant);
-
-    return {
-      account: this.sanitizeAccount(account),
-      ownerProfile: savedOwnerProfile,
-      restaurant: savedRestaurant,
-    };
-  }
 
   async guestLogin() {
     const payload: JwtPayload = {
@@ -345,82 +261,37 @@ export class AuthService {
       where: { email: ILike(email) },
     });
 
-    // Always return the same message to prevent email enumeration
     if (!account) {
       return {
-        message: 'If the account exists, a reset link has been sent.',
+        message: 'If the account exists, a temporary password has been sent.',
       };
     }
 
-    // Invalidate all previous unused tokens for this account
-    await this.resetRepo.update(
-      { accountId: account.accountId, usedAt: IsNull() },
-      { usedAt: new Date() },
-    );
+    // Generate a secure random temporary password (8 characters)
+    const tempPassword = randomBytes(4).toString('hex');
+    account.passwordHash = await bcrypt.hash(tempPassword, 10);
+    await this.userRepo.save(account);
 
-    // Generate a secure random token (plain) — only the hash is stored in DB
-    const token = randomBytes(32).toString('base64url');
-    const tokenHash = this.hashResetToken(token);
-    const expiresAt = new Date(
-      Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000,
-    );
-
-    const resetToken = this.resetRepo.create({
-      accountId: account.accountId,
-      tokenHash,
-      expiresAt,
-    });
-    await this.resetRepo.save(resetToken);
-
-    // Detect preferred language from email domain heuristic (ja for .jp addresses)
+    // Detect preferred language
     const lang: 'vi' | 'ja' = dto.lang ?? (email.endsWith('.jp') ? 'ja' : 'vi');
 
-    // Send the email (non-blocking in dev — failures are logged, not thrown)
-    await this.mailService.sendPasswordReset({ to: account.email, resetToken: token, lang });
+    // Send the email
+    await this.mailService.sendTemporaryPassword({
+      to: account.email,
+      tempPassword,
+      lang,
+    });
 
-    const response: { message: string; resetToken?: string } = {
-      message: 'If the account exists, a reset link has been sent.',
+    const response: { message: string; tempPassword?: string } = {
+      message: 'If the account exists, a temporary password has been sent.',
     };
 
-    // Expose raw token in response only in development for easy API testing
+    // Expose in response only in development
     if (this.configService.get<string>('NODE_ENV') === 'development') {
-      response.resetToken = token;
+      response.tempPassword = tempPassword;
     }
 
     return response;
-  }
-
-  async resetPassword(dto: ResetPasswordDto) {
-    const tokenHash = this.hashResetToken(dto.token);
-    const record = await this.resetRepo.findOne({
-      where: {
-        tokenHash,
-        usedAt: IsNull(),
-        expiresAt: MoreThan(new Date()),
-      },
-    });
-
-    if (!record) {
-      throw new BadRequestException('Reset token is invalid or expired.');
-    }
-
-    const account = await this.userRepo.findOne({
-      where: { accountId: record.accountId },
-    });
-
-    if (!account) {
-      throw new NotFoundException('Account not found.');
-    }
-
-    account.passwordHash = await bcrypt.hash(dto.newPassword, 10);
-    await this.userRepo.save(account);
-
-    record.usedAt = new Date();
-    await this.resetRepo.save(record);
-
-    return {
-      message: 'Password updated successfully.',
-    };
   }
 
   private async issueTokens(account: UserAccount, rememberMe?: boolean) {
@@ -553,9 +424,5 @@ export class AuthService {
     }
 
     return this.getRefreshTtlBase();
-  }
-
-  private hashResetToken(token: string) {
-    return createHash('sha256').update(token).digest('hex');
   }
 }

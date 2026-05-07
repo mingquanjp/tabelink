@@ -2,9 +2,7 @@ import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/c
 import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
-import { DinerProfileDto } from './dto/diner-profile.dto';
 import { LoginDto } from './dto/login.dto';
-import { MerchantProfileDto } from './dto/merchant-profile.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -32,6 +30,15 @@ export class AuthController {
           email: 'user@example.com',
           role: 'User',
           status: 'Active',
+        },
+        profile: {
+          accountId: 1,
+          fullName: 'Nguyen Van A',
+          displayName: 'Foodie',
+          dob: '12/31/1990',
+          gender: 'Female',
+          nationality: 'Japan',
+          purpose: 'Diner',
         },
         tokens: {
           accessToken: 'access.jwt.token',
@@ -178,81 +185,4 @@ export class AuthController {
     return this.authService.getMe(request.user.sub);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
-  @Post('profile/diner')
-  @HttpCode(200)
-  @ApiBody({ type: DinerProfileDto })
-  @ApiOkResponse({
-    description: 'Diner profile updated.',
-    schema: {
-      example: {
-        account: {
-          accountId: 1,
-          email: 'user@example.com',
-          role: 'User',
-          status: 'Active',
-        },
-        profile: {
-          accountId: 1,
-          fullName: 'Nguyen Van A',
-          displayName: 'Foodie',
-          dob: '1990-12-31',
-          gender: 'Female',
-          nationality: 'Japan',
-          purpose: 'Diner',
-        },
-      },
-    },
-  })
-  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-  completeDinerProfile(
-    @Req() request: AuthenticatedRequest,
-    @Body() dto: DinerProfileDto,
-  ) {
-    return this.authService.completeDinerProfile(request.user.sub, dto);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('access-token')
-  @Post('profile/merchant')
-  @HttpCode(200)
-  @ApiBody({ type: MerchantProfileDto })
-  @ApiOkResponse({
-    description: 'Merchant profile updated with restaurant.',
-    schema: {
-      example: {
-        account: {
-          accountId: 2,
-          email: 'owner@example.com',
-          role: 'Owner',
-          status: 'Active',
-        },
-        ownerProfile: {
-          accountId: 2,
-          fullName: 'Tanaka Ken',
-          phone: '+81-90-1234-5678',
-          businessName: 'Sakura Sushi',
-        },
-        restaurant: {
-          restaurantId: 10,
-          ownerAccountId: 2,
-          nameVn: 'Sakura Sushi',
-          nameJp: 'Sakura Sushi JP',
-          address: '1-2-3 Shibuya, Tokyo',
-          phone: '+81-90-1234-5678',
-          openingHours: '10:00-22:00',
-          issuesVat: false,
-          status: 'Draft',
-        },
-      },
-    },
-  })
-  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-  completeMerchantProfile(
-    @Req() request: AuthenticatedRequest,
-    @Body() dto: MerchantProfileDto,
-  ) {
-    return this.authService.completeMerchantProfile(request.user.sub, dto);
-  }
 }

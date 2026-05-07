@@ -22,9 +22,7 @@ import {
   UserRole,
 } from './auth.constants';
 import { JwtPayload } from './auth.types';
-import { DinerProfileDto } from './dto/diner-profile.dto';
 import { LoginDto } from './dto/login.dto';
-import { MerchantProfileDto } from './dto/merchant-profile.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -79,27 +77,47 @@ export class AuthService {
 
     const savedAccount = await this.userRepo.save(account);
 
+    let profile: any = null;
     if (dto.role === UserRole.User) {
-      const profile = this.customerRepo.create({
+      const p = this.customerRepo.create({
         accountId: savedAccount.accountId,
         fullName: dto.fullName,
         purpose: dto.purpose,
+        displayName: dto.displayName,
+        dob: dto.dob ? this.normalizeDate(dto.dob) : undefined,
+        gender: dto.gender ? this.normalizeGender(dto.gender) : undefined,
+        nationality: dto.nationality,
       });
-      await this.customerRepo.save(profile);
+      profile = await this.customerRepo.save(p);
     }
 
     if (dto.role === UserRole.Owner) {
-      const profile = this.ownerRepo.create({
+      const p = this.ownerRepo.create({
         accountId: savedAccount.accountId,
-        fullName: dto.fullName,
+        fullName: dto.representativeName ?? dto.fullName,
+        phone: dto.phone,
+        businessName: dto.storeName,
       });
-      await this.ownerRepo.save(profile);
+      profile = await this.ownerRepo.save(p);
+
+      // Create initial restaurant entry for owners
+      const restaurant = this.restaurantRepo.create({
+        ownerAccountId: savedAccount.accountId,
+        nameVn: dto.storeName ?? dto.fullName,
+        nameJp: dto.storeNameJp ?? dto.storeName ?? dto.fullName,
+        address: dto.address ?? 'TBD',
+        phone: dto.phone ?? '',
+        openingHours: dto.openingHours ?? 'TBD',
+        issuesVat: dto.issuesVat ?? false,
+      });
+      await this.restaurantRepo.save(restaurant);
     }
 
     const tokens = await this.issueTokens(savedAccount);
 
     return {
       account: this.sanitizeAccount(savedAccount),
+      profile,
       tokens,
     };
   }
@@ -220,103 +238,6 @@ export class AuthService {
     };
   }
 
-  async completeDinerProfile(accountId: number, dto: DinerProfileDto) {
-    const account = await this.userRepo.findOne({
-      where: { accountId },
-      relations: { customerProfile: true },
-    });
-
-    if (!account) {
-      throw new NotFoundException('Account not found.');
-    }
-
-    if (account.role !== UserRole.User) {
-      throw new ForbiddenException('Only diner accounts can update this profile.');
-    }
-
-    const dob = this.normalizeDate(dto.dob);
-    const gender = this.normalizeGender(dto.gender);
-
-    const profile =
-      account.customerProfile ??
-      this.customerRepo.create({
-        accountId: account.accountId,
-        fullName: dto.displayName,
-      });
-
-    profile.displayName = dto.displayName;
-    profile.dob = dob;
-    profile.gender = gender;
-    profile.nationality = dto.nationality;
-
-    const savedProfile = await this.customerRepo.save(profile);
-
-    return {
-      account: this.sanitizeAccount(account),
-      profile: savedProfile,
-    };
-  }
-
-  async completeMerchantProfile(accountId: number, dto: MerchantProfileDto) {
-    const account = await this.userRepo.findOne({
-      where: { accountId },
-      relations: { ownerProfile: true },
-    });
-
-    if (!account) {
-      throw new NotFoundException('Account not found.');
-    }
-
-    if (account.role !== UserRole.Owner) {
-      throw new ForbiddenException('Only owner accounts can update this profile.');
-    }
-
-    const ownerProfile =
-      account.ownerProfile ??
-      this.ownerRepo.create({
-        accountId: account.accountId,
-        fullName: dto.representativeName,
-      });
-
-    ownerProfile.fullName = dto.representativeName;
-    ownerProfile.phone = dto.phone;
-    ownerProfile.businessName = dto.storeName;
-
-    const savedOwnerProfile = await this.ownerRepo.save(ownerProfile);
-
-    const existingRestaurant = await this.restaurantRepo.findOne({
-      where: { ownerAccountId: account.accountId },
-    });
-
-    const restaurant =
-      existingRestaurant ??
-      this.restaurantRepo.create({
-        ownerAccountId: account.accountId,
-        nameVn: dto.storeName,
-        nameJp: dto.storeNameJp ?? dto.storeName,
-        address: dto.address,
-        phone: dto.phone,
-        openingHours: dto.openingHours,
-        issuesVat: dto.issuesVat ?? false,
-      });
-
-    if (existingRestaurant) {
-      restaurant.nameVn = dto.storeName;
-      restaurant.nameJp = dto.storeNameJp ?? dto.storeName;
-      restaurant.address = dto.address;
-      restaurant.phone = dto.phone;
-      restaurant.openingHours = dto.openingHours;
-      restaurant.issuesVat = dto.issuesVat ?? false;
-    }
-
-    const savedRestaurant = await this.restaurantRepo.save(restaurant);
-
-    return {
-      account: this.sanitizeAccount(account),
-      ownerProfile: savedOwnerProfile,
-      restaurant: savedRestaurant,
-    };
-  }
 
   async guestLogin() {
     const payload: JwtPayload = {

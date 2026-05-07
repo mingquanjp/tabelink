@@ -107,8 +107,7 @@ export default function RegisterPage() {
                     defaultValue="diner"
                   >
                     <option value="diner">一般利用者（ダイナー）</option>
-                    <option value="owner">飲食店オーナー</option>
-                    <option value="partner">パートナー企業</option>
+                    <option value="store">加盟店</option>
                   </select>
                   <img
                     alt=""

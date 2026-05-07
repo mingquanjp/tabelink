@@ -1,13 +1,19 @@
+"use client";
+
 import Link from "next/link";
+import { useState } from "react";
 
 const imgJapaneseCuisine = "/register/register-hero.png";
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
 
 export default function ProfileRegisterPage() {
+  const [selectedGender, setSelectedGender] = useState("男性");
+  const [selectedNationality, setSelectedNationality] = useState("日本");
+
   return (
     <main className="min-h-screen bg-[#f9f9f6] text-[#020202]">
-      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[45%_55%]">
         {/* Left Side: Visual Narrative */}
         <section className="relative min-h-[560px] overflow-hidden bg-[#1a1c1b]">
           <div className="absolute inset-0 opacity-60">
@@ -42,8 +48,8 @@ export default function ProfileRegisterPage() {
         </section>
 
         {/* Right Side: Profile Form */}
-        <section className="flex items-center justify-center px-8 py-12 sm:px-12 lg:px-24">
-          <div className="w-full max-w-[448px]">
+        <section className="flex items-center justify-center px-8 py-12 sm:px-12 lg:px-20">
+          <div className="w-full max-w-[540px]">
             <div className="space-y-2">
               <h2 className="text-[36px] font-bold tracking-[-0.9px] text-[#af111c] [font-family:'Noto_Sans_JP',sans-serif]">
                 プロフィール設定
@@ -136,9 +142,14 @@ export default function ProfileRegisterPage() {
                 <div className="grid grid-cols-3 gap-3">
                   {["男性", "女性", "その他"].map((gender) => (
                     <button
-                      className="rounded-lg bg-[#f4f4f1] py-3 text-[16px] font-medium text-[#5a6053] border border-transparent hover:border-[#e4beba] transition-colors [font-family:'Noto_Sans_JP',sans-serif]"
                       key={gender}
                       type="button"
+                      onClick={() => setSelectedGender(gender)}
+                      className={`rounded-lg py-3 text-[16px] font-medium transition-all [font-family:'Noto_Sans_JP',sans-serif] border ${
+                        selectedGender === gender 
+                          ? "bg-[#dfe5d4] border-[#5a6053] text-[#1a1c1b]" 
+                          : "bg-[#f4f4f1] border-transparent text-[#5a6053] hover:border-[#e4beba]"
+                      }`}
                     >
                       {gender}
                     </button>
@@ -153,18 +164,20 @@ export default function ProfileRegisterPage() {
                 </label>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <button
-                      className="rounded-lg border border-[#5a6053] bg-[#dfe5d4] py-3 text-[16px] font-medium text-[#606659] [font-family:'Noto_Sans_JP',sans-serif]"
-                      type="button"
-                    >
-                      日本
-                    </button>
-                    <button
-                      className="rounded-lg border border-[rgba(228,190,186,0.1)] bg-[#f4f4f1] py-3 text-[16px] font-medium text-[#5a6053] [font-family:'Noto_Sans_JP',sans-serif]"
-                      type="button"
-                    >
-                      その他
-                    </button>
+                    {["日本", "その他"].map((nat) => (
+                      <button
+                        key={nat}
+                        type="button"
+                        onClick={() => setSelectedNationality(nat)}
+                        className={`rounded-lg py-3 text-[16px] font-medium transition-all [font-family:'Noto_Sans_JP',sans-serif] border ${
+                          selectedNationality === nat
+                            ? "bg-[#dfe5d4] border-[#5a6053] text-[#1a1c1b]"
+                            : "bg-[#f4f4f1] border-transparent text-[#5a6053] hover:border-[#e4beba]"
+                        }`}
+                      >
+                        {nat}
+                      </button>
+                    ))}
                   </div>
                   <input
                     className="w-full rounded-lg bg-[#f4f4f1] px-4 py-4 text-[16px] font-medium text-[#1a1c1b] opacity-50 placeholder:text-[#6b7280] focus:outline-none focus:ring-2 focus:ring-[#af111c]/30 [font-family:'Noto_Sans_JP',sans-serif]"

@@ -1,0 +1,95 @@
+# Tabelink Backend API Docs
+
+Base URL: http://localhost:8080
+Swagger UI: http://localhost:8080/docs
+
+## Auth flow (2 phases)
+1) Register basic account
+2) Complete profile based on role
+
+Bearer auth: pass access token as
+Authorization: Bearer <accessToken>
+
+## Endpoints
+
+### Health
+GET /health
+- Response:
+  { "status": "ok" }
+
+GET /db-health
+- Response:
+  { "database": "connected" }
+
+### Auth
+POST /auth/register
+- Body:
+  {
+    "email": "user@example.com",
+    "password": "Password123",
+    "fullName": "Nguyen Van A",
+    "role": "User",
+    "purpose": "Diner"
+  }
+- Response:
+  {
+    "account": {
+      "accountId": 1,
+      "email": "user@example.com",
+      "role": "User",
+      "status": "Active"
+    },
+    "tokens": {
+      "accessToken": "...",
+      "refreshToken": "..."
+    }
+  }
+
+POST /auth/login
+- Body:
+  {
+    "email": "user@example.com",
+    "password": "Password123"
+  }
+
+POST /auth/refresh
+- Body:
+  { "refreshToken": "..." }
+
+GET /auth/me
+- Auth: Bearer access token
+- Response includes profile + profileCompleted
+
+POST /auth/profile/diner
+- Auth: Bearer access token (role User)
+- Body:
+  {
+    "displayName": "Foodie",
+    "dob": "12/31/1990",
+    "gender": "Female",
+    "nationality": "Japan"
+  }
+
+POST /auth/profile/merchant
+- Auth: Bearer access token (role Owner)
+- Body:
+  {
+    "storeName": "Sakura Sushi",
+    "storeNameJp": "Sakura Sushi JP",
+    "address": "1-2-3 Shibuya, Tokyo",
+    "representativeName": "Tanaka Ken",
+    "phone": "+81-90-1234-5678",
+    "openingHours": "10:00-22:00",
+    "issuesVat": false
+  }
+
+## Environment variables
+- APP_PORT
+- NODE_ENV
+- FRONTEND_URL
+- DATABASE_URL
+- JWT_SECRET (fallback for both access and refresh)
+- JWT_ACCESS_SECRET (optional)
+- JWT_REFRESH_SECRET (optional)
+- JWT_ACCESS_TTL (default 15m)
+- JWT_REFRESH_TTL (default 7d)

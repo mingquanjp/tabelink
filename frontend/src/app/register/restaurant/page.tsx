@@ -1,0 +1,193 @@
+"use client";
+
+import Link from "next/link";
+import { ArrowLeft, ArrowRight } from "lucide-react";
+
+// Assets
+const imgHero = "/register/register-hero.png";
+const imgStepCheck = "/register/step-check.png";
+const imgStepAccount = "/register/step-account-after-select.png";
+
+export default function RestaurantRegisterPage() {
+  return (
+    <main className="min-h-screen bg-[#f9f9f6] text-[#1a1c1b] font-jp overflow-x-hidden">
+      <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
+        {/* Section - Left Side: Visual Narrative */}
+        <section className="relative hidden min-h-screen overflow-hidden bg-[#1a1c1b] lg:flex items-start justify-center">
+          {/* Hero Image */}
+          <div className="absolute inset-0 opacity-60">
+            <img
+              alt="Japanese Cuisine"
+              className="absolute h-full left-[-30%] max-w-none top-0 w-[160%] object-cover"
+              src={imgHero}
+            />
+          </div>
+
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#1a1c1b] via-[rgba(26,28,27,0)] to-[rgba(26,28,27,0)] opacity-80" />
+
+          {/* Logo */}
+          <div className="absolute left-[48px] top-[48px] flex h-[38px] items-center justify-center font-brand font-bold text-[30px] text-white tracking-[-1.5px]">
+            TABELINK
+          </div>
+
+          {/* Narrative Text */}
+          <div className="relative z-10 flex h-full flex-col items-start justify-end p-[80px] w-full">
+            <div className="flex flex-col gap-[32px] max-w-[576px] w-full">
+              <h1 className="flex flex-col font-medium leading-[60px] text-[48px] text-white tracking-[-1.2px]">
+                <span className="mb-0">日本の伝統的なおもて</span>
+                <span className="mb-0">なしと、</span>
+                <span className="mb-0">ハノイの活気ある美食</span>
+                <span>の魂を繋ぐ。</span>
+              </h1>
+
+              {/* Carousel Indicators */}
+              <div className="flex gap-[8px] items-start">
+                <div className="bg-[#af111c] h-[4px] rounded-[12px] w-[48px]" />
+                <div className="bg-white/30 h-[4px] rounded-[12px] w-[8px]" />
+                <div className="bg-white/30 h-[4px] rounded-[12px] w-[8px]" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section - Right Side: Registration Form */}
+        <section className="relative flex flex-col items-center justify-center px-6 py-12 sm:px-12 lg:px-24">
+          {/* Back Button (Floating) */}
+          <Link
+            href="/register"
+            className="absolute left-6 top-6 lg:left-12 lg:top-12 p-2 text-[#af111c] hover:bg-[#af111c]/10 rounded-full transition-colors"
+          >
+            <ArrowLeft className="size-6" />
+          </Link>
+
+          <div className="w-full max-w-[448px] space-y-[40px]">
+            {/* Header */}
+            <div className="space-y-[8px]">
+              <h2 className="font-bold text-[#af111c] text-[30px] tracking-[-0.75px]">
+                店舗プロフィールの設定
+              </h2>
+              <p className="font-medium text-[#5a6053] text-[14px] leading-[20px]">
+                オーナー様と店舗の基本情報を入力してください。
+              </p>
+            </div>
+
+            {/* Progress Bar Section */}
+            <div className="flex items-center justify-between w-full">
+              <div className="flex flex-col gap-[8px] items-center">
+                <div className="bg-[#af111c] border-2 border-[#af111c] flex items-center justify-center relative rounded-[12px] size-[40px] shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]">
+                  <img alt="Check" className="h-[10px] w-[13px]" src={imgStepCheck} />
+                </div>
+                <span className="font-medium text-[#af111c] text-[10px] text-center tracking-[1px] uppercase">
+                  登録
+                </span>
+              </div>
+
+              <div className="flex-1 px-[16px]">
+                <div className="h-px bg-[#e4beba] relative">
+                  <div className="absolute bg-[#af111c] inset-0" />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-[8px] items-center">
+                <div className="bg-[#af111c] border-2 border-[#af111c] flex items-center justify-center relative rounded-[12px] size-[40px] shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]">
+                  <img alt="Account" className="size-[20px]" src={imgStepAccount} />
+                </div>
+                <span className="font-medium text-[#af111c] text-[10px] text-center tracking-[1px] uppercase">
+                  アカウント
+                </span>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form className="space-y-[32px] pt-[8px]">
+              {/* Restaurant Name */}
+              <div className="space-y-[12px]">
+                <div className="flex gap-[8px] items-baseline leading-none">
+                  <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
+                    店舗名
+                  </label>
+                  <span className="font-manrope text-[#af111c] text-[10px] lowercase">
+                    (Restaurant Name)
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="例：割烹 ハノイ"
+                  className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
+                />
+              </div>
+
+              {/* Address */}
+              <div className="space-y-[12px]">
+                <div className="flex gap-[8px] items-baseline leading-none">
+                  <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
+                    住所
+                  </label>
+                  <span className="font-manrope text-[#af111c] text-[10px] lowercase">
+                    (Address)
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="例：ハノイ市コウザイ区..."
+                  className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
+                />
+              </div>
+
+              {/* Owner Name */}
+              <div className="space-y-[12px]">
+                <div className="flex gap-[8px] items-baseline leading-none">
+                  <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
+                    代表者名
+                  </label>
+                  <span className="font-manrope text-[#af111c] text-[10px] lowercase">
+                    (Owner Name)
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="例：山田 太郎"
+                  className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
+                />
+              </div>
+
+              {/* Phone Number */}
+              <div className="space-y-[12px]">
+                <div className="flex gap-[8px] items-baseline leading-none">
+                  <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
+                    電話番号
+                  </label>
+                  <span className="font-manrope text-[#af111c] text-[10px] lowercase">
+                    (Phone Number)
+                  </span>
+                </div>
+                <input
+                  type="tel"
+                  placeholder="0123-456-789"
+                  className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-manrope font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
+                />
+              </div>
+
+              {/* Submit Button */}
+              <div className="space-y-[24px] pt-[32px]">
+                <button
+                  type="submit"
+                  className="group relative flex w-full items-center justify-center gap-[8px] bg-[#af111c] py-[20px] rounded-[4px] shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)] hover:bg-[#910e17] transition-all active:scale-[0.98]"
+                >
+                  <div className="flex flex-col font-medium h-[20px] justify-center leading-[0] relative shrink-0 text-[14px] text-center text-white tracking-[1.4px] uppercase w-[154.98px]">
+                    <p className="leading-[20px]">加盟店登録を完了する</p>
+                  </div>
+                  <div className="h-[13.333px] relative shrink-0 w-[7.85px]">
+                    <img alt="" className="absolute block inset-0 max-w-none size-full" src="/register/button-arrow.png" />
+                  </div>
+                </button>
+                <div className="h-[39px]" aria-hidden="true" />
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+    </main>
+  );
+}

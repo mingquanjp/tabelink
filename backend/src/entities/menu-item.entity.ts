@@ -53,10 +53,16 @@ export class MenuItem {
   corianderLevel!: number;
 
   @Column({ name: 'imageurl', type: 'text', nullable: true })
-  imageUrl?: string;
+  imageUrl?: string | null;
+
+  @Column({ name: 'imagepublicid', type: 'text', nullable: true })
+  imagePublicId?: string | null;
 
   @Column({ name: 'isactive', default: true })
   isActive!: boolean;
+
+  @Column({ name: 'deletedat', type: 'timestamptz', nullable: true })
+  deletedAt?: Date | null;
 
   @CreateDateColumn({ name: 'createdat', type: 'timestamptz' })
   createdAt!: Date;

@@ -103,6 +103,15 @@ export class CreateMenuItemDto {
   @IsUrl({ require_protocol: true })
   imageUrl?: string;
 
+  @ApiPropertyOptional({
+    example: 'tabelink/restaurants/1/menus/pho-bo',
+    description: 'Cloudinary public_id returned by the menu image upload API.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  imagePublicId?: string;
+
   @ApiPropertyOptional({ example: true, default: true })
   @IsOptional()
   @IsBoolean()

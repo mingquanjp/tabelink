@@ -84,7 +84,9 @@ export class MenusController {
               },
             ],
             imageUrl: 'https://example.com/menu/pho-bo.jpg',
+            imagePublicId: 'tabelink/restaurants/1/menus/pho-bo',
             isActive: true,
+            deletedAt: null,
             createdAt: '2026-05-07T10:00:00.000Z',
             updatedAt: '2026-05-07T10:00:00.000Z',
           },
@@ -130,7 +132,9 @@ export class MenusController {
           },
         ],
         imageUrl: 'https://example.com/menu/pho-bo.jpg',
+        imagePublicId: 'tabelink/restaurants/1/menus/pho-bo',
         isActive: true,
+        deletedAt: null,
         createdAt: '2026-05-07T10:00:00.000Z',
         updatedAt: '2026-05-07T10:00:00.000Z',
       },
@@ -175,7 +179,9 @@ export class MenusController {
           },
         ],
         imageUrl: 'https://example.com/menu/pho-bo.jpg',
+        imagePublicId: 'tabelink/restaurants/1/menus/pho-bo',
         isActive: true,
+        deletedAt: null,
         createdAt: '2026-05-07T10:00:00.000Z',
         updatedAt: '2026-05-07T10:00:00.000Z',
       },
@@ -244,7 +250,7 @@ export class MenusController {
   @ApiOperation({
     summary: 'Update menu item',
     description:
-      'Updates menu item fields. To mark out of stock, send `{ "isActive": false }`; to reopen sales, send `{ "isActive": true }`.',
+      'Updates menu item fields. To mark out of stock, send `{ "isActive": false }`; to reopen sales, send `{ "isActive": true }`. To replace an uploaded image, send both `imageUrl` and `imagePublicId` from the upload API.',
   })
   @ApiOkResponse({
     description: 'Update a menu item.',
@@ -270,7 +276,9 @@ export class MenusController {
           },
         ],
         imageUrl: 'https://example.com/menu/pho-bo.jpg',
+        imagePublicId: 'tabelink/restaurants/1/menus/pho-bo',
         isActive: true,
+        deletedAt: null,
         createdAt: '2026-05-07T10:00:00.000Z',
         updatedAt: '2026-05-07T10:05:00.000Z',
       },
@@ -289,13 +297,16 @@ export class MenusController {
   @Delete(':itemId')
   @ApiOperation({
     summary: 'Delete menu item',
-    description: 'Deletes a menu item from an owner restaurant.',
+    description:
+      'Soft deletes a menu item from an owner restaurant. If imagePublicId is stored, the Cloudinary image is deleted too.',
   })
   @ApiOkResponse({
     description: 'Delete a menu item.',
     schema: {
       example: {
         deleted: true,
+        softDeleted: true,
+        cloudinaryDeleted: true,
         itemId: 10,
         restaurantId: 1,
       },

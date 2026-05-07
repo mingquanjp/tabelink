@@ -1,10 +1,13 @@
 import {
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { v2 as cloudinary } from 'cloudinary';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import { MenuItemCriterion } from '../entities/menu-item-criterion.entity';
@@ -21,13 +24,14 @@ export class MenusService {
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
     private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
 
   async list(restaurantId: number, user: JwtPayload) {
     await this.assertOwnerRestaurant(restaurantId, user);
 
     const items = await this.menuRepo.find({
-      where: { restaurantId },
+      where: { restaurantId, deletedAt: IsNull() },
       relations: {
         criteria: true,
       },
@@ -72,6 +76,7 @@ export class MenusService {
         spicyLevel: dto.spicyLevel ?? 0,
         corianderLevel: dto.corianderLevel ?? 0,
         imageUrl: this.optionalTrim(dto.imageUrl),
+        imagePublicId: this.optionalTrim(dto.imagePublicId),
         isActive: dto.isActive ?? true,
       });
 
@@ -140,7 +145,11 @@ export class MenusService {
       }
 
       if (dto.imageUrl !== undefined) {
-        item.imageUrl = this.optionalTrim(dto.imageUrl);
+        item.imageUrl = this.optionalTrim(dto.imageUrl) ?? null;
+      }
+
+      if (dto.imagePublicId !== undefined) {
+        item.imagePublicId = this.optionalTrim(dto.imagePublicId) ?? null;
       }
 
       if (dto.isActive !== undefined) {
@@ -171,10 +180,18 @@ export class MenusService {
   async remove(restaurantId: number, itemId: number, user: JwtPayload) {
     await this.assertOwnerRestaurant(restaurantId, user);
     const item = await this.findOwnedMenuItem(restaurantId, itemId);
-    await this.menuRepo.remove(item);
+    const cloudinaryDeleted = await this.deleteCloudinaryImageIfPresent(item);
+
+    item.deletedAt = new Date();
+    item.isActive = false;
+    item.imageUrl = null;
+    item.imagePublicId = null;
+    await this.menuRepo.save(item);
 
     return {
       deleted: true,
+      softDeleted: true,
+      cloudinaryDeleted,
       itemId,
       restaurantId,
     };
@@ -204,6 +221,7 @@ export class MenusService {
       where: {
         restaurantId,
         itemId,
+        deletedAt: IsNull(),
       },
       relations: {
         criteria: true,
@@ -226,6 +244,37 @@ export class MenusService {
   private optionalTrim(value?: string) {
     const trimmed = value?.trim();
     return trimmed ? trimmed : undefined;
+  }
+
+  private async deleteCloudinaryImageIfPresent(item: MenuItem) {
+    if (!item.imagePublicId) {
+      return false;
+    }
+
+    const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
+    const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
+    const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      throw new InternalServerErrorException('Cloudinary is not configured.');
+    }
+
+    cloudinary.config({
+      cloud_name: cloudName,
+      api_key: apiKey,
+      api_secret: apiSecret,
+      secure: true,
+    });
+
+    try {
+      const result = await cloudinary.uploader.destroy(item.imagePublicId, {
+        resource_type: 'image',
+      });
+
+      return result.result === 'ok' || result.result === 'not found';
+    } catch {
+      throw new InternalServerErrorException('Failed to delete Cloudinary image.');
+    }
   }
 
   private async replaceCriteria(
@@ -271,9 +320,11 @@ export class MenusService {
           criterionName: criterion.criterionName,
           ratingLevel: criterion.ratingLevel,
           sortOrder: criterion.sortOrder,
-        })),
+      })),
       imageUrl: item.imageUrl ?? null,
+      imagePublicId: item.imagePublicId ?? null,
       isActive: item.isActive,
+      deletedAt: item.deletedAt ?? null,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };

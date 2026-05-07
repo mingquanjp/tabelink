@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { MenusModule } from './menus/menus.module';
 import { VerificationModule } from './verification/verification.module';
@@ -28,6 +29,7 @@ import { VerificationModule } from './verification/verification.module';
     AuthModule,
     MenusModule,
     VerificationModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

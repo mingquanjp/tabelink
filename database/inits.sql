@@ -66,6 +66,24 @@ CREATE TABLE BADGE_MASTER (
     Criteria TEXT
 );
 
+INSERT INTO BADGE_MASTER (
+    BadgeCode,
+    BadgeNameVN,
+    BadgeNameJP,
+    DescriptionVN,
+    DescriptionJP,
+    Criteria
+)
+VALUES (
+    'VERIFIED',
+    'Đã xác thực',
+    '認証済み',
+    'Nhà hàng đã được TABELINK xác thực sau khi kiểm tra hồ sơ.',
+    '提出書類の確認後、TABELINKにより認証された店舗です。',
+    'Giấy phép kinh doanh, chứng nhận an toàn thực phẩm'
+)
+ON CONFLICT (BadgeCode) DO NOTHING;
+
 -- ==============================================================================
 -- 2. USER PROFILES AND ACCOUNT-RELATED FEATURES
 -- ==============================================================================
@@ -413,7 +431,9 @@ CREATE TABLE BADGE_APPLICATION (
     ReviewedByAdminID INT
         REFERENCES USER_ACCOUNT(AccountID),
     BusinessLicenseURL TEXT,
+    BusinessLicensePublicID TEXT,
     FoodSafetyCertURL TEXT,
+    FoodSafetyCertPublicID TEXT,
     Status VARCHAR(50) NOT NULL DEFAULT 'Pending'
         CHECK (Status IN ('Pending', 'Approved', 'Rejected')),
     SubmittedAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,

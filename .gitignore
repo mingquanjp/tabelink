@@ -2,9 +2,9 @@ node_modules/
 dist/
 build/
 .next/
+.agent/
 .vscode/
 coverage/
-.agent/
 .env
 .env.*
 !.env.example

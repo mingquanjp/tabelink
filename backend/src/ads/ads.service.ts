@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 
 interface PromotionCounterRow {
-  promotionid: number | string;
+  promotionId: number | string;
   impressions: number | string;
   clicks: number | string;
 }
@@ -35,7 +35,7 @@ export class AdsService {
   }
 
   private async updateActiveAdCounters(adId: number, setClause: string) {
-    const rows = await this.dataSource.query<PromotionCounterRow[]>(
+    const result = await this.dataSource.query<PromotionCounterRow[]>(
       `
         UPDATE PROMOTION
         SET ${setClause}
@@ -44,12 +44,19 @@ export class AdsService {
           AND Status = 'Active'
           AND StartDate <= CURRENT_TIMESTAMP
           AND EndDate >= CURRENT_TIMESTAMP
-        RETURNING PromotionID, Impressions, Clicks
+        RETURNING
+          PromotionID AS "promotionId",
+          Impressions AS "impressions",
+          Clicks AS "clicks"
       `,
       [adId],
     );
 
-    const row = rows[0];
+    const firstResult = result[0];
+    const row = Array.isArray(firstResult)
+      ? (firstResult[0] as PromotionCounterRow | undefined)
+      : firstResult;
+
     if (!row) {
       throw new NotFoundException('Active ad not found.');
     }
@@ -62,7 +69,7 @@ export class AdsService {
     const clicks = Number(row.clicks);
 
     return {
-      adId: Number(row.promotionid),
+      adId: Number(row.promotionId),
       impressions,
       clicks,
       ctr: impressions > 0 ? Number((clicks / impressions).toFixed(4)) : 0,

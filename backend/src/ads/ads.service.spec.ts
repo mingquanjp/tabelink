@@ -28,7 +28,7 @@ describe('AdsService', () => {
   it('increments impressions for an active advertisement', async () => {
     dataSource.query.mockResolvedValueOnce([
       {
-        promotionid: 12,
+        promotionId: 12,
         impressions: '101',
         clicks: '8',
       },
@@ -58,7 +58,7 @@ describe('AdsService', () => {
   it('increments clicks while preserving clicks <= impressions', async () => {
     dataSource.query.mockResolvedValueOnce([
       {
-        promotionid: 12,
+        promotionId: 12,
         impressions: '101',
         clicks: '9',
       },
@@ -89,5 +89,25 @@ describe('AdsService', () => {
     await expect(service.recordImpression(99)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+  });
+
+  it('unwraps TypeORM update returning tuple responses', async () => {
+    dataSource.query.mockResolvedValueOnce([
+      [
+        {
+          promotionId: 12,
+          impressions: '101',
+          clicks: '8',
+        },
+      ],
+      1,
+    ]);
+
+    await expect(service.recordImpression(12)).resolves.toEqual({
+      adId: 12,
+      impressions: 101,
+      clicks: 8,
+      ctr: 0.0792,
+    });
   });
 });

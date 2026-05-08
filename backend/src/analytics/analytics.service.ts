@@ -1,8 +1,13 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, IsNull, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
+import { MenuItem } from '../entities/menu-item.entity';
 import { Restaurant } from '../entities/restaurant.entity';
 
 interface TopMenuRow {
@@ -14,11 +19,26 @@ interface TopMenuRow {
   ordercount: number | string;
 }
 
+interface RestaurantViewRow {
+  restaurantid: number | string;
+  statdate: string | Date;
+  visitcount: number | string;
+  japanesevisitcount: number | string;
+}
+
+interface MenuItemViewRow {
+  itemid: number | string;
+  statdate: string | Date;
+  viewcount: number | string;
+}
+
 @Injectable()
 export class AnalyticsService {
   constructor(
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
+    @InjectRepository(MenuItem)
+    private readonly menuItemRepo: Repository<MenuItem>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -66,9 +86,97 @@ export class AnalyticsService {
     };
   }
 
+  async recordRestaurantView(restaurantId: number, isJapaneseVisitor = false) {
+    const restaurant = await this.restaurantRepo.findOne({
+      where: {
+        restaurantId,
+      },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant not found.');
+    }
+
+    const japaneseVisitIncrement = isJapaneseVisitor ? 1 : 0;
+    const rows = await this.dataSource.query<RestaurantViewRow[]>(
+      `
+        INSERT INTO RESTAURANT_ANALYTICS_DAILY (
+          RestaurantID,
+          StatDate,
+          VisitCount,
+          JapaneseVisitCount
+        )
+        VALUES ($1, CURRENT_DATE, 1, $2)
+        ON CONFLICT (RestaurantID, StatDate)
+        DO UPDATE SET
+          VisitCount = RESTAURANT_ANALYTICS_DAILY.VisitCount + 1,
+          JapaneseVisitCount = RESTAURANT_ANALYTICS_DAILY.JapaneseVisitCount + EXCLUDED.JapaneseVisitCount
+        RETURNING RestaurantID, StatDate, VisitCount, JapaneseVisitCount
+      `,
+      [restaurantId, japaneseVisitIncrement],
+    );
+
+    const row = rows[0];
+
+    return {
+      restaurantId: Number(row.restaurantid),
+      statDate: this.toDateString(row.statdate),
+      visitCount: Number(row.visitcount),
+      japaneseVisitCount: Number(row.japanesevisitcount),
+    };
+  }
+
+  async recordMenuItemView(itemId: number) {
+    const menuItem = await this.menuItemRepo.findOne({
+      where: {
+        itemId,
+        isActive: true,
+        deletedAt: IsNull(),
+      },
+    });
+
+    if (!menuItem) {
+      throw new NotFoundException('Active menu item not found.');
+    }
+
+    const rows = await this.dataSource.query<MenuItemViewRow[]>(
+      `
+        INSERT INTO MENU_ITEM_ANALYTICS_DAILY (
+          ItemID,
+          StatDate,
+          ViewCount
+        )
+        VALUES ($1, CURRENT_DATE, 1)
+        ON CONFLICT (ItemID, StatDate)
+        DO UPDATE SET
+          ViewCount = MENU_ITEM_ANALYTICS_DAILY.ViewCount + 1
+        RETURNING ItemID, StatDate, ViewCount
+      `,
+      [itemId],
+    );
+
+    const row = rows[0];
+
+    return {
+      itemId: Number(row.itemid),
+      statDate: this.toDateString(row.statdate),
+      viewCount: Number(row.viewcount),
+    };
+  }
+
+  private toDateString(value: string | Date) {
+    if (value instanceof Date) {
+      return value.toISOString().slice(0, 10);
+    }
+
+    return value;
+  }
+
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {
     if (user.role !== AuthRole.Owner) {
-      throw new ForbiddenException('Only restaurant owners can view analytics.');
+      throw new ForbiddenException(
+        'Only restaurant owners can view analytics.',
+      );
     }
 
     const restaurant = await this.restaurantRepo.findOne({

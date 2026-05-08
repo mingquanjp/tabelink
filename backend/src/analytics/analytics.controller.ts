@@ -1,4 +1,11 @@
-import { Controller, Get, Param, ParseIntPipe, Req, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -20,7 +27,9 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('analytics')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-@ApiForbiddenResponse({ description: 'Only restaurant owners can view analytics.' })
+@ApiForbiddenResponse({
+  description: 'Only restaurant owners can view analytics.',
+})
 @UseGuards(JwtAuthGuard)
 @Controller('owner/restaurants/:restaurantId/analytics')
 export class AnalyticsController {

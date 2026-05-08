@@ -213,8 +213,6 @@ CREATE TABLE MENU_ITEM (
     DescriptionJP TEXT,
     Ingredients TEXT,
     IsRecommendedForJP BOOLEAN NOT NULL DEFAULT FALSE,
-    SpicyLevel INT NOT NULL DEFAULT 0 CHECK (SpicyLevel BETWEEN 0 AND 5),
-    CorianderLevel INT NOT NULL DEFAULT 0 CHECK (CorianderLevel BETWEEN 0 AND 5),
     ImageURL TEXT,
     ImagePublicID TEXT,
     IsActive BOOLEAN NOT NULL DEFAULT TRUE,

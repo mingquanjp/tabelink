@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { MenusModule } from './menus/menus.module';
+import { TablesModule } from './tables/tables.module';
 import { VerificationModule } from './verification/verification.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { VerificationModule } from './verification/verification.module';
     }),
     AuthModule,
     MenusModule,
+    TablesModule,
     VerificationModule,
   ],
   controllers: [AppController],

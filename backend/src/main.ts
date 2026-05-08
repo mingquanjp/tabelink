@@ -85,6 +85,7 @@ async function bootstrap() {
     )
     .addTag('auth', 'Xác thực, đăng ký, quên mật khẩu, hồ sơ người dùng')
     .addTag('menus', 'ID11 - Owner menu management: thêm, xem, sửa, xóa thực đơn')
+    .addTag('tables', 'ID12 / Feature 15 - Owner table and reservation management')
     .addTag('verification', 'ID13 - Owner verification application and document upload')
     .addTag('health', 'Kiểm tra trạng thái server')
     .build();

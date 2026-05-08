@@ -1,4 +1,11 @@
-import { Controller, Param, ParseIntPipe, Post } from '@nestjs/common';
+import {
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseIntPipe,
+  Post,
+} from '@nestjs/common';
 import {
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -13,6 +20,7 @@ export class AdsController {
   constructor(private readonly adsService: AdsService) {}
 
   @Post(':adId/impressions')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Record an ad impression',
     description:
@@ -35,6 +43,7 @@ export class AdsController {
   }
 
   @Post(':adId/clicks')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Record an ad click',
     description:

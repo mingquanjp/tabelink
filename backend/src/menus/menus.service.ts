@@ -73,8 +73,6 @@ export class MenusService {
         descriptionJp: this.optionalTrim(dto.descriptionJp),
         ingredients: this.optionalTrim(dto.ingredients),
         isRecommendedForJp: dto.isRecommendedForJp ?? false,
-        spicyLevel: dto.spicyLevel ?? 0,
-        corianderLevel: dto.corianderLevel ?? 0,
         imageUrl: this.optionalTrim(dto.imageUrl),
         imagePublicId: this.optionalTrim(dto.imagePublicId),
         isActive: dto.isActive ?? true,
@@ -134,14 +132,6 @@ export class MenusService {
 
       if (dto.isRecommendedForJp !== undefined) {
         item.isRecommendedForJp = dto.isRecommendedForJp;
-      }
-
-      if (dto.spicyLevel !== undefined) {
-        item.spicyLevel = dto.spicyLevel;
-      }
-
-      if (dto.corianderLevel !== undefined) {
-        item.corianderLevel = dto.corianderLevel;
       }
 
       if (dto.imageUrl !== undefined) {
@@ -311,8 +301,6 @@ export class MenusService {
       descriptionJp: item.descriptionJp ?? null,
       ingredients: item.ingredients ?? null,
       isRecommendedForJp: item.isRecommendedForJp,
-      spicyLevel: item.spicyLevel,
-      corianderLevel: item.corianderLevel,
       criteria: (item.criteria ?? [])
         .sort((a, b) => a.sortOrder - b.sortOrder || a.criterionId - b.criterionId)
         .map((criterion) => ({

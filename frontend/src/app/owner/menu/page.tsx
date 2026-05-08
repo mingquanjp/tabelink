@@ -1,6 +1,5 @@
 "use client";
 
-import { TopNav } from "@/components/owner/TopNav";
 import { Plus, Utensils, Camera, X, Info, ChevronRight, Star } from "lucide-react";
 import Image from "next/image";
 
@@ -49,15 +48,16 @@ const menuItems = [
 
 export default function OwnerMenuPage() {
   return (
-    <main className="min-h-screen bg-[#f9f9f6] text-[#1a1c1b] font-jp pt-20">
-      <TopNav />
-      
-      <div className="max-w-[1280px] mx-auto px-8 py-10 space-y-10">
-        {/* Header Section */}
-        <div className="space-y-1">
-          <h1 className="text-[36px] font-medium tracking-[-0.9px]">メニュー管理</h1>
-          <p className="text-[#5a6053] text-[16px] tracking-[0.4px]">料理の登録・編集とバイリンガル設定</p>
-        </div>
+    <main className="max-w-[1280px] mx-auto px-6 py-10 flex flex-col gap-12">
+      {/* Header Section */}
+      <section className="flex flex-col gap-1">
+        <h1 className="text-3xl font-bold text-[#1a1c1b] tracking-tight">
+          メニュー管理
+        </h1>
+        <p className="text-base font-medium text-[#5a6053]">
+          料理の登録・編集とバイリンガル設定
+        </p>
+      </section>
 
         {/* Main Grid Content */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
@@ -256,7 +256,6 @@ export default function OwnerMenuPage() {
           </div>
 
         </div>
-      </div>
     </main>
   );
 }

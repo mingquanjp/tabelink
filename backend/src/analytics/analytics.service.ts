@@ -21,14 +21,14 @@ interface TopMenuRow {
 
 interface RestaurantViewRow {
   restaurantid: number | string;
-  statdate: string | Date;
+  statdate: string;
   visitcount: number | string;
   japanesevisitcount: number | string;
 }
 
 interface MenuItemViewRow {
   itemid: number | string;
-  statdate: string | Date;
+  statdate: string;
   viewcount: number | string;
 }
 
@@ -111,7 +111,11 @@ export class AnalyticsService {
         DO UPDATE SET
           VisitCount = RESTAURANT_ANALYTICS_DAILY.VisitCount + 1,
           JapaneseVisitCount = RESTAURANT_ANALYTICS_DAILY.JapaneseVisitCount + EXCLUDED.JapaneseVisitCount
-        RETURNING RestaurantID, StatDate, VisitCount, JapaneseVisitCount
+        RETURNING
+          RestaurantID,
+          StatDate::text AS StatDate,
+          VisitCount,
+          JapaneseVisitCount
       `,
       [restaurantId, japaneseVisitIncrement],
     );
@@ -120,7 +124,7 @@ export class AnalyticsService {
 
     return {
       restaurantId: Number(row.restaurantid),
-      statDate: this.toDateString(row.statdate),
+      statDate: row.statdate,
       visitCount: Number(row.visitcount),
       japaneseVisitCount: Number(row.japanesevisitcount),
     };
@@ -150,7 +154,10 @@ export class AnalyticsService {
         ON CONFLICT (ItemID, StatDate)
         DO UPDATE SET
           ViewCount = MENU_ITEM_ANALYTICS_DAILY.ViewCount + 1
-        RETURNING ItemID, StatDate, ViewCount
+        RETURNING
+          ItemID,
+          StatDate::text AS StatDate,
+          ViewCount
       `,
       [itemId],
     );
@@ -159,17 +166,9 @@ export class AnalyticsService {
 
     return {
       itemId: Number(row.itemid),
-      statDate: this.toDateString(row.statdate),
+      statDate: row.statdate,
       viewCount: Number(row.viewcount),
     };
-  }
-
-  private toDateString(value: string | Date) {
-    if (value instanceof Date) {
-      return value.toISOString().slice(0, 10);
-    }
-
-    return value;
   }
 
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {

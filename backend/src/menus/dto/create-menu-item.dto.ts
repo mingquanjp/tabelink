@@ -71,20 +71,6 @@ export class CreateMenuItemDto {
   @IsBoolean()
   isRecommendedForJp?: boolean;
 
-  @ApiPropertyOptional({ example: 1, minimum: 0, maximum: 5, default: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(5)
-  spicyLevel?: number;
-
-  @ApiPropertyOptional({ example: 2, minimum: 0, maximum: 5, default: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(5)
-  corianderLevel?: number;
-
   @ApiPropertyOptional({
     type: [MenuItemCriterionDto],
     example: [

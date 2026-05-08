@@ -73,8 +73,6 @@ export class MenusController {
             descriptionJp: 'あっさりした牛肉フォーです。',
             ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
             isRecommendedForJp: true,
-            spicyLevel: 1,
-            corianderLevel: 2,
             criteria: [
               {
                 criterionId: 1,
@@ -121,8 +119,6 @@ export class MenusController {
         descriptionJp: 'あっさりした牛肉フォーです。',
         ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
         isRecommendedForJp: true,
-        spicyLevel: 1,
-        corianderLevel: 2,
         criteria: [
           {
             criterionId: 1,
@@ -168,8 +164,6 @@ export class MenusController {
         descriptionJp: 'あっさりした牛肉フォーです。',
         ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
         isRecommendedForJp: true,
-        spicyLevel: 1,
-        corianderLevel: 2,
         criteria: [
           {
             criterionId: 1,
@@ -265,8 +259,6 @@ export class MenusController {
         descriptionJp: '具材を追加した特製牛肉フォーです。',
         ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
         isRecommendedForJp: true,
-        spicyLevel: 1,
-        corianderLevel: 2,
         criteria: [
           {
             criterionId: 1,

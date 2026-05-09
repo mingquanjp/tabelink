@@ -865,6 +865,30 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         for payment_id in ([1, 2, 3] if restaurant_row["restaurantid"] % 2 else [1, 2, 4])
     ]
 
+    menu_categories = []
+    category_id = 1
+    categories_by_restaurant: dict[int, list[int]] = {}
+    for restaurant_row in restaurants:
+        restaurant_id = int(restaurant_row["restaurantid"])
+        categories_by_restaurant[restaurant_id] = []
+        for i, (code, vn, jp) in enumerate([
+            ("main", "Món chính", "メイン料理"),
+            ("starter", "Khai vị", "スターター"),
+            ("dessert", "Tráng miệng", "デザート"),
+        ]):
+            cat_id = category_id
+            category_id += 1
+            menu_categories.append({
+                "categoryid": cat_id,
+                "restaurantid": restaurant_id,
+                "categorycode": code,
+                "categorynamevn": vn,
+                "categorynamejp": jp,
+                "sortorder": i,
+                "isactive": True
+            })
+            categories_by_restaurant[restaurant_id].append(cat_id)
+
     dish_names = [
         ("Phở bò", "牛肉フォー"),
         ("Gỏi cuốn", "生春巻き"),
@@ -897,10 +921,12 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             current_item_id = item_id
             menu_items_by_restaurant[restaurant_id].append(current_item_id)
             price = Decimal(45000 + ((restaurant_index * dish_index) % 16) * 10000)
+            cat_id = categories_by_restaurant[restaurant_id][dish_index % 3]
             menu_items.append(
                 {
                     "itemid": current_item_id,
                     "restaurantid": restaurant_id,
+                    "categoryid": cat_id,
                     "namevn": f"{name_vn} {restaurant_index:02d}",
                     "namejp": f"{name_jp} {restaurant_index:02d}",
                     "price": price,
@@ -908,8 +934,6 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                     "descriptionjp": f"{name_jp} のモックメニューです。",
                     "ingredients": "Gia vị Việt Nam, rau thơm, nguyên liệu tươi",
                     "isrecommendedforjp": dish_index % 3 != 0,
-                    "spicylevel": dish_index % 6,
-                    "corianderlevel": (dish_index + restaurant_index) % 6,
                     "imageurl": f"https://images.example.test/menu/{current_item_id}.jpg",
                     "imagepublicid": f"tabelink/restaurants/{restaurant_id}/menus/{current_item_id}",
                     "isactive": dish_index % 17 != 0,
@@ -1239,6 +1263,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             ["restaurantid", "paymentmethodid"],
             None,
         ),
+        ("menu_category", menu_categories, ["categoryid"], None),
         ("menu_item", menu_items, ["itemid"], None),
         ("menu_item_criterion", menu_item_criteria, ["criterionid"], None),
         ("restaurant_table", restaurant_tables, ["tableid"], None),
@@ -1273,7 +1298,7 @@ def build_sql(include_truncate: bool) -> str:
                 "menu_item_analytics_daily, restaurant_analytics_daily, restaurant_badge, "
                 "badge_application, promotion, review_tag, review_media, review, "
                 "reservation_special_request, reservation_item, reservation, "
-                "restaurant_table, menu_item_criterion, menu_item, "
+                "restaurant_table, menu_item_criterion, menu_item, menu_category, "
                 "restaurant_payment_method, restaurant_feature, restaurant_media, "
                 "moderation_log, restaurant, user_follow, owner_profile, "
                 "customer_profile, badge_master, special_request_template, hashtag, "
@@ -1296,6 +1321,7 @@ def build_sql(include_truncate: bool) -> str:
         ("moderation_log", "logid"),
         ("restaurant", "restaurantid"),
         ("restaurant_media", "mediaid"),
+        ("menu_category", "categoryid"),
         ("menu_item", "itemid"),
         ("menu_item_criterion", "criterionid"),
         ("restaurant_table", "tableid"),

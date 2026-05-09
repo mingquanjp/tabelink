@@ -29,6 +29,7 @@ import { Request } from 'express';
 import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
+import { DeleteMenuImageDto } from './dto/delete-menu-image.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { MenuImagesService } from './menu-images.service';
 import { UploadedMenuImageFile } from './menu-image-upload.types';
@@ -238,6 +239,33 @@ export class MenusController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.menuImagesService.upload(restaurantId, file, request.user);
+  }
+
+  @Delete('images')
+  @ApiOperation({
+    summary: 'Delete uploaded menu image',
+    description:
+      'Deletes an uploaded menu image by Cloudinary publicId. Use this for images uploaded while creating a menu item before the item is saved.',
+  })
+  @ApiBody({ type: DeleteMenuImageDto })
+  @ApiOkResponse({
+    description: 'Uploaded image deleted from Cloudinary.',
+    schema: {
+      example: {
+        deleted: true,
+        cloudinaryDeleted: true,
+        publicId: 'tabelink/restaurants/1/menus/pho-bo',
+        restaurantId: 1,
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  deleteUploadedImage(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Body() dto: DeleteMenuImageDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menuImagesService.deleteUploaded(restaurantId, dto, request.user);
   }
 
   @Patch(':itemId')

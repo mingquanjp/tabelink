@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiForbiddenResponse,
@@ -40,17 +40,7 @@ export class RestaurantsController {
     return this.restaurantsService.getOptions();
   }
 
-  @Get('restaurants')
-  @ApiOperation({
-    summary: 'List owner restaurants',
-    description: 'Returns restaurants owned by the authenticated owner.',
-  })
-  @ApiOkResponse({ description: 'Owner restaurant list.' })
-  listOwnerRestaurants(@Req() request: AuthenticatedRequest) {
-    return this.restaurantsService.listOwnerRestaurants(request.user);
-  }
-
-  @Get('restaurants/:restaurantId')
+  @Get('restaurant')
   @ApiOperation({
     summary: 'Get owner restaurant information',
     description:
@@ -58,14 +48,11 @@ export class RestaurantsController {
   })
   @ApiOkResponse({ description: 'Restaurant detail for owner management.' })
   @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
-  findOne(
-    @Param('restaurantId', ParseIntPipe) restaurantId: number,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.restaurantsService.findOwnerRestaurant(restaurantId, request.user);
+  findOne(@Req() request: AuthenticatedRequest) {
+    return this.restaurantsService.findOwnerRestaurant(request.user);
   }
 
-  @Get('restaurants/:restaurantId/home')
+  @Get('restaurant/home')
   @ApiOperation({
     summary: 'Get owner home screen data',
     description:
@@ -104,14 +91,11 @@ export class RestaurantsController {
     },
   })
   @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
-  getHome(
-    @Param('restaurantId', ParseIntPipe) restaurantId: number,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.restaurantsService.getOwnerHome(restaurantId, request.user);
+  getHome(@Req() request: AuthenticatedRequest) {
+    return this.restaurantsService.getOwnerHome(request.user);
   }
 
-  @Patch('restaurants/:restaurantId')
+  @Patch('restaurant')
   @ApiOperation({
     summary: 'Update owner restaurant information and services',
     description:
@@ -120,10 +104,9 @@ export class RestaurantsController {
   @ApiOkResponse({ description: 'Restaurant information updated.' })
   @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
   update(
-    @Param('restaurantId', ParseIntPipe) restaurantId: number,
     @Body() dto: UpdateRestaurantDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.restaurantsService.update(restaurantId, dto, request.user);
+    return this.restaurantsService.update(dto, request.user);
   }
 }

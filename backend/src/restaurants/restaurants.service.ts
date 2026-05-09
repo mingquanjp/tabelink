@@ -160,20 +160,6 @@ export class RestaurantsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async listOwnerRestaurants(user: JwtPayload) {
-    this.assertOwner(user);
-
-    const restaurants = await this.restaurantRepo.find({
-      where: { ownerAccountId: user.sub },
-      order: { restaurantId: 'ASC' },
-    });
-
-    return {
-      count: restaurants.length,
-      restaurants: restaurants.map((restaurant) => this.toSummaryResponse(restaurant)),
-    };
-  }
-
   async getOptions() {
     const [features, paymentMethods] = await Promise.all([
       this.featureRepo.find({ order: { featureId: 'ASC' } }),
@@ -195,13 +181,14 @@ export class RestaurantsService {
     };
   }
 
-  async findOwnerRestaurant(restaurantId: number, user: JwtPayload) {
-    const restaurant = await this.findOwnedRestaurantWithRelations(restaurantId, user);
+  async findOwnerRestaurant(user: JwtPayload) {
+    const restaurant = await this.findOwnedRestaurantWithRelations(user);
     return this.toDetailResponse(restaurant);
   }
 
-  async getOwnerHome(restaurantId: number, user: JwtPayload) {
-    const restaurant = await this.findOwnedRestaurantWithRelations(restaurantId, user);
+  async getOwnerHome(user: JwtPayload) {
+    const restaurant = await this.findOwnedRestaurantWithRelations(user);
+    const restaurantId = restaurant.restaurantId;
 
     const [menu, promotions, reviews, badges, socialLinks] = await Promise.all([
       this.getOwnerHomeMenu(restaurantId),
@@ -226,12 +213,13 @@ export class RestaurantsService {
     };
   }
 
-  async update(restaurantId: number, dto: UpdateRestaurantDto, user: JwtPayload) {
-    await this.assertOwnerRestaurant(restaurantId, user);
+  async update(dto: UpdateRestaurantDto, user: JwtPayload) {
+    const existing = await this.assertOwnerRestaurant(user);
+    const restaurantId = existing.restaurantId;
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const restaurant = await manager.findOneOrFail(Restaurant, {
-        where: { restaurantId, ownerAccountId: user.sub },
+        where: { restaurantId },
       });
 
       if (dto.nameVn !== undefined) {
@@ -461,11 +449,11 @@ export class RestaurantsService {
     }
   }
 
-  private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {
+  private async assertOwnerRestaurant(user: JwtPayload) {
     this.assertOwner(user);
 
     const restaurant = await this.restaurantRepo.findOne({
-      where: { restaurantId, ownerAccountId: user.sub },
+      where: { ownerAccountId: user.sub },
     });
 
     if (!restaurant) {
@@ -475,11 +463,11 @@ export class RestaurantsService {
     return restaurant;
   }
 
-  private async findOwnedRestaurantWithRelations(restaurantId: number, user: JwtPayload) {
+  private async findOwnedRestaurantWithRelations(user: JwtPayload) {
     this.assertOwner(user);
 
     const restaurant = await this.restaurantRepo.findOne({
-      where: { restaurantId, ownerAccountId: user.sub },
+      where: { ownerAccountId: user.sub },
       relations: {
         media: true,
         socialLinks: true,

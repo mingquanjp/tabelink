@@ -13,11 +13,10 @@ import { Restaurant } from './restaurant.entity';
 
 export enum ReservationStatus {
   Pending = 'Pending',
-  Approved = 'Approved',
-  Rejected = 'Rejected',
+  Confirmed = 'Confirmed',
+  Arrived = 'Arrived',
   Cancelled = 'Cancelled',
   Completed = 'Completed',
-  NoShow = 'NoShow',
 }
 
 @Entity({ name: 'reservation' })

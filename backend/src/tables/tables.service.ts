@@ -25,7 +25,8 @@ import { UpdateTableDto } from './dto/update-table.dto';
 
 const ACTIVE_RESERVATION_STATUSES = [
   ReservationStatus.Pending,
-  ReservationStatus.Approved,
+  ReservationStatus.Confirmed,
+  ReservationStatus.Arrived,
 ] as readonly ReservationStatus[];
 
 @Injectable()
@@ -324,10 +325,6 @@ export class TablesService {
     reservation: Reservation,
   ) {
     const table = await this.findOwnedTable(restaurantId, tableId);
-
-    if (table.status === RestaurantTableStatus.OutOfService) {
-      throw new BadRequestException('Cannot assign an out-of-service table.');
-    }
 
     if (table.capacity < reservation.pax) {
       throw new BadRequestException('Table capacity is smaller than reservation pax.');

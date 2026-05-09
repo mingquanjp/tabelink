@@ -13,7 +13,6 @@ export enum RestaurantTableStatus {
   Empty = 'Empty',
   Using = 'Using',
   Reserved = 'Reserved',
-  OutOfService = 'OutOfService',
 }
 
 @Entity({ name: 'restaurant_table' })

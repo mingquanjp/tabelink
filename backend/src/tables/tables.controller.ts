@@ -59,7 +59,7 @@ export class TablesController {
       example: {
         restaurantId: 1,
         count: 2,
-        summary: { Empty: 1, Using: 0, Reserved: 1, OutOfService: 0 },
+        summary: { Empty: 1, Using: 0, Reserved: 1 },
         tables: [
           {
             tableId: 1,
@@ -134,7 +134,7 @@ export class TablesController {
     type: UpdateTableStatusDto,
     examples: {
       using: { value: { status: RestaurantTableStatus.Using } },
-      outOfService: { value: { status: RestaurantTableStatus.OutOfService } },
+      reserved: { value: { status: RestaurantTableStatus.Reserved } },
     },
   })
   @ApiOkResponse({ description: 'Table status updated.' })

@@ -5,7 +5,7 @@ import { ReservationStatus } from '../../entities/reservation.entity';
 export class UpdateReservationDto {
   @ApiPropertyOptional({
     enum: ReservationStatus,
-    example: ReservationStatus.Approved,
+    example: ReservationStatus.Confirmed,
   })
   @IsOptional()
   @IsEnum(ReservationStatus)

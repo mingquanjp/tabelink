@@ -46,12 +46,6 @@ export class MenuItem {
   @Column({ name: 'isrecommendedforjp', default: false })
   isRecommendedForJp!: boolean;
 
-  @Column({ name: 'spicylevel', default: 0 })
-  spicyLevel!: number;
-
-  @Column({ name: 'corianderlevel', default: 0 })
-  corianderLevel!: number;
-
   @Column({ name: 'imageurl', type: 'text', nullable: true })
   imageUrl?: string | null;
 

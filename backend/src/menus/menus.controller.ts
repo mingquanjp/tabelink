@@ -29,6 +29,7 @@ import { Request } from 'express';
 import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
+import { DeleteMenuImageDto } from './dto/delete-menu-image.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { MenuImagesService } from './menu-images.service';
 import { UploadedMenuImageFile } from './menu-image-upload.types';
@@ -73,8 +74,6 @@ export class MenusController {
             descriptionJp: 'あっさりした牛肉フォーです。',
             ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
             isRecommendedForJp: true,
-            spicyLevel: 1,
-            corianderLevel: 2,
             criteria: [
               {
                 criterionId: 1,
@@ -121,8 +120,6 @@ export class MenusController {
         descriptionJp: 'あっさりした牛肉フォーです。',
         ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
         isRecommendedForJp: true,
-        spicyLevel: 1,
-        corianderLevel: 2,
         criteria: [
           {
             criterionId: 1,
@@ -168,8 +165,6 @@ export class MenusController {
         descriptionJp: 'あっさりした牛肉フォーです。',
         ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
         isRecommendedForJp: true,
-        spicyLevel: 1,
-        corianderLevel: 2,
         criteria: [
           {
             criterionId: 1,
@@ -246,6 +241,33 @@ export class MenusController {
     return this.menuImagesService.upload(restaurantId, file, request.user);
   }
 
+  @Delete('images')
+  @ApiOperation({
+    summary: 'Delete uploaded menu image',
+    description:
+      'Deletes an uploaded menu image by Cloudinary publicId. Use this for images uploaded while creating a menu item before the item is saved.',
+  })
+  @ApiBody({ type: DeleteMenuImageDto })
+  @ApiOkResponse({
+    description: 'Uploaded image deleted from Cloudinary.',
+    schema: {
+      example: {
+        deleted: true,
+        cloudinaryDeleted: true,
+        publicId: 'tabelink/restaurants/1/menus/pho-bo',
+        restaurantId: 1,
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  deleteUploadedImage(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Body() dto: DeleteMenuImageDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menuImagesService.deleteUploaded(restaurantId, dto, request.user);
+  }
+
   @Patch(':itemId')
   @ApiOperation({
     summary: 'Update menu item',
@@ -265,8 +287,6 @@ export class MenusController {
         descriptionJp: '具材を追加した特製牛肉フォーです。',
         ingredients: 'Banh pho\nThit bo\nHanh tay\nRau thom',
         isRecommendedForJp: true,
-        spicyLevel: 1,
-        corianderLevel: 2,
         criteria: [
           {
             criterionId: 1,
@@ -292,6 +312,33 @@ export class MenusController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.menusService.update(restaurantId, itemId, dto, request.user);
+  }
+
+  @Delete(':itemId/image')
+  @ApiOperation({
+    summary: 'Delete menu item image',
+    description:
+      'Deletes only the uploaded image for a menu item and clears imageUrl/imagePublicId. The menu item remains active and is not soft deleted.',
+  })
+  @ApiOkResponse({
+    description: 'Delete only a menu item image.',
+    schema: {
+      example: {
+        deleted: true,
+        imageDetached: true,
+        cloudinaryDeleted: true,
+        itemId: 10,
+        restaurantId: 1,
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant or menu item not found.' })
+  removeImage(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menusService.removeImage(restaurantId, itemId, request.user);
   }
 
   @Delete(':itemId')

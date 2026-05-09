@@ -73,8 +73,6 @@ export class MenusService {
         descriptionJp: this.optionalTrim(dto.descriptionJp),
         ingredients: this.optionalTrim(dto.ingredients),
         isRecommendedForJp: dto.isRecommendedForJp ?? false,
-        spicyLevel: dto.spicyLevel ?? 0,
-        corianderLevel: dto.corianderLevel ?? 0,
         imageUrl: this.optionalTrim(dto.imageUrl),
         imagePublicId: this.optionalTrim(dto.imagePublicId),
         isActive: dto.isActive ?? true,
@@ -136,14 +134,6 @@ export class MenusService {
         item.isRecommendedForJp = dto.isRecommendedForJp;
       }
 
-      if (dto.spicyLevel !== undefined) {
-        item.spicyLevel = dto.spicyLevel;
-      }
-
-      if (dto.corianderLevel !== undefined) {
-        item.corianderLevel = dto.corianderLevel;
-      }
-
       if (dto.imageUrl !== undefined) {
         item.imageUrl = this.optionalTrim(dto.imageUrl) ?? null;
       }
@@ -191,6 +181,25 @@ export class MenusService {
     return {
       deleted: true,
       softDeleted: true,
+      cloudinaryDeleted,
+      itemId,
+      restaurantId,
+    };
+  }
+
+  async removeImage(restaurantId: number, itemId: number, user: JwtPayload) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+    const item = await this.findOwnedMenuItem(restaurantId, itemId);
+    const hadImage = Boolean(item.imageUrl || item.imagePublicId);
+    const cloudinaryDeleted = await this.deleteCloudinaryImageIfPresent(item);
+
+    item.imageUrl = null;
+    item.imagePublicId = null;
+    await this.menuRepo.save(item);
+
+    return {
+      deleted: hadImage,
+      imageDetached: hadImage,
       cloudinaryDeleted,
       itemId,
       restaurantId,
@@ -311,8 +320,6 @@ export class MenusService {
       descriptionJp: item.descriptionJp ?? null,
       ingredients: item.ingredients ?? null,
       isRecommendedForJp: item.isRecommendedForJp,
-      spicyLevel: item.spicyLevel,
-      corianderLevel: item.corianderLevel,
       criteria: (item.criteria ?? [])
         .sort((a, b) => a.sortOrder - b.sortOrder || a.criterionId - b.criterionId)
         .map((criterion) => ({

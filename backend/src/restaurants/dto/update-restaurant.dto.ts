@@ -15,6 +15,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { RestaurantMediaDto } from './restaurant-media.dto';
+import { RestaurantSocialLinkDto } from './restaurant-social-link.dto';
 
 export class UpdateRestaurantDto {
   @ApiPropertyOptional({ example: 'Bun Cha Sakura' })
@@ -103,4 +104,11 @@ export class UpdateRestaurantDto {
   @ValidateNested({ each: true })
   @Type(() => RestaurantMediaDto)
   media?: RestaurantMediaDto[];
+
+  @ApiPropertyOptional({ type: [RestaurantSocialLinkDto] })
+  @IsOptional()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => RestaurantSocialLinkDto)
+  socialLinks?: RestaurantSocialLinkDto[];
 }

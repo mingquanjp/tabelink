@@ -17,6 +17,7 @@ import {
   RestaurantMediaType,
 } from '../entities/restaurant-media.entity';
 import { RestaurantPaymentMethod } from '../entities/restaurant-payment-method.entity';
+import { RestaurantSocialLink } from '../entities/restaurant-social-link.entity';
 import { Restaurant } from '../entities/restaurant.entity';
 import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
@@ -301,15 +302,36 @@ export class RestaurantsService {
         }
       }
 
+      if (dto.socialLinks !== undefined) {
+        await manager.delete(RestaurantSocialLink, { restaurantId });
+
+        if (dto.socialLinks.length) {
+          const links = dto.socialLinks.map((item, index) =>
+            manager.create(RestaurantSocialLink, {
+              restaurantId,
+              provider: item.provider,
+              url: item.url.trim(),
+              displayLabel: item.displayLabel?.trim() ?? null,
+              sortOrder: item.sortOrder ?? index,
+              isActive: item.isActive ?? true,
+            }),
+          );
+
+          await manager.save(RestaurantSocialLink, links);
+        }
+      }
+
       return manager.findOneOrFail(Restaurant, {
         where: { restaurantId },
         relations: {
           media: true,
+          socialLinks: true,
           featureLinks: { feature: true },
           paymentMethodLinks: { paymentMethod: true },
         },
         order: {
           media: { sortOrder: 'ASC', mediaId: 'ASC' },
+          socialLinks: { sortOrder: 'ASC', socialLinkId: 'ASC' },
           featureLinks: { featureId: 'ASC' },
           paymentMethodLinks: { paymentMethodId: 'ASC' },
         },
@@ -460,11 +482,13 @@ export class RestaurantsService {
       where: { restaurantId, ownerAccountId: user.sub },
       relations: {
         media: true,
+        socialLinks: true,
         featureLinks: { feature: true },
         paymentMethodLinks: { paymentMethod: true },
       },
       order: {
         media: { sortOrder: 'ASC', mediaId: 'ASC' },
+        socialLinks: { sortOrder: 'ASC', socialLinkId: 'ASC' },
         featureLinks: { featureId: 'ASC' },
         paymentMethodLinks: { paymentMethodId: 'ASC' },
       },
@@ -1077,6 +1101,16 @@ export class RestaurantsService {
           mediaType: media.mediaType,
           sortOrder: media.sortOrder,
           status: media.status,
+        })),
+      socialLinks: (restaurant.socialLinks ?? [])
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.socialLinkId - b.socialLinkId)
+        .map((link) => ({
+          socialLinkId: link.socialLinkId,
+          provider: link.provider,
+          url: link.url,
+          displayLabel: link.displayLabel,
+          sortOrder: link.sortOrder,
+          isActive: link.isActive,
         })),
       createdAt: restaurant.createdAt,
       updatedAt: restaurant.updatedAt,

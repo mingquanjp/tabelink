@@ -5,6 +5,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { MenusModule } from './menus/menus.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
 import { TablesModule } from './tables/tables.module';
 import { VerificationModule } from './verification/verification.module';
 
@@ -27,6 +28,7 @@ import { VerificationModule } from './verification/verification.module';
       }),
     }),
     AuthModule,
+    RestaurantsModule,
     MenusModule,
     TablesModule,
     VerificationModule,

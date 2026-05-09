@@ -187,6 +187,25 @@ export class MenusService {
     };
   }
 
+  async removeImage(restaurantId: number, itemId: number, user: JwtPayload) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+    const item = await this.findOwnedMenuItem(restaurantId, itemId);
+    const hadImage = Boolean(item.imageUrl || item.imagePublicId);
+    const cloudinaryDeleted = await this.deleteCloudinaryImageIfPresent(item);
+
+    item.imageUrl = null;
+    item.imagePublicId = null;
+    await this.menuRepo.save(item);
+
+    return {
+      deleted: hadImage,
+      imageDetached: hadImage,
+      cloudinaryDeleted,
+      itemId,
+      restaurantId,
+    };
+  }
+
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {
     if (user.role !== AuthRole.Owner) {
       throw new ForbiddenException('Only restaurant owners can manage menus.');

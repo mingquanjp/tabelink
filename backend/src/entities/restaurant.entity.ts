@@ -48,10 +48,10 @@ export class Restaurant {
   @Column({ name: 'descriptionjp', type: 'text', nullable: true })
   descriptionJp?: string | null;
 
-  @Column({ name: 'phone', length: 50, nullable: true })
+  @Column({ name: 'phone', type: 'varchar', length: 50, nullable: true })
   phone?: string | null;
 
-  @Column({ name: 'openinghours', length: 255, nullable: true })
+  @Column({ name: 'openinghours', type: 'varchar', length: 255, nullable: true })
   openingHours?: string | null;
 
   @Column({ name: 'issuesvat', default: false })

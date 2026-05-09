@@ -17,6 +17,7 @@ import {
   RestaurantMediaType,
 } from '../entities/restaurant-media.entity';
 import { RestaurantPaymentMethod } from '../entities/restaurant-payment-method.entity';
+import { RestaurantSocialLink } from '../entities/restaurant-social-link.entity';
 import { Restaurant } from '../entities/restaurant.entity';
 import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
@@ -159,20 +160,6 @@ export class RestaurantsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async listOwnerRestaurants(user: JwtPayload) {
-    this.assertOwner(user);
-
-    const restaurants = await this.restaurantRepo.find({
-      where: { ownerAccountId: user.sub },
-      order: { restaurantId: 'ASC' },
-    });
-
-    return {
-      count: restaurants.length,
-      restaurants: restaurants.map((restaurant) => this.toSummaryResponse(restaurant)),
-    };
-  }
-
   async getOptions() {
     const [features, paymentMethods] = await Promise.all([
       this.featureRepo.find({ order: { featureId: 'ASC' } }),
@@ -194,13 +181,14 @@ export class RestaurantsService {
     };
   }
 
-  async findOwnerRestaurant(restaurantId: number, user: JwtPayload) {
-    const restaurant = await this.findOwnedRestaurantWithRelations(restaurantId, user);
+  async findOwnerRestaurant(user: JwtPayload) {
+    const restaurant = await this.findOwnedRestaurantWithRelations(user);
     return this.toDetailResponse(restaurant);
   }
 
-  async getOwnerHome(restaurantId: number, user: JwtPayload) {
-    const restaurant = await this.findOwnedRestaurantWithRelations(restaurantId, user);
+  async getOwnerHome(user: JwtPayload) {
+    const restaurant = await this.findOwnedRestaurantWithRelations(user);
+    const restaurantId = restaurant.restaurantId;
 
     const [menu, promotions, reviews, badges, socialLinks] = await Promise.all([
       this.getOwnerHomeMenu(restaurantId),
@@ -225,12 +213,13 @@ export class RestaurantsService {
     };
   }
 
-  async update(restaurantId: number, dto: UpdateRestaurantDto, user: JwtPayload) {
-    await this.assertOwnerRestaurant(restaurantId, user);
+  async update(dto: UpdateRestaurantDto, user: JwtPayload) {
+    const existing = await this.assertOwnerRestaurant(user);
+    const restaurantId = existing.restaurantId;
 
     const saved = await this.dataSource.transaction(async (manager) => {
       const restaurant = await manager.findOneOrFail(Restaurant, {
-        where: { restaurantId, ownerAccountId: user.sub },
+        where: { restaurantId },
       });
 
       if (dto.nameVn !== undefined) {
@@ -301,15 +290,36 @@ export class RestaurantsService {
         }
       }
 
+      if (dto.socialLinks !== undefined) {
+        await manager.delete(RestaurantSocialLink, { restaurantId });
+
+        if (dto.socialLinks.length) {
+          const links = dto.socialLinks.map((item, index) =>
+            manager.create(RestaurantSocialLink, {
+              restaurantId,
+              provider: item.provider,
+              url: item.url.trim(),
+              displayLabel: item.displayLabel?.trim() ?? null,
+              sortOrder: item.sortOrder ?? index,
+              isActive: item.isActive ?? true,
+            }),
+          );
+
+          await manager.save(RestaurantSocialLink, links);
+        }
+      }
+
       return manager.findOneOrFail(Restaurant, {
         where: { restaurantId },
         relations: {
           media: true,
+          socialLinks: true,
           featureLinks: { feature: true },
           paymentMethodLinks: { paymentMethod: true },
         },
         order: {
           media: { sortOrder: 'ASC', mediaId: 'ASC' },
+          socialLinks: { sortOrder: 'ASC', socialLinkId: 'ASC' },
           featureLinks: { featureId: 'ASC' },
           paymentMethodLinks: { paymentMethodId: 'ASC' },
         },
@@ -439,11 +449,11 @@ export class RestaurantsService {
     }
   }
 
-  private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {
+  private async assertOwnerRestaurant(user: JwtPayload) {
     this.assertOwner(user);
 
     const restaurant = await this.restaurantRepo.findOne({
-      where: { restaurantId, ownerAccountId: user.sub },
+      where: { ownerAccountId: user.sub },
     });
 
     if (!restaurant) {
@@ -453,18 +463,20 @@ export class RestaurantsService {
     return restaurant;
   }
 
-  private async findOwnedRestaurantWithRelations(restaurantId: number, user: JwtPayload) {
+  private async findOwnedRestaurantWithRelations(user: JwtPayload) {
     this.assertOwner(user);
 
     const restaurant = await this.restaurantRepo.findOne({
-      where: { restaurantId, ownerAccountId: user.sub },
+      where: { ownerAccountId: user.sub },
       relations: {
         media: true,
+        socialLinks: true,
         featureLinks: { feature: true },
         paymentMethodLinks: { paymentMethod: true },
       },
       order: {
         media: { sortOrder: 'ASC', mediaId: 'ASC' },
+        socialLinks: { sortOrder: 'ASC', socialLinkId: 'ASC' },
         featureLinks: { featureId: 'ASC' },
         paymentMethodLinks: { paymentMethodId: 'ASC' },
       },
@@ -573,22 +585,52 @@ export class RestaurantsService {
       ),
       this.dataSource.query<OwnerHomeMenuItemRow[]>(
         `
+          WITH RankedItems AS (
+            SELECT
+              mi.ItemID AS "itemId",
+              mi.RestaurantID AS "restaurantId",
+              mi.CategoryID AS "categoryId",
+              mc.CategoryCode AS "categoryCode",
+              mc.CategoryNameVN AS "categoryNameVn",
+              mc.CategoryNameJP AS "categoryNameJp",
+              mc.SortOrder AS "categorySortOrder",
+              mi.NameVN AS "nameVn",
+              mi.NameJP AS "nameJp",
+              mi.Price AS "price",
+              mi.DescriptionVN AS "descriptionVn",
+              mi.DescriptionJP AS "descriptionJp",
+              mi.ImageURL AS "imageUrl",
+              mi.IsRecommendedForJP AS "isRecommendedForJp",
+              mi.IsActive AS "isActive",
+              mi.CreatedAt AS "createdAt",
+              mi.UpdatedAt AS "updatedAt",
+              ROW_NUMBER() OVER(
+                PARTITION BY mi.CategoryID 
+                ORDER BY mi.IsActive DESC, mi.IsRecommendedForJP DESC, mi.UpdatedAt DESC, mi.ItemID ASC
+              ) as rn
+            FROM MENU_ITEM mi
+            LEFT JOIN MENU_CATEGORY mc
+              ON mc.CategoryID = mi.CategoryID
+              AND mc.RestaurantID = mi.RestaurantID
+            WHERE mi.RestaurantID = $1
+              AND mi.DeletedAt IS NULL
+          )
           SELECT
-            mi.ItemID AS "itemId",
-            mi.RestaurantID AS "restaurantId",
-            mi.CategoryID AS "categoryId",
-            mc.CategoryCode AS "categoryCode",
-            mc.CategoryNameVN AS "categoryNameVn",
-            mc.CategoryNameJP AS "categoryNameJp",
-            mc.SortOrder AS "categorySortOrder",
-            mi.NameVN AS "nameVn",
-            mi.NameJP AS "nameJp",
-            mi.Price AS "price",
-            mi.DescriptionVN AS "descriptionVn",
-            mi.DescriptionJP AS "descriptionJp",
-            mi.ImageURL AS "imageUrl",
-            mi.IsRecommendedForJP AS "isRecommendedForJp",
-            mi.IsActive AS "isActive",
+            ri."itemId",
+            ri."restaurantId",
+            ri."categoryId",
+            ri."categoryCode",
+            ri."categoryNameVn",
+            ri."categoryNameJp",
+            ri."categorySortOrder",
+            ri."nameVn",
+            ri."nameJp",
+            ri."price",
+            ri."descriptionVn",
+            ri."descriptionJp",
+            ri."imageUrl",
+            ri."isRecommendedForJp",
+            ri."isActive",
             COALESCE(
               JSON_AGG(
                 JSON_BUILD_OBJECT(
@@ -601,41 +643,34 @@ export class RestaurantsService {
               ) FILTER (WHERE mic.CriterionID IS NOT NULL),
               '[]'::json
             ) AS "criteria",
-            mi.CreatedAt AS "createdAt",
-            mi.UpdatedAt AS "updatedAt"
-          FROM MENU_ITEM mi
-          LEFT JOIN MENU_CATEGORY mc
-            ON mc.CategoryID = mi.CategoryID
-            AND mc.RestaurantID = mi.RestaurantID
+            ri."createdAt",
+            ri."updatedAt"
+          FROM RankedItems ri
           LEFT JOIN MENU_ITEM_CRITERION mic
-            ON mic.ItemID = mi.ItemID
-          WHERE mi.RestaurantID = $1
-            AND mi.DeletedAt IS NULL
+            ON mic.ItemID = ri."itemId"
+          WHERE ri.rn <= 4
           GROUP BY
-            mi.ItemID,
-            mi.RestaurantID,
-            mi.CategoryID,
-            mc.CategoryCode,
-            mc.CategoryNameVN,
-            mc.CategoryNameJP,
-            mc.SortOrder,
-            mi.NameVN,
-            mi.NameJP,
-            mi.Price,
-            mi.DescriptionVN,
-            mi.DescriptionJP,
-            mi.ImageURL,
-            mi.IsRecommendedForJP,
-            mi.IsActive,
-            mi.CreatedAt,
-            mi.UpdatedAt
+            ri."itemId",
+            ri."restaurantId",
+            ri."categoryId",
+            ri."categoryCode",
+            ri."categoryNameVn",
+            ri."categoryNameJp",
+            ri."categorySortOrder",
+            ri."nameVn",
+            ri."nameJp",
+            ri."price",
+            ri."descriptionVn",
+            ri."descriptionJp",
+            ri."imageUrl",
+            ri."isRecommendedForJp",
+            ri."isActive",
+            ri."createdAt",
+            ri."updatedAt",
+            ri.rn
           ORDER BY
-            COALESCE(mc.SortOrder, 9999) ASC,
-            mi.IsActive DESC,
-            mi.IsRecommendedForJP DESC,
-            mi.UpdatedAt DESC,
-            mi.ItemID ASC
-          LIMIT 6
+            COALESCE(ri."categorySortOrder", 9999) ASC,
+            ri.rn ASC
         `,
         [restaurantId],
       ),
@@ -1077,6 +1112,16 @@ export class RestaurantsService {
           mediaType: media.mediaType,
           sortOrder: media.sortOrder,
           status: media.status,
+        })),
+      socialLinks: (restaurant.socialLinks ?? [])
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.socialLinkId - b.socialLinkId)
+        .map((link) => ({
+          socialLinkId: link.socialLinkId,
+          provider: link.provider,
+          url: link.url,
+          displayLabel: link.displayLabel,
+          sortOrder: link.sortOrder,
+          isActive: link.isActive,
         })),
       createdAt: restaurant.createdAt,
       updatedAt: restaurant.updatedAt,

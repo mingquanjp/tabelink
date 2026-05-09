@@ -12,6 +12,7 @@ import { OwnerProfile } from './owner-profile.entity';
 import { RestaurantFeature } from './restaurant-feature.entity';
 import { RestaurantMedia } from './restaurant-media.entity';
 import { RestaurantPaymentMethod } from './restaurant-payment-method.entity';
+import { RestaurantSocialLink } from './restaurant-social-link.entity';
 
 @Entity({ name: 'restaurant' })
 export class Restaurant {
@@ -68,6 +69,9 @@ export class Restaurant {
 
   @OneToMany(() => RestaurantMedia, (media) => media.restaurant)
   media?: RestaurantMedia[];
+
+  @OneToMany(() => RestaurantSocialLink, (link) => link.restaurant)
+  socialLinks?: RestaurantSocialLink[];
 
   @OneToMany(() => RestaurantFeature, (feature) => feature.restaurant)
   featureLinks?: RestaurantFeature[];

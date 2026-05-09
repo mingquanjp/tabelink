@@ -24,4 +24,14 @@ export class UpdateReservationDto {
   @IsOptional()
   @IsString()
   note?: string;
+
+  @ApiPropertyOptional({
+    example: 120,
+    default: 120,
+    description: 'Reservation duration in minutes. Default booking duration is 120 minutes.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  durationMinutes?: number;
 }

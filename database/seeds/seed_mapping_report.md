@@ -67,7 +67,7 @@ The password value is not stored as plain text. The generator stores a bcrypt ha
 | `MENU_ITEM` | 270 | 17/17 | None |
 | `MENU_ITEM_CRITERION` | 540 | 6/6 | None |
 | `RESTAURANT_TABLE` | 90 | 10/10 | None |
-| `RESERVATION` | 800 | 10/10 | None |
+| `RESERVATION` | 800 | 11/11 | None |
 | `RESERVATION_ITEM` | 1,599 | 8/8 | None |
 | `RESERVATION_SPECIAL_REQUEST` | 480 | 4/4 | None |
 | `REVIEW` | 400 | 13/13 | None |
@@ -110,7 +110,8 @@ Notes:
 | Table capacity | All capacities are positive. |
 | Table status | Covers `Empty`, `Using`, `Reserved`. |
 | Reservation status | Covers `Pending`, `Confirmed`, `Arrived`, `Completed`, `Cancelled`. |
-| Active reservation uniqueness | Active table time slots avoid collisions for `Pending`, `Confirmed`, and `Arrived`. |
+| Reservation duration | Every reservation has `DurationMinutes = 120`, so the default booking length is 2 hours. |
+| Active reservation uniqueness | Active table time slots avoid 2-hour overlap for `Pending`, `Confirmed`, and `Arrived` through backend service validation. |
 | Reservation items | All quantities are positive and item/restaurant pairs are valid. |
 | Special requests | Covers template-based and custom-text requests. |
 | Reviews | Ratings and cleanliness scores stay between 1 and 5. |

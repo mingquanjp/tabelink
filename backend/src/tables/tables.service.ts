@@ -253,10 +253,18 @@ export class TablesService {
     await this.assertOwnerRestaurant(restaurantId, user);
     const reservation = await this.findOwnedReservation(restaurantId, reservationId);
     const previousTableId = reservation.tableId ?? null;
+    const nextTableId = dto.tableId ?? reservation.tableId ?? null;
 
     if (dto.tableId !== undefined) {
-      await this.assertTableCanBeAssigned(restaurantId, dto.tableId, reservation);
       reservation.tableId = dto.tableId;
+    }
+
+    if (dto.durationMinutes !== undefined) {
+      reservation.durationMinutes = dto.durationMinutes;
+    }
+
+    if (nextTableId && (dto.tableId !== undefined || dto.durationMinutes !== undefined)) {
+      await this.assertTableCanBeAssigned(restaurantId, nextTableId, reservation);
     }
 
     if (dto.status !== undefined) {
@@ -330,15 +338,11 @@ export class TablesService {
       throw new BadRequestException('Table capacity is smaller than reservation pax.');
     }
 
-    const alreadyBooked = await this.reservationRepo.exist({
-      where: {
-        restaurantId,
-        tableId,
-        reservationDateTime: reservation.reservationDateTime,
-        status: In([...ACTIVE_RESERVATION_STATUSES]),
-        reservationId: Not(reservation.reservationId),
-      },
-    });
+    const alreadyBooked = await this.hasOverlappingActiveReservation(
+      restaurantId,
+      tableId,
+      reservation,
+    );
 
     if (alreadyBooked) {
       throw new ConflictException('Table already has an active reservation for this time.');
@@ -495,11 +499,45 @@ export class TablesService {
       tableId: reservation.tableId ?? null,
       table: reservation.table ? this.toTableResponse(reservation.table) : null,
       reservationDateTime: reservation.reservationDateTime,
+      durationMinutes: reservation.durationMinutes,
+      reservationEndDateTime: this.reservationEndDateTime(reservation),
       pax: reservation.pax,
       note: reservation.note ?? null,
       status: reservation.status,
       createdAt: reservation.createdAt,
       updatedAt: reservation.updatedAt,
     };
+  }
+
+  private async hasOverlappingActiveReservation(
+    restaurantId: number,
+    tableId: number,
+    reservation: Reservation,
+  ) {
+    const start = reservation.reservationDateTime;
+    const durationMinutes = reservation.durationMinutes || 120;
+    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+
+    return this.reservationRepo
+      .createQueryBuilder('reservation')
+      .where('reservation.restaurantid = :restaurantId', { restaurantId })
+      .andWhere('reservation.tableid = :tableId', { tableId })
+      .andWhere('reservation.reservationid <> :reservationId', {
+        reservationId: reservation.reservationId,
+      })
+      .andWhere('reservation.status IN (:...statuses)', {
+        statuses: ACTIVE_RESERVATION_STATUSES,
+      })
+      .andWhere('reservation.reservationdatetime < :end', { end })
+      .andWhere(
+        "reservation.reservationdatetime + (reservation.durationminutes * INTERVAL '1 minute') > :start",
+        { start },
+      )
+      .getExists();
+  }
+
+  private reservationEndDateTime(reservation: Reservation) {
+    const durationMinutes = reservation.durationMinutes || 120;
+    return new Date(reservation.reservationDateTime.getTime() + durationMinutes * 60 * 1000);
   }
 }

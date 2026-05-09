@@ -585,22 +585,52 @@ export class RestaurantsService {
       ),
       this.dataSource.query<OwnerHomeMenuItemRow[]>(
         `
+          WITH RankedItems AS (
+            SELECT
+              mi.ItemID AS "itemId",
+              mi.RestaurantID AS "restaurantId",
+              mi.CategoryID AS "categoryId",
+              mc.CategoryCode AS "categoryCode",
+              mc.CategoryNameVN AS "categoryNameVn",
+              mc.CategoryNameJP AS "categoryNameJp",
+              mc.SortOrder AS "categorySortOrder",
+              mi.NameVN AS "nameVn",
+              mi.NameJP AS "nameJp",
+              mi.Price AS "price",
+              mi.DescriptionVN AS "descriptionVn",
+              mi.DescriptionJP AS "descriptionJp",
+              mi.ImageURL AS "imageUrl",
+              mi.IsRecommendedForJP AS "isRecommendedForJp",
+              mi.IsActive AS "isActive",
+              mi.CreatedAt AS "createdAt",
+              mi.UpdatedAt AS "updatedAt",
+              ROW_NUMBER() OVER(
+                PARTITION BY mi.CategoryID 
+                ORDER BY mi.IsActive DESC, mi.IsRecommendedForJP DESC, mi.UpdatedAt DESC, mi.ItemID ASC
+              ) as rn
+            FROM MENU_ITEM mi
+            LEFT JOIN MENU_CATEGORY mc
+              ON mc.CategoryID = mi.CategoryID
+              AND mc.RestaurantID = mi.RestaurantID
+            WHERE mi.RestaurantID = $1
+              AND mi.DeletedAt IS NULL
+          )
           SELECT
-            mi.ItemID AS "itemId",
-            mi.RestaurantID AS "restaurantId",
-            mi.CategoryID AS "categoryId",
-            mc.CategoryCode AS "categoryCode",
-            mc.CategoryNameVN AS "categoryNameVn",
-            mc.CategoryNameJP AS "categoryNameJp",
-            mc.SortOrder AS "categorySortOrder",
-            mi.NameVN AS "nameVn",
-            mi.NameJP AS "nameJp",
-            mi.Price AS "price",
-            mi.DescriptionVN AS "descriptionVn",
-            mi.DescriptionJP AS "descriptionJp",
-            mi.ImageURL AS "imageUrl",
-            mi.IsRecommendedForJP AS "isRecommendedForJp",
-            mi.IsActive AS "isActive",
+            ri."itemId",
+            ri."restaurantId",
+            ri."categoryId",
+            ri."categoryCode",
+            ri."categoryNameVn",
+            ri."categoryNameJp",
+            ri."categorySortOrder",
+            ri."nameVn",
+            ri."nameJp",
+            ri."price",
+            ri."descriptionVn",
+            ri."descriptionJp",
+            ri."imageUrl",
+            ri."isRecommendedForJp",
+            ri."isActive",
             COALESCE(
               JSON_AGG(
                 JSON_BUILD_OBJECT(
@@ -613,41 +643,34 @@ export class RestaurantsService {
               ) FILTER (WHERE mic.CriterionID IS NOT NULL),
               '[]'::json
             ) AS "criteria",
-            mi.CreatedAt AS "createdAt",
-            mi.UpdatedAt AS "updatedAt"
-          FROM MENU_ITEM mi
-          LEFT JOIN MENU_CATEGORY mc
-            ON mc.CategoryID = mi.CategoryID
-            AND mc.RestaurantID = mi.RestaurantID
+            ri."createdAt",
+            ri."updatedAt"
+          FROM RankedItems ri
           LEFT JOIN MENU_ITEM_CRITERION mic
-            ON mic.ItemID = mi.ItemID
-          WHERE mi.RestaurantID = $1
-            AND mi.DeletedAt IS NULL
+            ON mic.ItemID = ri."itemId"
+          WHERE ri.rn <= 4
           GROUP BY
-            mi.ItemID,
-            mi.RestaurantID,
-            mi.CategoryID,
-            mc.CategoryCode,
-            mc.CategoryNameVN,
-            mc.CategoryNameJP,
-            mc.SortOrder,
-            mi.NameVN,
-            mi.NameJP,
-            mi.Price,
-            mi.DescriptionVN,
-            mi.DescriptionJP,
-            mi.ImageURL,
-            mi.IsRecommendedForJP,
-            mi.IsActive,
-            mi.CreatedAt,
-            mi.UpdatedAt
+            ri."itemId",
+            ri."restaurantId",
+            ri."categoryId",
+            ri."categoryCode",
+            ri."categoryNameVn",
+            ri."categoryNameJp",
+            ri."categorySortOrder",
+            ri."nameVn",
+            ri."nameJp",
+            ri."price",
+            ri."descriptionVn",
+            ri."descriptionJp",
+            ri."imageUrl",
+            ri."isRecommendedForJp",
+            ri."isActive",
+            ri."createdAt",
+            ri."updatedAt",
+            ri.rn
           ORDER BY
-            COALESCE(mc.SortOrder, 9999) ASC,
-            mi.IsActive DESC,
-            mi.IsRecommendedForJP DESC,
-            mi.UpdatedAt DESC,
-            mi.ItemID ASC
-          LIMIT 6
+            COALESCE(ri."categorySortOrder", 9999) ASC,
+            ri.rn ASC
         `,
         [restaurantId],
       ),

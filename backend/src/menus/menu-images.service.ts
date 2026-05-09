@@ -12,7 +12,12 @@ import { Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import { Restaurant } from '../entities/restaurant.entity';
+import { DeleteMenuImageDto } from './dto/delete-menu-image.dto';
 import { UploadedMenuImageFile } from './menu-image-upload.types';
+
+interface CloudinaryDestroyResult {
+  result?: string;
+}
 
 @Injectable()
 export class MenuImagesService {
@@ -33,6 +38,49 @@ export class MenuImagesService {
       throw new BadRequestException('Only JPG, PNG, and WEBP images are allowed.');
     }
 
+    this.configureCloudinary();
+    const result = await this.uploadBuffer(file, restaurantId);
+
+    return {
+      imageUrl: result.secure_url,
+      publicId: result.public_id,
+      width: result.width,
+      height: result.height,
+      bytes: result.bytes,
+      format: result.format,
+      originalName: file.originalname,
+    };
+  }
+
+  async deleteUploaded(restaurantId: number, dto: DeleteMenuImageDto, user: JwtPayload) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+
+    const publicId = dto.publicId.trim();
+    const restaurantMenuFolder = `tabelink/restaurants/${restaurantId}/menus/`;
+
+    if (!publicId.startsWith(restaurantMenuFolder)) {
+      throw new BadRequestException('Image publicId does not belong to this restaurant menu folder.');
+    }
+
+    this.configureCloudinary();
+
+    try {
+      const result = (await cloudinary.uploader.destroy(publicId, {
+        resource_type: 'image',
+      })) as CloudinaryDestroyResult;
+
+      return {
+        deleted: result.result === 'ok' || result.result === 'not found',
+        cloudinaryDeleted: result.result === 'ok',
+        publicId,
+        restaurantId,
+      };
+    } catch {
+      throw new InternalServerErrorException('Failed to delete Cloudinary image.');
+    }
+  }
+
+  private configureCloudinary() {
     const cloudName = this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
     const apiKey = this.configService.get<string>('CLOUDINARY_API_KEY');
     const apiSecret = this.configService.get<string>('CLOUDINARY_API_SECRET');
@@ -47,18 +95,6 @@ export class MenuImagesService {
       api_secret: apiSecret,
       secure: true,
     });
-
-    const result = await this.uploadBuffer(file, restaurantId);
-
-    return {
-      imageUrl: result.secure_url,
-      publicId: result.public_id,
-      width: result.width,
-      height: result.height,
-      bytes: result.bytes,
-      format: result.format,
-      originalName: file.originalname,
-    };
   }
 
   private uploadBuffer(file: UploadedMenuImageFile, restaurantId: number) {

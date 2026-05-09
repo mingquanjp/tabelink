@@ -4,10 +4,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { OwnerProfile } from './owner-profile.entity';
+import { RestaurantFeature } from './restaurant-feature.entity';
+import { RestaurantMedia } from './restaurant-media.entity';
+import { RestaurantPaymentMethod } from './restaurant-payment-method.entity';
 
 @Entity({ name: 'restaurant' })
 export class Restaurant {
@@ -32,11 +36,23 @@ export class Restaurant {
   @Column({ name: 'address', type: 'text' })
   address!: string;
 
-  @Column({ name: 'phone', length: 50, nullable: true })
-  phone?: string;
+  @Column({ name: 'latitude', type: 'decimal', precision: 10, scale: 8, nullable: true })
+  latitude?: string | null;
 
-  @Column({ name: 'openinghours', length: 255, nullable: true })
-  openingHours?: string;
+  @Column({ name: 'longitude', type: 'decimal', precision: 11, scale: 8, nullable: true })
+  longitude?: string | null;
+
+  @Column({ name: 'descriptionvn', type: 'text', nullable: true })
+  descriptionVn?: string | null;
+
+  @Column({ name: 'descriptionjp', type: 'text', nullable: true })
+  descriptionJp?: string | null;
+
+  @Column({ name: 'phone', type: 'varchar', length: 50, nullable: true })
+  phone?: string | null;
+
+  @Column({ name: 'openinghours', type: 'varchar', length: 255, nullable: true })
+  openingHours?: string | null;
 
   @Column({ name: 'issuesvat', default: false })
   issuesVat!: boolean;
@@ -49,4 +65,13 @@ export class Restaurant {
 
   @UpdateDateColumn({ name: 'updatedat', type: 'timestamptz' })
   updatedAt!: Date;
+
+  @OneToMany(() => RestaurantMedia, (media) => media.restaurant)
+  media?: RestaurantMedia[];
+
+  @OneToMany(() => RestaurantFeature, (feature) => feature.restaurant)
+  featureLinks?: RestaurantFeature[];
+
+  @OneToMany(() => RestaurantPaymentMethod, (method) => method.restaurant)
+  paymentMethodLinks?: RestaurantPaymentMethod[];
 }

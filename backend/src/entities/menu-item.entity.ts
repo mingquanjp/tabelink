@@ -25,6 +25,9 @@ export class MenuItem {
   @JoinColumn({ name: 'restaurantid' })
   restaurant!: Restaurant;
 
+  @Column({ name: 'categoryid', type: 'int', nullable: true })
+  categoryId?: number | null;
+
   @Column({ name: 'namevn', length: 255 })
   nameVn!: string;
 

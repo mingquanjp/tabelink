@@ -14,10 +14,138 @@ import { RestaurantFeature } from '../entities/restaurant-feature.entity';
 import {
   RestaurantMedia,
   RestaurantMediaStatus,
+  RestaurantMediaType,
 } from '../entities/restaurant-media.entity';
 import { RestaurantPaymentMethod } from '../entities/restaurant-payment-method.entity';
 import { Restaurant } from '../entities/restaurant.entity';
+import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
+
+interface OwnerHomeMenuSummaryRow {
+  totalCount: number | string;
+  activeCount: number | string;
+  recommendedForJpCount: number | string;
+}
+
+interface OwnerHomeMenuCategoryRow {
+  categoryId: number | string;
+  restaurantId: number | string;
+  categoryCode: string;
+  categoryNameVn: string;
+  categoryNameJp: string;
+  sortOrder: number | string;
+  itemCount: number | string;
+}
+
+interface OwnerHomeMenuItemRow {
+  itemId: number | string;
+  restaurantId: number | string;
+  categoryId: number | string | null;
+  categoryCode: string | null;
+  categoryNameVn: string | null;
+  categoryNameJp: string | null;
+  categorySortOrder: number | string | null;
+  nameVn: string;
+  nameJp: string;
+  price: number | string;
+  descriptionVn: string | null;
+  descriptionJp: string | null;
+  imageUrl: string | null;
+  isRecommendedForJp: boolean;
+  isActive: boolean;
+  criteria: Array<{
+    criterionId: number | string;
+    criterionName: string;
+    ratingLevel: number | string;
+    sortOrder: number | string;
+  }> | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
+
+interface OwnerHomePromotionRow {
+  promotionId: number | string;
+  restaurantId: number | string;
+  promotionType: string;
+  targetAudience: string | null;
+  titleVn: string;
+  titleJp: string;
+  contentVn: string | null;
+  contentJp: string | null;
+  mediaUrl: string | null;
+  termsVn: string | null;
+  termsJp: string | null;
+  startDate: Date | string;
+  endDate: Date | string;
+  status: string;
+  impressions: number | string;
+  clicks: number | string;
+  totalCost: number | string;
+}
+
+interface OwnerHomeReviewSummaryRow {
+  visibleCount: number | string;
+  averageRating: number | string | null;
+  japaneseReviewCount: number | string;
+  positiveCount: number | string;
+  neutralCount: number | string;
+  negativeCount: number | string;
+}
+
+interface OwnerHomeReviewRow {
+  reviewId: number | string;
+  restaurantId: number | string;
+  customerAccountId: number | string;
+  customerName: string | null;
+  customerAvatarUrl: string | null;
+  rating: number | string;
+  toiletCleanliness: number | string | null;
+  dishCleanliness: number | string | null;
+  spaceCleanliness: number | string | null;
+  content: string | null;
+  sentiment: string | null;
+  isJapaneseTag: boolean;
+  createdAt: Date | string;
+  mediaUrls: string[] | null;
+  tags: string[] | null;
+}
+
+interface OwnerHomeBadgeRow {
+  badgeId: number | string;
+  badgeCode: string;
+  badgeNameVn: string;
+  badgeNameJp: string;
+  descriptionVn: string | null;
+  descriptionJp: string | null;
+  grantedAt: Date | string;
+  expiresAt: Date | string | null;
+}
+
+interface OwnerHomeSocialLinkRow {
+  socialLinkId: number | string;
+  restaurantId: number | string;
+  provider: string;
+  url: string;
+  displayLabel: string | null;
+  sortOrder: number | string;
+}
+
+interface CreatedReviewRow {
+  reviewId: number | string;
+  customerAccountId: number | string;
+  restaurantId: number | string;
+  reservationId: number | string | null;
+  rating: number | string;
+  toiletCleanliness: number | string | null;
+  dishCleanliness: number | string | null;
+  spaceCleanliness: number | string | null;
+  content: string | null;
+  sentiment: string | null;
+  isJapaneseTag: boolean;
+  status: string;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+}
 
 @Injectable()
 export class RestaurantsService {
@@ -69,6 +197,32 @@ export class RestaurantsService {
   async findOwnerRestaurant(restaurantId: number, user: JwtPayload) {
     const restaurant = await this.findOwnedRestaurantWithRelations(restaurantId, user);
     return this.toDetailResponse(restaurant);
+  }
+
+  async getOwnerHome(restaurantId: number, user: JwtPayload) {
+    const restaurant = await this.findOwnedRestaurantWithRelations(restaurantId, user);
+
+    const [menu, promotions, reviews, badges, socialLinks] = await Promise.all([
+      this.getOwnerHomeMenu(restaurantId),
+      this.getOwnerHomePromotions(restaurantId),
+      this.getOwnerHomeReviews(restaurantId),
+      this.getOwnerHomeBadges(restaurantId),
+      this.getOwnerHomeSocialLinks(restaurantId),
+    ]);
+
+    return {
+      restaurantId,
+      restaurant: this.toHomeRestaurantResponse(restaurant, socialLinks.items),
+      menu,
+      promotions,
+      reviews,
+      badges,
+      reviewSubmission: {
+        enabled: true,
+        method: 'POST',
+        endpoint: `/restaurants/${restaurantId}/reviews`,
+      },
+    };
   }
 
   async update(restaurantId: number, dto: UpdateRestaurantDto, user: JwtPayload) {
@@ -165,6 +319,120 @@ export class RestaurantsService {
     return this.toDetailResponse(saved);
   }
 
+  async createReview(
+    restaurantId: number,
+    dto: CreateRestaurantReviewDto,
+    user: JwtPayload,
+  ) {
+    if (user.role !== AuthRole.User) {
+      throw new ForbiddenException('Only customer users can submit restaurant reviews.');
+    }
+
+    const content = this.optionalTrim(dto.content) ?? null;
+    const sentiment =
+      dto.rating >= 4 ? 'Positive' : dto.rating === 3 ? 'Neutral' : 'Negative';
+
+    const rows = await this.dataSource.query<CreatedReviewRow[]>(
+      `
+        INSERT INTO REVIEW (
+          CustomerAccountID,
+          RestaurantID,
+          ReservationID,
+          Rating,
+          ToiletCleanliness,
+          DishCleanliness,
+          SpaceCleanliness,
+          Content,
+          Sentiment,
+          IsJapaneseTag,
+          Status
+        )
+        SELECT
+          $1,
+          r.RestaurantID,
+          $3,
+          $4,
+          $5,
+          $6,
+          $7,
+          $8,
+          $9,
+          $10,
+          'Visible'
+        FROM RESTAURANT r
+        INNER JOIN CUSTOMER_PROFILE cp
+          ON cp.AccountID = $1
+        WHERE r.RestaurantID = $2
+          AND (
+            $3::int IS NULL
+            OR EXISTS (
+              SELECT 1
+              FROM RESERVATION rv
+              WHERE rv.ReservationID = $3
+                AND rv.RestaurantID = r.RestaurantID
+                AND rv.CustomerAccountID = $1
+                AND rv.Status = 'Completed'
+            )
+          )
+        RETURNING
+          ReviewID AS "reviewId",
+          CustomerAccountID AS "customerAccountId",
+          RestaurantID AS "restaurantId",
+          ReservationID AS "reservationId",
+          Rating AS "rating",
+          ToiletCleanliness AS "toiletCleanliness",
+          DishCleanliness AS "dishCleanliness",
+          SpaceCleanliness AS "spaceCleanliness",
+          Content AS "content",
+          Sentiment AS "sentiment",
+          IsJapaneseTag AS "isJapaneseTag",
+          Status AS "status",
+          CreatedAt AS "createdAt",
+          UpdatedAt AS "updatedAt"
+      `,
+      [
+        user.sub,
+        restaurantId,
+        dto.reservationId ?? null,
+        dto.rating,
+        dto.toiletCleanliness ?? null,
+        dto.dishCleanliness ?? null,
+        dto.spaceCleanliness ?? null,
+        content,
+        sentiment,
+        dto.isJapaneseTag ?? false,
+      ],
+    );
+
+    const row = rows[0];
+
+    if (!row) {
+      throw new NotFoundException(
+        'Restaurant, customer profile, or completed reservation was not found.',
+      );
+    }
+
+    return {
+      reviewId: Number(row.reviewId),
+      customerAccountId: Number(row.customerAccountId),
+      restaurantId: Number(row.restaurantId),
+      reservationId: row.reservationId === null ? null : Number(row.reservationId),
+      rating: Number(row.rating),
+      toiletCleanliness:
+        row.toiletCleanliness === null ? null : Number(row.toiletCleanliness),
+      dishCleanliness:
+        row.dishCleanliness === null ? null : Number(row.dishCleanliness),
+      spaceCleanliness:
+        row.spaceCleanliness === null ? null : Number(row.spaceCleanliness),
+      content: row.content,
+      sentiment: row.sentiment,
+      isJapaneseTag: row.isJapaneseTag,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
   private assertOwner(user: JwtPayload) {
     if (user.role !== AuthRole.Owner) {
       throw new ForbiddenException('Only restaurant owners can manage restaurant information.');
@@ -257,6 +525,474 @@ export class RestaurantsService {
     );
   }
 
+  private async getOwnerHomeMenu(restaurantId: number) {
+    const [summaryRows, categories, items] = await Promise.all([
+      this.dataSource.query<OwnerHomeMenuSummaryRow[]>(
+        `
+          SELECT
+            COUNT(*)::int AS "totalCount",
+            COUNT(*) FILTER (WHERE IsActive = TRUE)::int AS "activeCount",
+            COUNT(*) FILTER (
+              WHERE IsActive = TRUE
+                AND IsRecommendedForJP = TRUE
+            )::int AS "recommendedForJpCount"
+          FROM MENU_ITEM
+          WHERE RestaurantID = $1
+            AND DeletedAt IS NULL
+        `,
+        [restaurantId],
+      ),
+      this.dataSource.query<OwnerHomeMenuCategoryRow[]>(
+        `
+          SELECT
+            mc.CategoryID AS "categoryId",
+            mc.RestaurantID AS "restaurantId",
+            mc.CategoryCode AS "categoryCode",
+            mc.CategoryNameVN AS "categoryNameVn",
+            mc.CategoryNameJP AS "categoryNameJp",
+            mc.SortOrder AS "sortOrder",
+            COUNT(mi.ItemID) FILTER (
+              WHERE mi.DeletedAt IS NULL
+            )::int AS "itemCount"
+          FROM MENU_CATEGORY mc
+          LEFT JOIN MENU_ITEM mi
+            ON mi.CategoryID = mc.CategoryID
+            AND mi.RestaurantID = mc.RestaurantID
+          WHERE mc.RestaurantID = $1
+            AND mc.IsActive = TRUE
+          GROUP BY
+            mc.CategoryID,
+            mc.RestaurantID,
+            mc.CategoryCode,
+            mc.CategoryNameVN,
+            mc.CategoryNameJP,
+            mc.SortOrder
+          ORDER BY mc.SortOrder ASC, mc.CategoryID ASC
+        `,
+        [restaurantId],
+      ),
+      this.dataSource.query<OwnerHomeMenuItemRow[]>(
+        `
+          SELECT
+            mi.ItemID AS "itemId",
+            mi.RestaurantID AS "restaurantId",
+            mi.CategoryID AS "categoryId",
+            mc.CategoryCode AS "categoryCode",
+            mc.CategoryNameVN AS "categoryNameVn",
+            mc.CategoryNameJP AS "categoryNameJp",
+            mc.SortOrder AS "categorySortOrder",
+            mi.NameVN AS "nameVn",
+            mi.NameJP AS "nameJp",
+            mi.Price AS "price",
+            mi.DescriptionVN AS "descriptionVn",
+            mi.DescriptionJP AS "descriptionJp",
+            mi.ImageURL AS "imageUrl",
+            mi.IsRecommendedForJP AS "isRecommendedForJp",
+            mi.IsActive AS "isActive",
+            COALESCE(
+              JSON_AGG(
+                JSON_BUILD_OBJECT(
+                  'criterionId', mic.CriterionID,
+                  'criterionName', mic.CriterionName,
+                  'ratingLevel', mic.RatingLevel,
+                  'sortOrder', mic.SortOrder
+                )
+                ORDER BY mic.SortOrder, mic.CriterionID
+              ) FILTER (WHERE mic.CriterionID IS NOT NULL),
+              '[]'::json
+            ) AS "criteria",
+            mi.CreatedAt AS "createdAt",
+            mi.UpdatedAt AS "updatedAt"
+          FROM MENU_ITEM mi
+          LEFT JOIN MENU_CATEGORY mc
+            ON mc.CategoryID = mi.CategoryID
+            AND mc.RestaurantID = mi.RestaurantID
+          LEFT JOIN MENU_ITEM_CRITERION mic
+            ON mic.ItemID = mi.ItemID
+          WHERE mi.RestaurantID = $1
+            AND mi.DeletedAt IS NULL
+          GROUP BY
+            mi.ItemID,
+            mi.RestaurantID,
+            mi.CategoryID,
+            mc.CategoryCode,
+            mc.CategoryNameVN,
+            mc.CategoryNameJP,
+            mc.SortOrder,
+            mi.NameVN,
+            mi.NameJP,
+            mi.Price,
+            mi.DescriptionVN,
+            mi.DescriptionJP,
+            mi.ImageURL,
+            mi.IsRecommendedForJP,
+            mi.IsActive,
+            mi.CreatedAt,
+            mi.UpdatedAt
+          ORDER BY
+            COALESCE(mc.SortOrder, 9999) ASC,
+            mi.IsActive DESC,
+            mi.IsRecommendedForJP DESC,
+            mi.UpdatedAt DESC,
+            mi.ItemID ASC
+          LIMIT 6
+        `,
+        [restaurantId],
+      ),
+    ]);
+
+    const summary = summaryRows[0] ?? {
+      totalCount: 0,
+      activeCount: 0,
+      recommendedForJpCount: 0,
+    };
+
+    return {
+      count: Number(summary.totalCount),
+      activeCount: Number(summary.activeCount),
+      recommendedForJpCount: Number(summary.recommendedForJpCount),
+      categories: categories.map((category) => ({
+        categoryId: Number(category.categoryId),
+        restaurantId: Number(category.restaurantId),
+        categoryCode: category.categoryCode,
+        categoryNameVn: category.categoryNameVn,
+        categoryNameJp: category.categoryNameJp,
+        sortOrder: Number(category.sortOrder),
+        itemCount: Number(category.itemCount),
+      })),
+      items: items.map((item) => ({
+        itemId: Number(item.itemId),
+        restaurantId: Number(item.restaurantId),
+        categoryId: item.categoryId === null ? null : Number(item.categoryId),
+        category: item.categoryId === null
+          ? null
+          : {
+              categoryId: Number(item.categoryId),
+              categoryCode: item.categoryCode,
+              categoryNameVn: item.categoryNameVn,
+              categoryNameJp: item.categoryNameJp,
+            },
+        nameVn: item.nameVn,
+        nameJp: item.nameJp,
+        price: Number(item.price),
+        descriptionVn: item.descriptionVn,
+        descriptionJp: item.descriptionJp,
+        imageUrl: item.imageUrl,
+        isRecommendedForJp: item.isRecommendedForJp,
+        isActive: item.isActive,
+        criteria: (item.criteria ?? []).map((criterion) => ({
+          criterionId: Number(criterion.criterionId),
+          criterionName: criterion.criterionName,
+          ratingLevel: Number(criterion.ratingLevel),
+          sortOrder: Number(criterion.sortOrder),
+        })),
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+      })),
+      filters: {
+        categories: categories.map((category) => ({
+          value: category.categoryCode,
+          label: category.categoryNameJp,
+          categoryId: Number(category.categoryId),
+        })),
+      },
+    };
+  }
+
+  private async getOwnerHomePromotions(restaurantId: number) {
+    const rows = await this.dataSource.query<OwnerHomePromotionRow[]>(
+      `
+        SELECT
+          PromotionID AS "promotionId",
+          RestaurantID AS "restaurantId",
+          PromotionType AS "promotionType",
+          TargetAudience AS "targetAudience",
+          TitleVN AS "titleVn",
+          TitleJP AS "titleJp",
+          ContentVN AS "contentVn",
+          ContentJP AS "contentJp",
+          MediaURL AS "mediaUrl",
+          TermsVN AS "termsVn",
+          TermsJP AS "termsJp",
+          StartDate AS "startDate",
+          EndDate AS "endDate",
+          Status AS "status",
+          Impressions AS "impressions",
+          Clicks AS "clicks",
+          TotalCost AS "totalCost"
+        FROM PROMOTION
+        WHERE RestaurantID = $1
+          AND PromotionType = 'Campaign'
+        ORDER BY
+          CASE
+            WHEN Status = 'Active'
+              AND StartDate <= CURRENT_TIMESTAMP
+              AND EndDate >= CURRENT_TIMESTAMP
+            THEN 0
+            WHEN Status = 'Pending' THEN 1
+            WHEN StartDate > CURRENT_TIMESTAMP THEN 2
+            ELSE 3
+          END,
+          StartDate DESC,
+          PromotionID DESC
+        LIMIT 5
+      `,
+      [restaurantId],
+    );
+
+    return {
+      count: rows.length,
+      items: rows.map((row) => ({
+        promotionId: Number(row.promotionId),
+        restaurantId: Number(row.restaurantId),
+        promotionType: row.promotionType,
+        targetAudience: row.targetAudience,
+        titleVn: row.titleVn,
+        titleJp: row.titleJp,
+        contentVn: row.contentVn,
+        contentJp: row.contentJp,
+        mediaUrl: row.mediaUrl,
+        termsVn: row.termsVn,
+        termsJp: row.termsJp,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        status: row.status,
+        impressions: Number(row.impressions),
+        clicks: Number(row.clicks),
+        totalCost: Number(row.totalCost),
+        ctr: Number(row.impressions) > 0
+          ? Number((Number(row.clicks) / Number(row.impressions)).toFixed(4))
+          : 0,
+      })),
+    };
+  }
+
+  private async getOwnerHomeReviews(restaurantId: number) {
+    const [summaryRows, rows] = await Promise.all([
+      this.dataSource.query<OwnerHomeReviewSummaryRow[]>(
+        `
+          SELECT
+            COUNT(*)::int AS "visibleCount",
+            AVG(Rating)::numeric(10, 2) AS "averageRating",
+            COUNT(*) FILTER (WHERE IsJapaneseTag = TRUE)::int AS "japaneseReviewCount",
+            COUNT(*) FILTER (
+              WHERE COALESCE(
+                Sentiment,
+                CASE
+                  WHEN Rating >= 4 THEN 'Positive'
+                  WHEN Rating = 3 THEN 'Neutral'
+                  ELSE 'Negative'
+                END
+              ) = 'Positive'
+            )::int AS "positiveCount",
+            COUNT(*) FILTER (
+              WHERE COALESCE(
+                Sentiment,
+                CASE
+                  WHEN Rating >= 4 THEN 'Positive'
+                  WHEN Rating = 3 THEN 'Neutral'
+                  ELSE 'Negative'
+                END
+              ) = 'Neutral'
+            )::int AS "neutralCount",
+            COUNT(*) FILTER (
+              WHERE COALESCE(
+                Sentiment,
+                CASE
+                  WHEN Rating >= 4 THEN 'Positive'
+                  WHEN Rating = 3 THEN 'Neutral'
+                  ELSE 'Negative'
+                END
+              ) = 'Negative'
+            )::int AS "negativeCount"
+          FROM REVIEW
+          WHERE RestaurantID = $1
+            AND Status = 'Visible'
+        `,
+        [restaurantId],
+      ),
+      this.dataSource.query<OwnerHomeReviewRow[]>(
+        `
+          SELECT
+            r.ReviewID AS "reviewId",
+            r.RestaurantID AS "restaurantId",
+            r.CustomerAccountID AS "customerAccountId",
+            COALESCE(cp.DisplayName, cp.FullName) AS "customerName",
+            cp.AvatarURL AS "customerAvatarUrl",
+            r.Rating AS "rating",
+            r.ToiletCleanliness AS "toiletCleanliness",
+            r.DishCleanliness AS "dishCleanliness",
+            r.SpaceCleanliness AS "spaceCleanliness",
+            r.Content AS "content",
+            r.Sentiment AS "sentiment",
+            r.IsJapaneseTag AS "isJapaneseTag",
+            r.CreatedAt AS "createdAt",
+            COALESCE(
+              ARRAY_AGG(rm.MediaURL ORDER BY rm.SortOrder, rm.MediaID)
+                FILTER (WHERE rm.MediaID IS NOT NULL),
+              ARRAY[]::text[]
+            ) AS "mediaUrls",
+            COALESCE(
+              ARRAY_AGG(DISTINCT h.Name)
+                FILTER (WHERE h.TagID IS NOT NULL),
+              ARRAY[]::text[]
+            ) AS "tags"
+          FROM REVIEW r
+          INNER JOIN CUSTOMER_PROFILE cp
+            ON cp.AccountID = r.CustomerAccountID
+          LEFT JOIN REVIEW_MEDIA rm
+            ON rm.ReviewID = r.ReviewID
+          LEFT JOIN REVIEW_TAG rt
+            ON rt.ReviewID = r.ReviewID
+          LEFT JOIN HASHTAG h
+            ON h.TagID = rt.TagID
+          WHERE r.RestaurantID = $1
+            AND r.Status = 'Visible'
+          GROUP BY
+            r.ReviewID,
+            r.RestaurantID,
+            r.CustomerAccountID,
+            cp.DisplayName,
+            cp.FullName,
+            cp.AvatarURL,
+            r.Rating,
+            r.ToiletCleanliness,
+            r.DishCleanliness,
+            r.SpaceCleanliness,
+            r.Content,
+            r.Sentiment,
+            r.IsJapaneseTag,
+            r.CreatedAt
+          ORDER BY r.CreatedAt DESC, r.ReviewID DESC
+          LIMIT 5
+        `,
+        [restaurantId],
+      ),
+    ]);
+
+    const summary = summaryRows[0] ?? {
+      visibleCount: 0,
+      averageRating: null,
+      japaneseReviewCount: 0,
+      positiveCount: 0,
+      neutralCount: 0,
+      negativeCount: 0,
+    };
+
+    return {
+      summary: {
+        visibleCount: Number(summary.visibleCount),
+        averageRating:
+          summary.averageRating === null
+            ? null
+            : Number(Number(summary.averageRating).toFixed(1)),
+        japaneseReviewCount: Number(summary.japaneseReviewCount),
+        sentiment: {
+          positiveCount: Number(summary.positiveCount),
+          neutralCount: Number(summary.neutralCount),
+          negativeCount: Number(summary.negativeCount),
+        },
+      },
+      items: rows.map((row) => ({
+        reviewId: Number(row.reviewId),
+        restaurantId: Number(row.restaurantId),
+        customerAccountId: Number(row.customerAccountId),
+        customerName: row.customerName,
+        customerAvatarUrl: row.customerAvatarUrl,
+        rating: Number(row.rating),
+        toiletCleanliness:
+          row.toiletCleanliness === null ? null : Number(row.toiletCleanliness),
+        dishCleanliness:
+          row.dishCleanliness === null ? null : Number(row.dishCleanliness),
+        spaceCleanliness:
+          row.spaceCleanliness === null ? null : Number(row.spaceCleanliness),
+        content: row.content,
+        sentiment: row.sentiment,
+        isJapaneseTag: row.isJapaneseTag,
+        mediaUrls: row.mediaUrls ?? [],
+        tags: row.tags ?? [],
+        createdAt: row.createdAt,
+      })),
+      filters: {
+        audience: [
+          { value: 'all', label: 'すべて' },
+          { value: 'japanese', label: '在住日本人' },
+          { value: 'vietnamese', label: 'ベトナム人' },
+        ],
+        ratings: [5, 4, 3, 2, 1],
+      },
+    };
+  }
+
+  private async getOwnerHomeBadges(restaurantId: number) {
+    const rows = await this.dataSource.query<OwnerHomeBadgeRow[]>(
+      `
+        SELECT
+          bm.BadgeID AS "badgeId",
+          bm.BadgeCode AS "badgeCode",
+          bm.BadgeNameVN AS "badgeNameVn",
+          bm.BadgeNameJP AS "badgeNameJp",
+          bm.DescriptionVN AS "descriptionVn",
+          bm.DescriptionJP AS "descriptionJp",
+          rb.GrantedAt AS "grantedAt",
+          rb.ExpiresAt AS "expiresAt"
+        FROM RESTAURANT_BADGE rb
+        INNER JOIN BADGE_MASTER bm
+          ON bm.BadgeID = rb.BadgeID
+        WHERE rb.RestaurantID = $1
+          AND (rb.ExpiresAt IS NULL OR rb.ExpiresAt > CURRENT_TIMESTAMP)
+        ORDER BY rb.GrantedAt DESC, bm.BadgeID ASC
+      `,
+      [restaurantId],
+    );
+
+    return {
+      count: rows.length,
+      isVerified: rows.some((row) => row.badgeCode === 'VERIFIED'),
+      items: rows.map((row) => ({
+        badgeId: Number(row.badgeId),
+        badgeCode: row.badgeCode,
+        badgeNameVn: row.badgeNameVn,
+        badgeNameJp: row.badgeNameJp,
+        descriptionVn: row.descriptionVn,
+        descriptionJp: row.descriptionJp,
+        grantedAt: row.grantedAt,
+        expiresAt: row.expiresAt,
+      })),
+    };
+  }
+
+  private async getOwnerHomeSocialLinks(restaurantId: number) {
+    const rows = await this.dataSource.query<OwnerHomeSocialLinkRow[]>(
+      `
+        SELECT
+          SocialLinkID AS "socialLinkId",
+          RestaurantID AS "restaurantId",
+          Provider AS "provider",
+          URL AS "url",
+          DisplayLabel AS "displayLabel",
+          SortOrder AS "sortOrder"
+        FROM RESTAURANT_SOCIAL_LINK
+        WHERE RestaurantID = $1
+          AND IsActive = TRUE
+        ORDER BY SortOrder ASC, SocialLinkID ASC
+      `,
+      [restaurantId],
+    );
+
+    return {
+      count: rows.length,
+      items: rows.map((row) => ({
+        socialLinkId: Number(row.socialLinkId),
+        restaurantId: Number(row.restaurantId),
+        provider: row.provider,
+        url: row.url,
+        displayLabel: row.displayLabel,
+        sortOrder: Number(row.sortOrder),
+      })),
+    };
+  }
+
   private async assertIdsExist<Entity extends object>(
     repository: Repository<Entity>,
     ids: number[],
@@ -341,6 +1077,79 @@ export class RestaurantsService {
           mediaType: media.mediaType,
           sortOrder: media.sortOrder,
           status: media.status,
+        })),
+      createdAt: restaurant.createdAt,
+      updatedAt: restaurant.updatedAt,
+    };
+  }
+
+  private toHomeRestaurantResponse(
+    restaurant: Restaurant,
+    socialLinks: Array<{
+      socialLinkId: number;
+      restaurantId: number;
+      provider: string;
+      url: string;
+      displayLabel: string | null;
+      sortOrder: number;
+    }>,
+  ) {
+    const media = (restaurant.media ?? []).sort(
+      (a, b) => a.sortOrder - b.sortOrder || a.mediaId - b.mediaId,
+    );
+    const cover =
+      media.find((item) => item.mediaType === RestaurantMediaType.Cover) ??
+      media[0];
+
+    return {
+      restaurantId: restaurant.restaurantId,
+      ownerAccountId: restaurant.ownerAccountId,
+      nameVn: restaurant.nameVn,
+      nameJp: restaurant.nameJp,
+      address: restaurant.address,
+      latitude: restaurant.latitude === null || restaurant.latitude === undefined ? null : Number(restaurant.latitude),
+      longitude: restaurant.longitude === null || restaurant.longitude === undefined ? null : Number(restaurant.longitude),
+      descriptionVn: restaurant.descriptionVn ?? null,
+      descriptionJp: restaurant.descriptionJp ?? null,
+      phone: restaurant.phone ?? null,
+      openingHours: restaurant.openingHours ?? null,
+      issuesVat: restaurant.issuesVat,
+      status: restaurant.status,
+      socialLinks,
+      sns: {
+        facebook: socialLinks.find((link) => link.provider === 'Facebook')?.url ?? null,
+        instagram: socialLinks.find((link) => link.provider === 'Instagram')?.url ?? null,
+      },
+      map: {
+        latitude: restaurant.latitude === null || restaurant.latitude === undefined ? null : Number(restaurant.latitude),
+        longitude: restaurant.longitude === null || restaurant.longitude === undefined ? null : Number(restaurant.longitude),
+        embedUrl:
+          restaurant.latitude && restaurant.longitude
+            ? `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`
+            : null,
+      },
+      coverImageUrl: cover?.mediaUrl ?? null,
+      media: media.map((item) => ({
+        mediaId: item.mediaId,
+        mediaUrl: item.mediaUrl,
+        mediaType: item.mediaType,
+        sortOrder: item.sortOrder,
+        status: item.status,
+      })),
+      features: (restaurant.featureLinks ?? [])
+        .sort((a, b) => a.featureId - b.featureId)
+        .map((link) => ({
+          featureId: link.featureId,
+          featureCode: link.feature?.featureCode,
+          featureNameVn: link.feature?.featureNameVn,
+          featureNameJp: link.feature?.featureNameJp,
+        })),
+      paymentMethods: (restaurant.paymentMethodLinks ?? [])
+        .sort((a, b) => a.paymentMethodId - b.paymentMethodId)
+        .map((link) => ({
+          paymentMethodId: link.paymentMethodId,
+          methodCode: link.paymentMethod?.methodCode,
+          methodName: link.paymentMethod?.methodName,
         })),
       createdAt: restaurant.createdAt,
       updatedAt: restaurant.updatedAt,

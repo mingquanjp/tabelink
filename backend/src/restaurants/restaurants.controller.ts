@@ -65,6 +65,52 @@ export class RestaurantsController {
     return this.restaurantsService.findOwnerRestaurant(restaurantId, request.user);
   }
 
+  @Get('restaurants/:restaurantId/home')
+  @ApiOperation({
+    summary: 'Get owner home screen data',
+    description:
+      'Returns restaurant profile, menu preview, active/recent campaigns, and latest reviews for Backend Feature ID 6 / screen ID5 owner home.',
+  })
+  @ApiOkResponse({
+    description: 'Owner home screen aggregate data.',
+    schema: {
+      example: {
+        restaurantId: 1,
+        restaurant: {
+          restaurantId: 1,
+          nameVn: 'Bun Cha Sakura',
+          nameJp: 'ブンチャーさくら',
+          address: '24 Hang Manh, Hoan Kiem, Hanoi',
+          coverImageUrl: 'https://example.com/cover.jpg',
+        },
+        menu: {
+          count: 12,
+          activeCount: 10,
+          recommendedForJpCount: 4,
+          items: [],
+        },
+        promotions: {
+          count: 2,
+          items: [],
+        },
+        reviews: {
+          summary: {
+            visibleCount: 8,
+            averageRating: 4.5,
+          },
+          items: [],
+        },
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  getHome(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.restaurantsService.getOwnerHome(restaurantId, request.user);
+  }
+
   @Patch('restaurants/:restaurantId')
   @ApiOperation({
     summary: 'Update owner restaurant information and services',

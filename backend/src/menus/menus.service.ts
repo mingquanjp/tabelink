@@ -7,10 +7,11 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { v2 as cloudinary } from 'cloudinary';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import { MenuItemCriterion } from '../entities/menu-item-criterion.entity';
+import { MenuCategory } from '../entities/menu-category.entity';
 import { MenuItem } from '../entities/menu-item.entity';
 import { Restaurant } from '../entities/restaurant.entity';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
@@ -64,8 +65,11 @@ export class MenusService {
     await this.assertOwnerRestaurant(restaurantId, user);
 
     const saved = await this.dataSource.transaction(async (manager) => {
+      await this.assertCategoryBelongsToRestaurant(manager, restaurantId, dto.categoryId);
+
       const item = manager.create(MenuItem, {
         restaurantId,
+        categoryId: dto.categoryId ?? null,
         nameVn: dto.nameVn.trim(),
         nameJp: dto.nameJp.trim(),
         price: dto.price.toFixed(2),
@@ -106,8 +110,14 @@ export class MenusService {
     const item = await this.findOwnedMenuItem(restaurantId, itemId);
 
     const saved = await this.dataSource.transaction(async (manager) => {
+      await this.assertCategoryBelongsToRestaurant(manager, restaurantId, dto.categoryId);
+
       if (dto.nameVn !== undefined) {
         item.nameVn = dto.nameVn.trim();
+      }
+
+      if (dto.categoryId !== undefined) {
+        item.categoryId = dto.categoryId;
       }
 
       if (dto.nameJp !== undefined) {
@@ -309,10 +319,33 @@ export class MenusService {
     await repository.save(entities);
   }
 
+  private async assertCategoryBelongsToRestaurant(
+    manager: EntityManager,
+    restaurantId: number,
+    categoryId?: number,
+  ) {
+    if (categoryId === undefined || categoryId === null) {
+      return;
+    }
+
+    const category = await manager.findOne(MenuCategory, {
+      where: {
+        categoryId,
+        restaurantId,
+        isActive: true,
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Menu category not found for this restaurant.');
+    }
+  }
+
   private toResponse(item: MenuItem) {
     return {
       itemId: item.itemId,
       restaurantId: item.restaurantId,
+      categoryId: item.categoryId ?? null,
       nameVn: item.nameVn,
       nameJp: item.nameJp,
       price: Number(item.price),

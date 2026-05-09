@@ -41,6 +41,7 @@ describe('AnalyticsService', () => {
           namejp: 'Pho bo JP',
           imageurl: 'https://example.com/pho.jpg',
           ordercount: '24',
+          revenue: '3600000.00',
         },
         {
           itemid: 11,
@@ -49,6 +50,7 @@ describe('AnalyticsService', () => {
           namejp: 'Bun cha JP',
           imageurl: null,
           ordercount: '12',
+          revenue: '1800000.00',
         },
       ]),
     };
@@ -87,6 +89,7 @@ describe('AnalyticsService', () => {
           nameJp: 'Pho bo JP',
           imageUrl: 'https://example.com/pho.jpg',
           orderCount: 24,
+          revenue: 3600000,
         },
         {
           rank: 2,
@@ -96,6 +99,7 @@ describe('AnalyticsService', () => {
           nameJp: 'Bun cha JP',
           imageUrl: null,
           orderCount: 12,
+          revenue: 1800000,
         },
       ],
     });
@@ -116,6 +120,183 @@ describe('AnalyticsService', () => {
     );
     expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining('LIMIT 3'),
+      [1],
+    );
+  });
+
+  it('returns aggregated owner dashboard analytics', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([
+        {
+          currentmonthviews: '120',
+          previousmonthviews: '100',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          averagerating: '4.56',
+          reviewcount: '9',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          activecampaigncount: '2',
+          weeklyordercount: '6',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          reviewcount: '40',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          statdate: '2026-05-01',
+          japanese: '20',
+          others: '5',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          date: '2026-05-01',
+          revenue: '1250000.00',
+          ordercount: '12',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          label: 'Japanese',
+          count: '3',
+        },
+        {
+          label: 'Others',
+          count: '1',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          positive: '7',
+          neutral: '2',
+          negative: '1',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          itemid: 10,
+          restaurantid: 1,
+          namevn: 'Pho bo',
+          namejp: 'Pho bo JP',
+          imageurl: 'https://example.com/pho.jpg',
+          ordercount: '24',
+          revenue: '3600000.00',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          hour: '19',
+          reservationcount: '5',
+        },
+      ])
+      .mockResolvedValueOnce([]);
+
+    await expect(service.getDashboard(1, owner)).resolves.toMatchObject({
+      restaurantId: 1,
+      period: {
+        month: expect.stringMatching(/^\d{4}-\d{2}$/),
+      },
+      summary: {
+        monthlyViews: {
+          value: 120,
+          previousMonthValue: 100,
+          changeRate: 20,
+        },
+        japaneseAverageRating: {
+          value: 4.6,
+          reviewCount: 9,
+        },
+        campaignWeeklyOrders: {
+          value: 6,
+          activeCampaignCount: 2,
+          isTracked: true,
+        },
+        publishedReviews: {
+          value: 40,
+          target: 100,
+          progressRate: 40,
+        },
+      },
+      visitorTrend: [
+        {
+          date: '2026-05-01',
+          japanese: 20,
+          others: 5,
+        },
+      ],
+      revenueTrend: [
+        {
+          date: '2026-05-01',
+          revenue: 1250000,
+          orderCount: 12,
+        },
+      ],
+      userAttributes: [
+        {
+          label: 'Japanese',
+          count: 3,
+          percentage: 75,
+        },
+        {
+          label: 'Others',
+          count: 1,
+          percentage: 25,
+        },
+      ],
+      reviewSentiment: {
+        positive: 70,
+        neutral: 20,
+        negative: 10,
+      },
+      topMenus: [
+        {
+          rank: 1,
+          itemId: 10,
+          restaurantId: 1,
+          nameVn: 'Pho bo',
+          nameJp: 'Pho bo JP',
+          imageUrl: 'https://example.com/pho.jpg',
+          orderCount: 24,
+          revenue: 3600000,
+        },
+      ],
+      busyHoursToday: {
+        date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+        peakHour: 19,
+        items: [
+          {
+            hour: 19,
+            reservationCount: 5,
+          },
+        ],
+      },
+      verification: {
+        status: 'NotSubmitted',
+        application: null,
+      },
+    });
+
+    expect(restaurantRepo.findOne).toHaveBeenCalledWith({
+      where: {
+        restaurantId: 1,
+        ownerAccountId: 5,
+      },
+    });
+    expect(dataSource.query).toHaveBeenCalledTimes(11);
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('PROMOTION_REDEMPTION'),
+      [1],
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('EffectiveSentiment'),
       [1],
     );
   });

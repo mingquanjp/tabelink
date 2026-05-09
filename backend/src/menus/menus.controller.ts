@@ -286,6 +286,33 @@ export class MenusController {
     return this.menusService.update(restaurantId, itemId, dto, request.user);
   }
 
+  @Delete(':itemId/image')
+  @ApiOperation({
+    summary: 'Delete menu item image',
+    description:
+      'Deletes only the uploaded image for a menu item and clears imageUrl/imagePublicId. The menu item remains active and is not soft deleted.',
+  })
+  @ApiOkResponse({
+    description: 'Delete only a menu item image.',
+    schema: {
+      example: {
+        deleted: true,
+        imageDetached: true,
+        cloudinaryDeleted: true,
+        itemId: 10,
+        restaurantId: 1,
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant or menu item not found.' })
+  removeImage(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Param('itemId', ParseIntPipe) itemId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menusService.removeImage(restaurantId, itemId, request.user);
+  }
+
   @Delete(':itemId')
   @ApiOperation({
     summary: 'Delete menu item',

@@ -13,3 +13,7 @@ coverage/
 uploads/
 logs/
 .DS_Store
+
+# Local agent skills (install via skill CLI; do not commit)
+.agents/skills/
+skills-lock.json

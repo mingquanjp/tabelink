@@ -1012,6 +1012,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 "restaurantid": restaurant_id,
                 "tableid": table_id_value,
                 "reservationdatetime": reservation_time,
+                "durationminutes": 120,
                 "pax": pax,
                 "note": f"Mock reservation {index + 1}",
                 "status": status,

@@ -54,6 +54,9 @@ export class Reservation {
   @Column({ name: 'reservationdatetime', type: 'timestamptz' })
   reservationDateTime!: Date;
 
+  @Column({ name: 'durationminutes', default: 120 })
+  durationMinutes!: number;
+
   @Column({ name: 'pax' })
   pax!: number;
 

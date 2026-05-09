@@ -273,6 +273,7 @@ CREATE TABLE RESERVATION (
         REFERENCES RESTAURANT(RestaurantID),
     TableID INT,
     ReservationDateTime TIMESTAMPTZ NOT NULL,
+    DurationMinutes INT NOT NULL DEFAULT 120 CHECK (DurationMinutes > 0),
     Pax INT NOT NULL CHECK (Pax > 0),
     Note TEXT,
     Status VARCHAR(50) NOT NULL DEFAULT 'Pending'
@@ -290,6 +291,8 @@ CREATE INDEX idx_reservation_customer ON RESERVATION(CustomerAccountID);
 CREATE INDEX idx_reservation_restaurant ON RESERVATION(RestaurantID);
 CREATE INDEX idx_reservation_date ON RESERVATION(ReservationDateTime);
 CREATE INDEX idx_reservation_status ON RESERVATION(Status);
+CREATE INDEX idx_reservation_table_time
+    ON RESERVATION(RestaurantID, TableID, ReservationDateTime);
 CREATE UNIQUE INDEX ux_reservation_table_timeslot_active
     ON RESERVATION(RestaurantID, TableID, ReservationDateTime)
     WHERE TableID IS NOT NULL AND Status IN ('Pending', 'Confirmed', 'Arrived');

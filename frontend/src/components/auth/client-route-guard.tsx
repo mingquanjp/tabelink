@@ -1,0 +1,70 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { useCallback, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  canAccessOwnerRoutes,
+  getAuthenticatedRedirectPath,
+} from "@/lib/api/auth/routes";
+import { getAuthSession } from "@/lib/api/auth/session";
+
+type ClientRouteGuardProps = {
+  children: ReactNode;
+};
+
+function isPublicAuthPath(pathname: string) {
+  return pathname === "/login" || pathname.startsWith("/register");
+}
+
+function isOwnerPath(pathname: string) {
+  return pathname.startsWith("/owner");
+}
+
+export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const verifyCurrentRoute = useCallback(async () => {
+    if (!isPublicAuthPath(pathname) && !isOwnerPath(pathname)) {
+      return;
+    }
+
+    const session = await getAuthSession();
+
+    if (isPublicAuthPath(pathname)) {
+      if (session) {
+        router.replace(getAuthenticatedRedirectPath(session.account.role));
+      }
+
+      return;
+    }
+
+    if (!session) {
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+      return;
+    }
+
+    if (!canAccessOwnerRoutes(session.account.role) || !session.restaurant) {
+      router.replace(getAuthenticatedRedirectPath(session.account.role));
+    }
+  }, [pathname, router]);
+
+  useEffect(() => {
+    verifyCurrentRoute();
+  }, [verifyCurrentRoute]);
+
+  useEffect(() => {
+    function handlePageShow() {
+      verifyCurrentRoute();
+    }
+
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [verifyCurrentRoute]);
+
+  return children;
+}

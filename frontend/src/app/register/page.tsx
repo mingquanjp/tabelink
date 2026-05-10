@@ -1,16 +1,42 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
+import { saveRegisterDraft } from "@/lib/api/auth/register";
+import type { RegisterRole } from "@/lib/api/auth/type";
 
-const imgJapaneseCuisine = "/register/register-hero.png";
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account.png";
 const imgSelectArrow = "/register/select-arrow.png";
 const imgButtonArrow = "/register/button-arrow.png";
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [role, setRole] = useState("diner");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters.");
+      return;
+    }
+
+    const apiRole: RegisterRole = role === "diner" ? "User" : "Owner";
+    saveRegisterDraft({
+      fullName: fullName.trim(),
+      email: email.trim(),
+      password,
+      role: apiRole,
+    });
+
+    router.push(apiRole === "User" ? "/register/customer" : "/register/restaurant");
+  }
 
   return (
     <>
@@ -19,7 +45,7 @@ export default function RegisterPage() {
           新規登録
         </h2>
         <p className="text-[16px] font-medium text-[#5a6053] [font-family:'Noto_Sans_JP',sans-serif]">
-          美食のコミュニティへようこそ。あなたのアカウントを作成 しましょう。
+          美食のコミュニティへようこそ。あなたのアカウントを作成しましょう。
         </p>
       </div>
 
@@ -49,7 +75,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <form className="mt-10 space-y-6">
+      <form className="mt-10 space-y-6" onSubmit={handleSubmit}>
         <label className="block">
           <span className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053] [font-family:'Noto_Sans_JP',sans-serif]">
             お名前（フルネーム）
@@ -57,7 +83,10 @@ export default function RegisterPage() {
           <input
             className="mt-2 w-full rounded bg-[#f4f4f1] px-4 py-4 text-[16px] font-medium text-[#1a1c1b] placeholder:text-[rgba(90,96,83,0.5)] focus:outline-none focus:ring-2 focus:ring-[#af111c]/30 [font-family:'Noto_Sans_JP',sans-serif]"
             placeholder="例：佐藤 拓海"
+            required
             type="text"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
           />
         </label>
 
@@ -69,7 +98,7 @@ export default function RegisterPage() {
             <select
               className="w-full appearance-none rounded bg-[#f4f4f1] px-4 py-4 pr-12 text-[16px] font-medium text-[#1a1c1b] focus:outline-none focus:ring-2 focus:ring-[#af111c]/30 [font-family:'Noto_Sans_JP',sans-serif]"
               value={role}
-              onChange={(e) => setRole(e.target.value)}
+              onChange={(event) => setRole(event.target.value)}
             >
               <option value="diner">一般利用者（ダイナー）</option>
               <option value="store">加盟店</option>
@@ -90,23 +119,41 @@ export default function RegisterPage() {
           <input
             className="mt-2 w-full rounded bg-[#f4f4f1] px-4 py-4 text-[16px] font-medium text-[#1a1c1b] placeholder:text-[rgba(90,96,83,0.5)] focus:outline-none focus:ring-2 focus:ring-[#af111c]/30 [font-family:'Manrope',sans-serif]"
             placeholder="name@example.com"
+            required
             type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
           />
         </label>
 
-        <Link
+        <label className="block">
+          <span className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053] [font-family:'Noto_Sans_JP',sans-serif]">
+            パスワード
+          </span>
+          <input
+            className="mt-2 w-full rounded bg-[#f4f4f1] px-4 py-4 text-[16px] font-medium text-[#1a1c1b] placeholder:text-[rgba(90,96,83,0.5)] focus:outline-none focus:ring-2 focus:ring-[#af111c]/30 [font-family:'Manrope',sans-serif]"
+            minLength={8}
+            placeholder="Password123"
+            required
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+
+        <button
           className="relative mt-2 flex w-full items-center justify-center gap-3 rounded bg-[linear-gradient(171.87deg,#af111c_0%,#d32f31_100%)] py-5 text-[16px] font-medium text-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] [font-family:'Noto_Sans_JP',sans-serif]"
-          href={role === "diner" ? "/register/customer" : "/register/restaurant"}
+          type="submit"
         >
           次に進む
           <img alt="" aria-hidden="true" className="size-4" src={imgButtonArrow} />
-        </Link>
+        </button>
 
         <div className="pt-4 text-center text-[14px] font-medium [font-family:'Noto_Sans_JP',sans-serif]">
           <span className="text-[#5a6053]">すでにアカウントをお持ちですか？ </span>
-          <a className="text-[#af111c]" href="/login">
+          <Link className="text-[#af111c]" href="/login">
             ログイン
-          </a>
+          </Link>
         </div>
       </form>
     </>

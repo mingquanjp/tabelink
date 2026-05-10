@@ -1,16 +1,76 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
+import { logoutAccount, registerAccount } from "@/lib/api/auth/API";
+import {
+  clearRegisterDraft,
+  readRegisterDraft,
+  type RegisterDraft,
+} from "@/lib/api/auth/register";
 
-// Assets
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
 
 export default function RestaurantRegisterPage() {
+  const router = useRouter();
+  const [draft, setDraft] = useState<RegisterDraft | null>(null);
+  const [storeName, setStoreName] = useState("");
+  const [address, setAddress] = useState("");
+  const [representativeName, setRepresentativeName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const savedDraft = readRegisterDraft();
+
+    if (!savedDraft || savedDraft.role !== "Owner") {
+      router.replace("/register");
+      return;
+    }
+
+    queueMicrotask(() => {
+      setDraft(savedDraft);
+      setRepresentativeName(savedDraft.fullName);
+    });
+  }, [router]);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!draft) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await registerAccount({
+        email: draft.email,
+        password: draft.password,
+        fullName: draft.fullName,
+        role: "Owner",
+        storeName: storeName.trim(),
+        address: address.trim(),
+        representativeName: representativeName.trim() || draft.fullName,
+        phone: phone.trim(),
+      });
+      await logoutAccount().catch(() => undefined);
+
+      clearRegisterDraft();
+      toast.success("Restaurant registration completed. Please log in.");
+      router.push("/login");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Registration failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <>
-      {/* Back Button (Local) */}
       <div className="mb-6">
         <Link
           href="/register"
@@ -21,7 +81,6 @@ export default function RestaurantRegisterPage() {
       </div>
 
       <div className="space-y-[40px]">
-        {/* Header */}
         <div className="space-y-[8px]">
           <h2 className="font-bold text-[#af111c] text-[30px] tracking-[-0.75px]">
             店舗プロフィールの設定
@@ -31,7 +90,6 @@ export default function RestaurantRegisterPage() {
           </p>
         </div>
 
-        {/* Progress Bar Section */}
         <div className="flex items-center justify-between w-full">
           <div className="flex flex-col gap-[8px] items-center">
             <div className="bg-[#af111c] border-2 border-[#af111c] flex items-center justify-center relative rounded-[12px] size-[40px] shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]">
@@ -58,9 +116,7 @@ export default function RestaurantRegisterPage() {
           </div>
         </div>
 
-        {/* Form */}
-        <form className="space-y-[32px] pt-[8px]">
-          {/* Restaurant Name */}
+        <form className="space-y-[32px] pt-[8px]" onSubmit={handleSubmit}>
           <div className="space-y-[12px]">
             <div className="flex gap-[8px] items-baseline leading-none">
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
@@ -73,11 +129,13 @@ export default function RestaurantRegisterPage() {
             <input
               type="text"
               placeholder="例：割烹 ハノイ"
+              required
+              value={storeName}
+              onChange={(event) => setStoreName(event.target.value)}
               className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
             />
           </div>
 
-          {/* Address */}
           <div className="space-y-[12px]">
             <div className="flex gap-[8px] items-baseline leading-none">
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
@@ -90,11 +148,13 @@ export default function RestaurantRegisterPage() {
             <input
               type="text"
               placeholder="例：ハノイ市コウザイ区..."
+              required
+              value={address}
+              onChange={(event) => setAddress(event.target.value)}
               className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
             />
           </div>
 
-          {/* Owner Name */}
           <div className="space-y-[12px]">
             <div className="flex gap-[8px] items-baseline leading-none">
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
@@ -107,11 +167,13 @@ export default function RestaurantRegisterPage() {
             <input
               type="text"
               placeholder="例：山田 太郎"
+              required
+              value={representativeName}
+              onChange={(event) => setRepresentativeName(event.target.value)}
               className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
             />
           </div>
 
-          {/* Phone Number */}
           <div className="space-y-[12px]">
             <div className="flex gap-[8px] items-baseline leading-none">
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
@@ -124,21 +186,30 @@ export default function RestaurantRegisterPage() {
             <input
               type="tel"
               placeholder="0123-456-789"
+              required
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
               className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-manrope font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
             />
           </div>
 
-          {/* Submit Button */}
           <div className="space-y-[24px] pt-[32px]">
             <button
               type="submit"
-              className="group relative flex w-full items-center justify-center gap-[8px] bg-[#af111c] py-[20px] rounded-[4px] shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)] hover:bg-[#910e17] transition-all active:scale-[0.98]"
+              disabled={isSubmitting || !draft}
+              className="group relative flex w-full items-center justify-center gap-[8px] bg-[#af111c] py-[20px] rounded-[4px] shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)] hover:bg-[#910e17] transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
             >
-              <div className="flex flex-col font-medium h-[20px] justify-center leading-[0] relative shrink-0 text-[14px] text-center text-white tracking-[1.4px] uppercase w-[154.98px]">
-                <p className="leading-[20px]">加盟店登録を完了する</p>
+              <div className="flex flex-col font-medium min-h-[20px] justify-center leading-[0] relative shrink-0 text-[14px] text-center text-white tracking-[1.4px] uppercase">
+                <p className="leading-[20px]">
+                  {isSubmitting ? "登録中..." : "加盟店登録を完了する"}
+                </p>
               </div>
               <div className="h-[13.333px] relative shrink-0 w-[7.85px]">
-                <img alt="" className="absolute block inset-0 max-w-none size-full" src="/register/button-arrow.png" />
+                <img
+                  alt=""
+                  className="absolute block inset-0 max-w-none size-full"
+                  src="/register/button-arrow.png"
+                />
               </div>
             </button>
           </div>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getHealth, type HealthResponse } from "@/lib/api";
+import { getHealth } from "@/lib/api/API";
+import type { HealthResponse } from "@/lib/api/type";
 
 type HealthState =
   | { status: "loading" }

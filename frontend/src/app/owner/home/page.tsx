@@ -59,6 +59,8 @@ const photos = {
     "https://www.figma.com/api/mcp/asset/ae77030d-184a-4b5a-9e0d-f3d12ca8131c",
 };
 
+const maxGalleryImages = 3;
+
 const infoItems = [
   {
     label: "住所 / Address",
@@ -457,12 +459,10 @@ function RestaurantPhotoGrid({
   galleryImages,
   heroImage,
   isVerified,
-  onViewMore,
 }: {
   galleryImages: string[];
   heroImage: string;
   isVerified: boolean;
-  onViewMore: () => void;
 }) {
   const visibleGalleryImages = galleryImages.slice(0, 3);
   const displayImages = [
@@ -470,8 +470,6 @@ function RestaurantPhotoGrid({
     visibleGalleryImages[1] || photos.staff,
     visibleGalleryImages[2] || photos.foodDisplay,
   ];
-  const extraCount = Math.max(galleryImages.length - 3, 0);
-
   return (
     <section className="bg-[#eeeeeb]">
       <div className="grid h-[614px] grid-cols-4 grid-rows-2 gap-2 p-2 max-lg:h-[520px] max-md:h-auto max-md:grid-cols-1 max-md:grid-rows-none">
@@ -504,15 +502,6 @@ function RestaurantPhotoGrid({
             alt="Restaurant gallery photo"
             className="absolute inset-0"
           />
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/45 to-transparent" />
-          <button
-            type="button"
-            onClick={onViewMore}
-            className="absolute bottom-5 right-5 z-10 inline-flex items-center gap-2 rounded-lg bg-white/95 px-4 py-2 text-sm font-bold text-[#1a1c1b] shadow-lg transition-colors hover:bg-white font-jp"
-          >
-            <Plus className="size-4 text-[#af111c]" />
-            {extraCount > 0 ? `${extraCount}枚 もっと見る` : "写真を見る"}
-          </button>
         </div>
       </div>
     </section>
@@ -523,13 +512,16 @@ function EditablePhotoGrid({
   galleryImages,
   heroImage,
   onAddGallery,
+  onChangeGalleryImage,
   onChangeHero,
 }: {
   galleryImages: string[];
   heroImage: string;
   onAddGallery: (files: FileList | null) => void;
+  onChangeGalleryImage: (index: number, file: File | undefined) => void;
   onChangeHero: (file: File | undefined) => void;
 }) {
+  const canAddGalleryImages = galleryImages.length < maxGalleryImages;
   const displayImages = [
     galleryImages[0] || photos.dish,
     galleryImages[1] || photos.staff,
@@ -557,35 +549,73 @@ function EditablePhotoGrid({
           />
         </label>
       </div>
-      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#e4beba4d] bg-[#eeeeeb] text-[#5a6053] transition-colors hover:bg-[#e8e8e5] max-md:h-40">
+      <label
+        aria-disabled={!canAddGalleryImages}
+        className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#e4beba4d] bg-[#eeeeeb] text-[#5a6053] transition-colors max-md:h-40 ${
+          canAddGalleryImages
+            ? "cursor-pointer hover:bg-[#e8e8e5]"
+            : "cursor-not-allowed opacity-60"
+        }`}
+      >
         <Plus className="size-6" />
         <span className="text-[10px] font-bold uppercase tracking-[1px] font-manrope">
-          画像を追加
+          {canAddGalleryImages ? "画像を追加" : "3 / 3"}
         </span>
         <input
           type="file"
           accept="image/jpeg,image/png,image/webp"
           multiple
           className="sr-only"
+          disabled={!canAddGalleryImages}
           onChange={(event) => onAddGallery(event.target.files)}
         />
       </label>
-      <PhotoTile
-        src={displayImages[0]}
-        alt="Gallery food photo"
-        className="max-md:h-40"
-      />
-      <PhotoTile
-        src={displayImages[1]}
-        alt="Gallery food photo"
-        className="max-md:h-40"
-      />
+      {[0, 1].map((index) => (
+        <div
+          key={index}
+          className="relative overflow-hidden rounded max-md:h-40"
+        >
+          <PhotoTile
+            src={displayImages[index]}
+            alt="Gallery food photo"
+            className="absolute inset-0"
+          />
+          {galleryImages[index] ? (
+            <label className="absolute right-3 top-3 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-[#5a6053] shadow-sm backdrop-blur-[1px] transition-colors hover:bg-white">
+              <Camera className="size-4" />
+              <span className="sr-only">Change gallery photo</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(event) =>
+                  onChangeGalleryImage(index, event.target.files?.[0])
+                }
+              />
+            </label>
+          ) : null}
+        </div>
+      ))}
       <div className="relative overflow-hidden rounded max-md:h-40">
         <PhotoTile
           src={displayImages[2]}
           alt="Gallery food photo"
           className="absolute inset-0"
         />
+        {galleryImages[2] ? (
+          <label className="absolute right-3 top-3 z-10 flex size-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-[#5a6053] shadow-sm backdrop-blur-[1px] transition-colors hover:bg-white">
+            <Camera className="size-4" />
+            <span className="sr-only">Change gallery photo</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              onChange={(event) =>
+                onChangeGalleryImage(2, event.target.files?.[0])
+              }
+            />
+          </label>
+        ) : null}
         {extraCount > 0 ? (
           <div className="absolute inset-0 flex items-center justify-center bg-[#1a1c1b]/45">
             <span className="inline-flex items-center gap-2 rounded-lg bg-white/95 px-4 py-2 text-sm font-bold text-[#1a1c1b] shadow-lg font-jp">
@@ -969,9 +999,13 @@ function EditRestaurantModal({
 }) {
   const [formValues, setFormValues] = useState(fields);
   const [heroPreview, setHeroPreview] = useState(heroImage);
-  const [galleryPreviews, setGalleryPreviews] = useState(galleryImages);
+  const [galleryPreviews, setGalleryPreviews] = useState(
+    galleryImages.slice(0, maxGalleryImages),
+  );
   const [heroFile, setHeroFile] = useState<File | null>(null);
-  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryFiles, setGalleryFiles] = useState<
+    Array<{ previewUrl: string; file: File }>
+  >([]);
   const [isSaving, setIsSaving] = useState(false);
 
   function updateField(field: keyof typeof formFields, value: string) {
@@ -998,11 +1032,47 @@ function EditRestaurantModal({
       return;
     }
 
-    setGalleryFiles((current) => [...current, ...selectedFiles]);
+    const remainingSlots = Math.max(maxGalleryImages - galleryPreviews.length, 0);
+    const acceptedFiles = selectedFiles.slice(0, remainingSlots);
+
+    if (acceptedFiles.length === 0) {
+      return;
+    }
+
+    const acceptedUploads = acceptedFiles.map((file) => ({
+      previewUrl: URL.createObjectURL(file),
+      file,
+    }));
+
+    setGalleryFiles((current) => [...current, ...acceptedUploads]);
     setGalleryPreviews((current) => [
       ...current,
-      ...selectedFiles.map((file) => URL.createObjectURL(file)),
+      ...acceptedUploads.map((upload) => upload.previewUrl),
     ]);
+  }
+
+  function changeGalleryImage(index: number, file: File | undefined) {
+    if (!file) {
+      return;
+    }
+
+    const previousPreview = galleryPreviews[index];
+
+    if (!previousPreview) {
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+
+    setGalleryFiles((files) => [
+      ...files.filter((entry) => entry.previewUrl !== previousPreview),
+      { previewUrl, file },
+    ]);
+    setGalleryPreviews((current) =>
+      current.map((image, imageIndex) =>
+        imageIndex === index ? previewUrl : image,
+      ),
+    );
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1017,16 +1087,21 @@ function EditRestaurantModal({
     try {
       const [uploadedHero, uploadedGalleryItems] = await Promise.all([
         heroFile ? uploadOwnerRestaurantImage(heroFile) : Promise.resolve(null),
-        Promise.all(galleryFiles.map((file) => uploadOwnerRestaurantImage(file))),
+        Promise.all(
+          galleryFiles.map(async (entry) => ({
+            previewUrl: entry.previewUrl,
+            imageUrl: (await uploadOwnerRestaurantImage(entry.file)).imageUrl,
+          })),
+        ),
       ]);
       const savedHeroImage = uploadedHero?.imageUrl ?? heroImage;
-      const existingGalleryImages = galleryPreviews.filter(
-        (image) => !image.startsWith("blob:"),
+      const uploadedGalleryMap = new Map(
+        uploadedGalleryItems.map((item) => [item.previewUrl, item.imageUrl]),
       );
-      const savedGalleryImages = [
-        ...existingGalleryImages,
-        ...uploadedGalleryItems.map((item) => item.imageUrl),
-      ];
+      const savedGalleryImages = galleryPreviews
+        .map((image) => uploadedGalleryMap.get(image) ?? image)
+        .filter((image) => !image.startsWith("blob:"))
+        .slice(0, maxGalleryImages);
       const socialLinks = [
         {
           provider: "Instagram" as const,
@@ -1112,6 +1187,7 @@ function EditRestaurantModal({
               galleryImages={galleryPreviews}
               heroImage={heroPreview}
               onAddGallery={addGalleryImages}
+              onChangeGalleryImage={changeGalleryImage}
               onChangeHero={changeHeroImage}
             />
           </section>
@@ -1323,7 +1399,6 @@ export default function OwnerHomePage() {
           galleryImages={displayGalleryImages}
           heroImage={coverImage}
           isVerified={homeData?.badges.isVerified ?? true}
-          onViewMore={() => setIsEditModalOpen(true)}
         />
       </div>
 

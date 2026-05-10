@@ -416,15 +416,29 @@ export default function OwnerMenuPage() {
                   backgroundImage: form.imageUrl ? `url(${form.imageUrl})` : undefined,
                 }}
               >
-                {form.imageUrl ? (
+                {isUploadingImage ? (
                   <div className="absolute inset-0 bg-white/65 backdrop-blur-[1px]" />
                 ) : null}
-                <label className="relative z-10 flex cursor-pointer flex-col items-center justify-center gap-2 text-center text-[#5a6053]">
+                <label
+                  className={`z-10 flex cursor-pointer items-center justify-center text-center text-[#5a6053] shadow-sm backdrop-blur-[1px] ${
+                    form.imageUrl
+                      ? "absolute right-3 top-3 size-10 rounded-full bg-white/90 transition-colors hover:bg-white"
+                      : "relative flex-col gap-2 rounded-[8px] bg-white/85 px-5 py-3"
+                  }`}
+                >
                   <CloudUpload className="size-6" />
-                  <span className="text-[14px] font-medium">
-                    {isUploadingImage ? "アップロード中..." : "写真を変更"}
-                  </span>
-                  <span className="text-[10px]">PNG, JPG (Max. 10MB)</span>
+                  {form.imageUrl ? (
+                    <span className="sr-only">
+                      {isUploadingImage ? "アップロード中..." : "写真を変更"}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-[14px] font-medium">
+                        {isUploadingImage ? "アップロード中..." : "写真を変更"}
+                      </span>
+                      <span className="text-[10px]">PNG, JPG (Max. 10MB)</span>
+                    </>
+                  )}
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"

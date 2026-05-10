@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { MoreVertical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import type { RestaurantTableDto, RestaurantTableStatus } from "@/lib/api/owner/reservation/api";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -18,23 +19,25 @@ type FloorLegendItem = {
 };
 
 type FloorTable = {
+    id: number;
     name: string;
-    status: string;
+    capacity: number;
+    status: RestaurantTableStatus;
     type: FloorTableType;
-    menu?: boolean;
 };
 
 type TableStatusOption = {
     label: string;
+    backendStatus: RestaurantTableStatus;
     type: FloorTableType;
     dotClass: string;
     textClass: string;
 };
 
 const statusOptions: TableStatusOption[] = [
-    { label: "空席", type: "available", dotClass: "bg-emerald-500", textClass: "text-emerald-600" },
-    { label: "使用中", type: "occupied", dotClass: "bg-[#3d5f46]", textClass: "text-[#3d5f46]" },
-    { label: "予約済", type: "reserved", dotClass: "bg-[#af111c66]", textClass: "text-[#af111c]" },
+    { label: "空席", backendStatus: "Empty", type: "available", dotClass: "bg-emerald-500", textClass: "text-emerald-600" },
+    { label: "使用中", backendStatus: "Using", type: "occupied", dotClass: "bg-[#3d5f46]", textClass: "text-[#3d5f46]" },
+    { label: "予約済", backendStatus: "Reserved", type: "reserved", dotClass: "bg-[#af111c66]", textClass: "text-[#af111c]" },
 ];
 
 const floorLegend: FloorLegendItem[] = [
@@ -43,14 +46,9 @@ const floorLegend: FloorLegendItem[] = [
     { label: "予約済", dotClass: "bg-[#af111c33] border-[#af111c33]" },
 ];
 
-const floorTables: FloorTable[] = [
-    { name: "TABLE 01", status: "使用中", type: "occupied" },
-    { name: "TABLE 02", status: "空席", type: "available", menu: true },
-    { name: "TABLE 03", status: "予約済", type: "reserved" },
-    { name: "TABLE 04", status: "使用中", type: "occupied" },
-    { name: "TABLE 05", status: "使用中", type: "occupied" },
-    { name: "TABLE 06", status: "空席", type: "available" },
-];
+const TABLE_TILE_WIDTH = 171;
+const TABLE_TILE_HEIGHT = 96;
+const TABLE_TILE_GAP = 32;
 
 function getTableClasses(type: FloorTableType) {
     if (type === "occupied") {
@@ -79,19 +77,112 @@ function getTableClasses(type: FloorTableType) {
     };
 }
 
-export function FloorMap() {
-    const [tableStatuses, setTableStatuses] = useState<Record<string, FloorTableType>>(() =>
-        floorTables.reduce<Record<string, FloorTableType>>((acc, table) => {
-            acc[table.name] = table.type;
-            return acc;
-        }, {})
-    );
+function toFloorTableType(status: RestaurantTableStatus): FloorTableType {
+    if (status === "Using") {
+        return "occupied";
+    }
+
+    if (status === "Reserved") {
+        return "reserved";
+    }
+
+    return "available";
+}
+
+function toFloorTable(table: RestaurantTableDto): FloorTable {
+    return {
+        id: table.tableId,
+        name: table.tableName,
+        capacity: table.capacity,
+        status: table.status,
+        type: toFloorTableType(table.status),
+    };
+}
+
+type FloorMapProps = {
+    tables: RestaurantTableDto[];
+    onStatusChange: (tableId: number, status: RestaurantTableStatus) => Promise<void>;
+};
+
+export function FloorMap({ tables, onStatusChange }: FloorMapProps) {
+    const [updatingTableId, setUpdatingTableId] = useState<number | null>(null);
+    const floorTables = tables.map(toFloorTable);
+
+    async function handleStatusChange(tableId: number, status: RestaurantTableStatus) {
+        setUpdatingTableId(tableId);
+
+        try {
+            await onStatusChange(tableId, status);
+        } finally {
+            setUpdatingTableId(null);
+        }
+    }
+
+    function renderTable(table: FloorTable) {
+        const tableType = table.type;
+        const styles = getTableClasses(tableType);
+        const activeOption = statusOptions.find((option) => option.backendStatus === table.status);
+        const statusLabel = activeOption?.label ?? table.status;
+        const isUpdating = updatingTableId === table.id;
+
+        return (
+            <article
+                key={table.id}
+                className="relative shrink-0"
+                style={{ width: TABLE_TILE_WIDTH, height: TABLE_TILE_HEIGHT }}
+            >
+                <div
+                    className={`flex h-full w-full flex-col items-center justify-center rounded border px-3 text-center shadow-[0px_1px_2px_#0000000d] ${styles.card}`}
+                >
+                    <span
+                        className={`font-manrope text-[10px] font-bold leading-[15px] ${styles.sub}`}
+                    >
+                        {table.name}
+                    </span>
+                    <span
+                        className={`font-jp text-base font-medium leading-6 ${styles.main}`}
+                    >
+                        {statusLabel}
+                    </span>
+                    <span className={`font-manrope text-[10px] leading-4 ${styles.sub}`}>
+                        {table.capacity} 名
+                    </span>
+                </div>
+
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button
+                            type="button"
+                            aria-label={`${table.name} status`}
+                            disabled={isUpdating}
+                            className="absolute right-[8px] top-[8px] inline-flex h-7 w-7 items-center justify-center rounded text-stone-500 hover:bg-white/60 disabled:cursor-wait disabled:opacity-60"
+                        >
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">{statusLabel}</span>
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-36 px-px py-[5px]">
+                        {statusOptions.map((option) => (
+                            <DropdownMenuItem
+                                key={option.type}
+                                className="flex h-9 items-center gap-2 px-4 text-xs"
+                                onSelect={() => void handleStatusChange(table.id, option.backendStatus)}
+                            >
+                                <span className={`h-2 w-2 rounded-full ${option.dotClass}`} />
+                                <span className={`font-medium ${option.textClass}`}>{option.label}</span>
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </article>
+        );
+    }
 
     return (
         <Card className="col-span-2 rounded-lg border-0 bg-[#f4f4f1] shadow-none">
             <CardContent className="p-8">
                 <div className="mb-8 flex items-center justify-between">
-                    <h2 className="[font-family:'Noto_Sans_JP-Medium',Helvetica] text-xl font-medium leading-7 text-[#1a1c1b]">
+                    <h2 className="font-jp text-xl font-medium leading-7 text-[#1a1c1b]">
                         フロアマップ状況
                     </h2>
 
@@ -99,7 +190,7 @@ export function FloorMap() {
                         {floorLegend.map((item) => (
                             <div key={item.label} className="flex items-center gap-1.5">
                                 <span className={`h-2.5 w-2.5 rounded-sm border ${item.dotClass}`} />
-                                <span className="[font-family:'Noto_Sans_JP-Medium',Helvetica] text-xs font-medium leading-4 text-[#1a1c1b]">
+                                <span className="font-jp text-xs font-medium leading-4 text-[#1a1c1b]">
                                     {item.label}
                                 </span>
                             </div>
@@ -107,65 +198,23 @@ export function FloorMap() {
                     </div>
                 </div>
 
-                <div className="rounded-lg border-2 border-dashed border-stone-200 bg-[#ffffff66] px-12 py-11">
-                    <div className="mx-auto grid max-w-2xl grid-cols-3 gap-8">
-                        {floorTables.map((table) => {
-                            const tableType = tableStatuses[table.name] ?? table.type;
-                            const styles = getTableClasses(tableType);
-                            const activeOption = statusOptions.find((option) => option.type === tableType);
-                            const statusLabel = activeOption?.label ?? table.status;
-
-                            return (
-                                <article key={table.name} className="relative">
-                                    <div
-                                        className={`flex h-24 flex-col items-center justify-center rounded border shadow-[0px_1px_2px_#0000000d] ${styles.card}`}
-                                    >
-                                        <span
-                                            className={`[font-family:'Manrope-Bold',Helvetica] text-[10px] font-bold leading-[15px] ${styles.sub}`}
-                                        >
-                                            {table.name}
-                                        </span>
-                                        <span
-                                            className={`[font-family:'Noto_Sans_JP-Medium',Helvetica] text-base font-medium leading-6 ${styles.main}`}
-                                        >
-                                            {statusLabel}
-                                        </span>
-                                    </div>
-
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <button
-                                                type="button"
-                                                aria-label={`${table.name} status`}
-                                                className="absolute right-2 top-2 inline-flex h-7 items-center gap-1 rounded border border-stone-200 bg-white/90 px-2 text-[10px] font-medium text-stone-700 shadow-sm"
-                                            >
-                                                <span className={`h-1.5 w-1.5 rounded-full ${activeOption?.dotClass ?? "bg-stone-300"}`} />
-                                                <ChevronDown className="h-3 w-3 text-stone-400" />
-                                                <span className="sr-only">{statusLabel}</span>
-                                            </button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end" className="w-32">
-                                            {statusOptions.map((option) => (
-                                                <DropdownMenuItem
-                                                    key={option.type}
-                                                    className="flex items-center gap-2 text-xs"
-                                                    onSelect={() =>
-                                                        setTableStatuses((prev) => ({
-                                                            ...prev,
-                                                            [table.name]: option.type,
-                                                        }))
-                                                    }
-                                                >
-                                                    <span className={`h-2 w-2 rounded-full ${option.dotClass}`} />
-                                                    <span className={`font-medium ${option.textClass}`}>{option.label}</span>
-                                                </DropdownMenuItem>
-                                            ))}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </article>
-                            );
-                        })}
-                    </div>
+                <div className="rounded-lg border-2 border-dashed border-stone-200 bg-[#ffffff66] p-12">
+                    {floorTables.length === 0 ? (
+                        <div className="flex min-h-56 items-center justify-center text-sm font-medium text-stone-500">
+                            テーブルが登録されていません
+                        </div>
+                    ) : (
+                        <div
+                            className="mx-auto grid"
+                            style={{
+                                gridTemplateColumns: `repeat(3, ${TABLE_TILE_WIDTH}px)`,
+                                gap: TABLE_TILE_GAP,
+                                width: TABLE_TILE_WIDTH * 3 + TABLE_TILE_GAP * 2,
+                            }}
+                        >
+                            {floorTables.map((table) => renderTable(table))}
+                        </div>
+                    )}
                 </div>
             </CardContent>
         </Card>

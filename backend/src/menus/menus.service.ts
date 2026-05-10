@@ -10,10 +10,10 @@ import { v2 as cloudinary } from 'cloudinary';
 import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
-import { MenuItemCriterion } from '../entities/menu-item-criterion.entity';
-import { MenuCategory } from '../entities/menu-category.entity';
-import { MenuItem } from '../entities/menu-item.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+import { MenuItemCriterion } from './entities/menu-item-criterion.entity';
+import { MenuCategory } from './entities/menu-category.entity';
+import { MenuItem } from './entities/menu-item.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 

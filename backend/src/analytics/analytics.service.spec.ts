@@ -3,8 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
-import { MenuItem } from '../entities/menu-item.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+import { MenuItem } from '../menus/entities/menu-item.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { AnalyticsService } from './analytics.service';
 
 describe('AnalyticsService', () => {
@@ -193,8 +193,16 @@ describe('AnalyticsService', () => {
       ])
       .mockResolvedValueOnce([
         {
+          hour: '18',
+          reservationcount: '1',
+        },
+        {
           hour: '19',
-          reservationcount: '5',
+          reservationcount: '2',
+        },
+        {
+          hour: '20',
+          reservationcount: '1',
         },
       ])
       .mockResolvedValueOnce([]);
@@ -273,8 +281,16 @@ describe('AnalyticsService', () => {
         peakHour: 19,
         items: [
           {
+            hour: 18,
+            reservationCount: 1,
+          },
+          {
             hour: 19,
-            reservationCount: 5,
+            reservationCount: 2,
+          },
+          {
+            hour: 20,
+            reservationCount: 1,
           },
         ],
       },
@@ -299,6 +315,12 @@ describe('AnalyticsService', () => {
       expect.stringContaining('EffectiveSentiment'),
       [1],
     );
+    const busyHoursQuery = dataSource.query.mock.calls.find(([sql]) =>
+      String(sql).includes('GENERATE_SERIES'),
+    )?.[0];
+    expect(busyHoursQuery).toContain('COALESCE(r.DurationMinutes, 120)');
+    expect(busyHoursQuery).toContain("'Confirmed'");
+    expect(busyHoursQuery).not.toContain("'Approved'");
   });
 
   it('rejects non-owner users', async () => {

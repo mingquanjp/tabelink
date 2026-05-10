@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsInt, IsOptional, IsUrl, Min } from 'class-validator';
-import { RestaurantMediaType } from '../../entities/restaurant-media.entity';
+import { RestaurantMediaType } from '../entities/restaurant-media.entity';
 
 export class RestaurantMediaDto {
   @ApiProperty({ example: 'https://example.com/restaurants/cover.jpg' })

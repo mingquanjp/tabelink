@@ -9,7 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { MenuItemCriterion } from './menu-item-criterion.entity';
-import { Restaurant } from './restaurant.entity';
+import { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
 @Entity({ name: 'menu_item' })
 export class MenuItem {

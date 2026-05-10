@@ -7,8 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
-import { MenuItem } from '../entities/menu-item.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+import { MenuItem } from '../menus/entities/menu-item.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 
 interface TopMenuRow {
   itemid: number | string;
@@ -469,15 +469,26 @@ export class AnalyticsService {
   private async getBusyHoursToday(restaurantId: number) {
     const rows = await this.dataSource.query<BusyHourRow[]>(
       `
+        WITH HourlySlots AS (
+          SELECT GENERATE_SERIES(
+            CURRENT_DATE,
+            CURRENT_DATE + INTERVAL '23 hours',
+            INTERVAL '1 hour'
+          ) AS HourStart
+        )
         SELECT
-          EXTRACT(HOUR FROM ReservationDateTime)::int AS Hour,
-          COUNT(*)::int AS ReservationCount
-        FROM RESERVATION
-        WHERE RestaurantID = $1
-          AND ReservationDateTime >= CURRENT_DATE
-          AND ReservationDateTime < CURRENT_DATE + INTERVAL '1 day'
-          AND Status IN ('Pending', 'Approved', 'Completed')
-        GROUP BY Hour
+          EXTRACT(HOUR FROM hs.HourStart)::int AS Hour,
+          COUNT(r.ReservationID)::int AS ReservationCount
+        FROM HourlySlots hs
+        LEFT JOIN RESERVATION r
+          ON r.RestaurantID = $1
+          AND r.Status IN ('Pending', 'Confirmed', 'Arrived', 'Completed')
+          AND r.ReservationDateTime < hs.HourStart + INTERVAL '1 hour'
+          AND r.ReservationDateTime + (COALESCE(r.DurationMinutes, 120) * INTERVAL '1 minute') > hs.HourStart
+          AND r.ReservationDateTime < CURRENT_DATE + INTERVAL '1 day'
+          AND r.ReservationDateTime + (COALESCE(r.DurationMinutes, 120) * INTERVAL '1 minute') > CURRENT_DATE
+        GROUP BY hs.HourStart
+        HAVING COUNT(r.ReservationID) > 0
         ORDER BY Hour ASC
       `,
       [restaurantId],

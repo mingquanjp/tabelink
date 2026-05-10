@@ -11,7 +11,7 @@ import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
-import { Restaurant } from '../entities/restaurant.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { DeleteMenuImageDto } from './dto/delete-menu-image.dto';
 import { UploadedMenuImageFile } from './menu-image-upload.types';
 

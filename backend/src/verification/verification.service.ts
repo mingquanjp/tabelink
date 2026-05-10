@@ -15,9 +15,9 @@ import { JwtPayload } from '../auth/auth.types';
 import {
   BadgeApplication,
   BadgeApplicationStatus,
-} from '../entities/badge-application.entity';
-import { BadgeMaster } from '../entities/badge-master.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+} from './entities/badge-application.entity';
+import { BadgeMaster } from './entities/badge-master.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { SubmitVerificationApplicationDto } from './dto/submit-verification-application.dto';
 import { UploadedVerificationFile } from './verification-upload.types';
 

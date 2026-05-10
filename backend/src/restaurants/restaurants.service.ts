@@ -8,17 +8,17 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
-import { FeatureMaster } from '../entities/feature-master.entity';
-import { PaymentMethod } from '../entities/payment-method.entity';
-import { RestaurantFeature } from '../entities/restaurant-feature.entity';
+import { FeatureMaster } from './entities/feature-master.entity';
+import { PaymentMethod } from './entities/payment-method.entity';
+import { RestaurantFeature } from './entities/restaurant-feature.entity';
 import {
   RestaurantMedia,
   RestaurantMediaStatus,
   RestaurantMediaType,
-} from '../entities/restaurant-media.entity';
-import { RestaurantPaymentMethod } from '../entities/restaurant-payment-method.entity';
-import { RestaurantSocialLink } from '../entities/restaurant-social-link.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+} from './entities/restaurant-media.entity';
+import { RestaurantPaymentMethod } from './entities/restaurant-payment-method.entity';
+import { RestaurantSocialLink } from './entities/restaurant-social-link.entity';
+import { Restaurant } from './entities/restaurant.entity';
 import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 

@@ -6,8 +6,8 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { BadgeMaster } from './badge-master.entity';
-import { Restaurant } from './restaurant.entity';
-import { UserAccount } from './user-account.entity';
+import { Restaurant } from '../../restaurants/entities/restaurant.entity';
+import { UserAccount } from '../../auth/entities/user-account.entity';
 
 export enum BadgeApplicationStatus {
   Pending = 'Pending',

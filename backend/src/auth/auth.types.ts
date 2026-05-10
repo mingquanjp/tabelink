@@ -5,3 +5,16 @@ export interface JwtPayload {
   email: string;
   role: AuthRole;
 }
+
+export interface AuthRestaurantContext {
+  restaurantId: number;
+  ownerAccountId: number;
+  nameVn: string;
+  nameJp: string;
+  status: string;
+}
+
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}

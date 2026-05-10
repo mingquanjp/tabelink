@@ -10,13 +10,12 @@ async function bootstrap() {
 
   const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
   const port = configService.get<number>('APP_PORT') ?? 8080;
-  const isDev = configService.get<string>('NODE_ENV') === 'development';
 
-  // In dev, allow any origin so Swagger UI can make requests
   app.enableCors({
-    origin: isDev ? '*' : frontendUrl,
+    origin: frontendUrl,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true,
   });
 
   app.useGlobalPipes(

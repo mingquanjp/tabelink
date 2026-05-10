@@ -20,9 +20,8 @@ import {
   REGISTER_ROLES,
   UserRole,
 } from './auth.constants';
-import { JwtPayload } from './auth.types';
+import type { AuthRestaurantContext, JwtPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
-import { RefreshDto } from './dto/refresh.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
 import { CustomerProfile } from '../entities/customer-profile.entity';
@@ -73,6 +72,7 @@ export class AuthService {
     const savedAccount = await this.userRepo.save(account);
 
     let profile: any = null;
+    let restaurantContext: AuthRestaurantContext | null = null;
     if (dto.role === UserRole.User) {
       const p = this.customerRepo.create({
         accountId: savedAccount.accountId,
@@ -105,7 +105,8 @@ export class AuthService {
         openingHours: dto.openingHours ?? 'TBD',
         issuesVat: dto.issuesVat ?? false,
       });
-      await this.restaurantRepo.save(restaurant);
+      const savedRestaurant = await this.restaurantRepo.save(restaurant);
+      restaurantContext = this.toRestaurantContext(savedRestaurant);
     }
 
     const tokens = await this.issueTokens(savedAccount);
@@ -113,6 +114,7 @@ export class AuthService {
     return {
       account: this.sanitizeAccount(savedAccount),
       profile,
+      restaurant: restaurantContext,
       tokens,
     };
   }
@@ -141,19 +143,21 @@ export class AuthService {
     }
 
     const tokens = await this.issueTokens(account, dto.rememberMe);
+    const restaurantContext = await this.getRestaurantContext(account);
 
     return {
       account: this.sanitizeAccount(account),
+      restaurant: restaurantContext,
       tokens,
     };
   }
 
-  async refresh(dto: RefreshDto) {
+  async refresh(refreshToken: string) {
     const refreshSecret = this.getRefreshSecret();
     let payload: JwtPayload;
 
     try {
-      payload = await this.jwtService.verifyAsync<JwtPayload>(dto.refreshToken, {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
         secret: refreshSecret,
       });
     } catch {
@@ -170,6 +174,7 @@ export class AuthService {
           role: AuthRole.Guest,
           status: AccountStatus.Active,
         },
+        restaurant: null,
         tokens,
       };
     }
@@ -190,9 +195,11 @@ export class AuthService {
     }
 
     const tokens = await this.issueTokens(account);
+    const restaurantContext = await this.getRestaurantContext(account);
 
     return {
       account: this.sanitizeAccount(account),
+      restaurant: restaurantContext,
       tokens,
     };
   }
@@ -207,6 +214,7 @@ export class AuthService {
           status: AccountStatus.Active,
         },
         profile: null,
+        restaurant: null,
         profileCompleted: false,
         guest: true,
       };
@@ -225,10 +233,12 @@ export class AuthService {
     }
 
     const profileCompleted = this.isProfileCompleted(account);
+    const restaurantContext = await this.getRestaurantContext(account);
 
     return {
       account: this.sanitizeAccount(account),
       profile: account.customerProfile ?? account.ownerProfile ?? null,
+      restaurant: restaurantContext,
       profileCompleted,
     };
   }
@@ -250,6 +260,7 @@ export class AuthService {
         role: AuthRole.Guest,
         status: AccountStatus.Active,
       },
+      restaurant: null,
       tokens,
       guest: true,
     };
@@ -330,6 +341,31 @@ export class AuthService {
       email: account.email,
       role: account.role,
       status: account.status,
+    };
+  }
+
+  private async getRestaurantContext(
+    account: UserAccount,
+  ): Promise<AuthRestaurantContext | null> {
+    if (account.role !== UserRole.Owner) {
+      return null;
+    }
+
+    const restaurant = await this.restaurantRepo.findOne({
+      where: { ownerAccountId: account.accountId },
+      order: { restaurantId: 'ASC' },
+    });
+
+    return restaurant ? this.toRestaurantContext(restaurant) : null;
+  }
+
+  private toRestaurantContext(restaurant: Restaurant): AuthRestaurantContext {
+    return {
+      restaurantId: restaurant.restaurantId,
+      ownerAccountId: restaurant.ownerAccountId,
+      nameVn: restaurant.nameVn,
+      nameJp: restaurant.nameJp,
+      status: restaurant.status,
     };
   }
 

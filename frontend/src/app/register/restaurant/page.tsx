@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { registerAccount } from "@/lib/api/auth/API";
+import { logoutAccount, registerAccount } from "@/lib/api/auth/API";
 import {
   clearRegisterDraft,
   readRegisterDraft,
@@ -57,6 +57,7 @@ export default function RestaurantRegisterPage() {
         representativeName: representativeName.trim() || draft.fullName,
         phone: phone.trim(),
       });
+      await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
       toast.success("Restaurant registration completed. Please log in.");

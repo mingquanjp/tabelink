@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { registerAccount } from "@/lib/api/auth/API";
+import { logoutAccount, registerAccount } from "@/lib/api/auth/API";
 import {
   clearRegisterDraft,
   readRegisterDraft,
@@ -74,6 +74,7 @@ export default function ProfileRegisterPage() {
         gender: selectedGender,
         nationality,
       });
+      await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
       toast.success("Registration completed. Please log in.");

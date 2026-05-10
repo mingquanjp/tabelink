@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Bell, User } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Bell, LogOut, User } from "lucide-react";
+import { toast } from "sonner";
+import { logoutAccount } from "@/lib/api/auth/API";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type NavItem = {
     label: string;
@@ -20,6 +28,19 @@ const navItems: NavItem[] = [
 
 export function OwnerNavbar() {
     const pathname = usePathname();
+    const router = useRouter();
+
+    async function handleLogout() {
+        try {
+            await logoutAccount();
+            toast.success("Logged out.");
+        } catch {
+            toast.error("Could not log out cleanly. Redirecting to login.");
+        } finally {
+            router.replace("/login");
+            router.refresh();
+        }
+    }
 
     return (
         <header className="sticky top-0 z-20 border-b border-[#e7e5e426] bg-[#f9f9f6cc] backdrop-blur-[6px]">
@@ -58,13 +79,26 @@ export function OwnerNavbar() {
                     >
                         <Bell size={20} />
                     </button>
-                    <button
-                        type="button"
-                        aria-label="Settings"
-                        className="inline-flex items-center justify-center rounded-full border p-0 text-stone-700 transition-colors hover:text-stone-900 border-accent-foreground"
-                    >
-                        <User size={20} />
-                    </button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <button
+                                type="button"
+                                aria-label="Account menu"
+                                className="inline-flex items-center justify-center rounded-full border p-0 text-stone-700 transition-colors hover:text-stone-900 border-accent-foreground"
+                            >
+                                <User size={20} />
+                            </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                                className="cursor-pointer text-[#af111c] focus:text-[#af111c]"
+                                onSelect={handleLogout}
+                            >
+                                <LogOut className="size-4" />
+                                Logout
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
         </header>

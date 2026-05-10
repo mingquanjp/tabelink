@@ -19,27 +19,19 @@ type RequestOptions = RequestInit & {
   auth?: boolean;
 };
 
-function getAccessToken() {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return localStorage.getItem("accessToken");
-}
-
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { auth, headers, ...init } = options;
-  const token = auth ? getAccessToken() : null;
+  const { auth: _auth, headers, ...init } = options;
+  void _auth;
 
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     cache: "no-store",
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   });

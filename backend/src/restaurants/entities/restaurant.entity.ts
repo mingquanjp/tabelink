@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { OwnerProfile } from './owner-profile.entity';
+import { OwnerProfile } from '../../auth/entities/owner-profile.entity';
 import { RestaurantFeature } from './restaurant-feature.entity';
 import { RestaurantMedia } from './restaurant-media.entity';
 import { RestaurantPaymentMethod } from './restaurant-payment-method.entity';

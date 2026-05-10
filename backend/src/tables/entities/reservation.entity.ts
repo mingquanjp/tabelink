@@ -7,9 +7,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { CustomerProfile } from './customer-profile.entity';
+import { CustomerProfile } from '../../auth/entities/customer-profile.entity';
 import { RestaurantTable } from './restaurant-table.entity';
-import { Restaurant } from './restaurant.entity';
+import { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
 export enum ReservationStatus {
   Pending = 'Pending',

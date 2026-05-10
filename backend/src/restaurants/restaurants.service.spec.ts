@@ -3,9 +3,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
-import { FeatureMaster } from '../entities/feature-master.entity';
-import { PaymentMethod } from '../entities/payment-method.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+import { FeatureMaster } from './entities/feature-master.entity';
+import { PaymentMethod } from './entities/payment-method.entity';
+import { Restaurant } from './entities/restaurant.entity';
 import { RestaurantsService } from './restaurants.service';
 
 describe('RestaurantsService', () => {
@@ -220,7 +220,7 @@ describe('RestaurantsService', () => {
         },
       ]);
 
-    await expect(service.getOwnerHome(1, owner)).resolves.toMatchObject({
+    await expect(service.getOwnerHome(owner)).resolves.toMatchObject({
       restaurantId: 1,
       restaurant: {
         restaurantId: 1,
@@ -296,10 +296,7 @@ describe('RestaurantsService', () => {
 
     expect(restaurantRepo.findOne).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          restaurantId: 1,
-          ownerAccountId: 5,
-        },
+        where: { ownerAccountId: 5 },
       }),
     );
     expect(dataSource.query).toHaveBeenCalledTimes(8);
@@ -328,7 +325,7 @@ describe('RestaurantsService', () => {
   it('rejects owners who do not own the restaurant for owner home', async () => {
     restaurantRepo.findOne.mockResolvedValueOnce(null);
 
-    await expect(service.getOwnerHome(1, owner)).rejects.toBeInstanceOf(
+    await expect(service.getOwnerHome(owner)).rejects.toBeInstanceOf(
       NotFoundException,
     );
 

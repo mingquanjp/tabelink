@@ -6,7 +6,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { AccountStatus, UserRole } from '../auth/auth.constants';
+import { AccountStatus, UserRole } from '../auth.constants';
 import { CustomerProfile } from './customer-profile.entity';
 import { OwnerProfile } from './owner-profile.entity';
 

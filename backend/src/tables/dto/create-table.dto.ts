@@ -8,7 +8,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { RestaurantTableStatus } from '../../entities/restaurant-table.entity';
+import { RestaurantTableStatus } from '../entities/restaurant-table.entity';
 
 export class CreateTableDto {
   @ApiProperty({ example: 'A1', maxLength: 100 })

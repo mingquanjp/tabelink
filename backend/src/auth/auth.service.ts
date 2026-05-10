@@ -24,10 +24,10 @@ import type { AuthRestaurantContext, JwtPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { RegisterDto } from './dto/register.dto';
-import { CustomerProfile } from '../entities/customer-profile.entity';
-import { OwnerProfile } from '../entities/owner-profile.entity';
-import { Restaurant } from '../entities/restaurant.entity';
-import { UserAccount } from '../entities/user-account.entity';
+import { CustomerProfile } from './entities/customer-profile.entity';
+import { OwnerProfile } from './entities/owner-profile.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
+import { UserAccount } from './entities/user-account.entity';
 import { MailService } from '../mail/mail.service';
 
 @Injectable()

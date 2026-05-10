@@ -7,8 +7,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
-import { MenuItem } from '../entities/menu-item.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+import { MenuItem } from '../menus/entities/menu-item.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 
 interface TopMenuRow {
   itemid: number | string;

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { RegisterRole } from "@/lib/api";
-import { saveRegisterDraft } from "@/lib/registration";
+import { saveRegisterDraft } from "@/lib/api/auth/register";
+import type { RegisterRole } from "@/lib/api/auth/type";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account.png";

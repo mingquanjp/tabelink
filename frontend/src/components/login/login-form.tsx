@@ -1,18 +1,57 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowUpRight, Eye, EyeOff, LogIn } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ForgotPasswordDialog } from "@/components/login/forgot-password-dialog";
 import { Input } from "@/components/ui/input";
+import { loginAccount } from "@/lib/api/auth/API";
+import { persistAuthSession } from "@/lib/api/auth/register";
+import type { AuthAccountRole } from "@/lib/api/auth/type";
 import { cn } from "@/lib/utils";
 
+function getLoginRedirectPath(role: AuthAccountRole) {
+  if (role === "Owner" || role === "Admin") {
+    return "/owner/home";
+  }
+
+  return "/";
+}
+
 export function LoginForm() {
+  const router = useRouter();
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setIsSubmitting(true);
+    try {
+      const response = await loginAccount({
+        email: email.trim(),
+        password,
+        rememberMe,
+      });
+
+      persistAuthSession(response.tokens);
+      toast.success("Login successful.");
+      router.push(getLoginRedirectPath(response.account.role));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Login failed.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   return (
-    <form className="mt-10 space-y-8">
+    <form className="mt-10 space-y-8" onSubmit={handleSubmit}>
       <div className="space-y-5">
         <div className="space-y-2">
           <label className="text-xs font-medium uppercase tracking-[0.12em] text-(--ink-600)">
@@ -24,7 +63,10 @@ export function LoginForm() {
               "font-manrope"
             )}
             placeholder="name@example.com"
+            required
             type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
           />
         </div>
 
@@ -39,7 +81,10 @@ export function LoginForm() {
                 "font-manrope"
               )}
               placeholder="••••••••"
+              required
               type={isPasswordVisible ? "text" : "password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
             />
             <button
               aria-label={
@@ -67,6 +112,8 @@ export function LoginForm() {
           <input
             className="size-4 rounded-xs border border-(--border-sage) bg-white text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--primary)/30"
             type="checkbox"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
           />
           <span>ログイン情報を保持する</span>
         </label>
@@ -76,6 +123,7 @@ export function LoginForm() {
       <div className="space-y-4 pt-2">
         <Button
           className="h-16 w-full gap-2 rounded-lg bg-[linear-gradient(172deg,var(--primary)_0%,var(--primary-bright)_100%)] text-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] hover:brightness-95"
+          disabled={isSubmitting}
           type="submit"
         >
           ログインする
@@ -93,7 +141,7 @@ export function LoginForm() {
 
       <div className="pt-2 text-center text-sm font-medium">
         <span className="text-(--ink-600)">初めてご利用ですか？</span>
-        <Link className="ml-1 text-primary hover:underline" href="#">
+        <Link className="ml-1 text-primary hover:underline" href="/register">
           アカウントを作成
         </Link>
       </div>

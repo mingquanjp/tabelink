@@ -1,4 +1,4 @@
-import type { AuthTokens, RegisterRole } from "@/lib/api";
+import type { AuthTokens, RegisterRole } from "@/lib/api/auth/type";
 
 export const REGISTER_DRAFT_KEY = "tabelink.registerDraft";
 

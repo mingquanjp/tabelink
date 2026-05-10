@@ -5,13 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { registerAccount } from "@/lib/api";
+import { registerAccount } from "@/lib/api/auth/API";
 import {
   clearRegisterDraft,
-  persistAuthSession,
   readRegisterDraft,
   type RegisterDraft,
-} from "@/lib/registration";
+} from "@/lib/api/auth/register";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
@@ -48,7 +47,7 @@ export default function RestaurantRegisterPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await registerAccount({
+      await registerAccount({
         email: draft.email,
         password: draft.password,
         fullName: draft.fullName,
@@ -59,10 +58,9 @@ export default function RestaurantRegisterPage() {
         phone: phone.trim(),
       });
 
-      persistAuthSession(response.tokens);
       clearRegisterDraft();
-      toast.success("Restaurant registration completed.");
-      router.push("/owner/dashboard");
+      toast.success("Restaurant registration completed. Please log in.");
+      router.push("/login");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Registration failed.");
     } finally {

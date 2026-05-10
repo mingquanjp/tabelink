@@ -7,6 +7,7 @@ import { ReservationsHeader } from "@/components/owner/reservations/Reservations
 import { ReservationsTable } from "@/components/owner/reservations/ReservationsTable";
 import { StatsCards } from "@/components/owner/reservations/StatsCards";
 import {
+    getOwnerRestaurant,
     getOwnerReservations,
     getOwnerTables,
     updateOwnerReservation,
@@ -16,8 +17,6 @@ import {
     type RestaurantTableDto,
     type RestaurantTableStatus,
 } from "@/lib/api/owner/reservation/api";
-
-const TEST_RESTAURANT_ID = Number(process.env.NEXT_PUBLIC_TEST_RESTAURANT_ID ?? "1001");
 
 export default function OwnerReservationsPage() {
     const [restaurantId, setRestaurantId] = useState<number | null>(null);
@@ -32,12 +31,14 @@ export default function OwnerReservationsPage() {
         setErrorMessage(null);
 
         try {
+            const restaurantResponse = await getOwnerRestaurant();
+            const ownerRestaurantId = restaurantResponse.restaurantId;
             const [tableResponse, reservationResponse] = await Promise.all([
-                getOwnerTables(TEST_RESTAURANT_ID),
-                getOwnerReservations(TEST_RESTAURANT_ID),
+                getOwnerTables(ownerRestaurantId),
+                getOwnerReservations(ownerRestaurantId),
             ]);
 
-            setRestaurantId(TEST_RESTAURANT_ID);
+            setRestaurantId(ownerRestaurantId);
             setTables(tableResponse.tables);
             setReservations(reservationResponse.reservations);
         } catch (error) {

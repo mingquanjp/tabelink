@@ -46,7 +46,7 @@ export function OwnerNavbar() {
         <header className="sticky top-0 z-20 border-b border-[#e7e5e426] bg-[#f9f9f6cc] backdrop-blur-[6px]">
             <div className="mx-auto flex h-20 w-full max-w-screen-2xl items-center justify-between px-8">
                 <div className="flex items-center">
-                    <span className="[font-family:'Plus_Jakarta_Sans-Bold',Helvetica] text-2xl font-bold leading-8 tracking-[-1.20px] text-[#af111c]">
+                    <span className="font-brand text-2xl font-bold leading-8 tracking-[-1.20px] text-[#af111c]">
                         TABELINK
                     </span>
                 </div>
@@ -59,7 +59,7 @@ export function OwnerNavbar() {
                             <Link
                                 key={item.label}
                                 href={item.href}
-                                className={`inline-flex items-center pb-1 text-sm leading-5 tracking-[0.35px] [font-family:'Noto_Sans_JP-Medium',Helvetica] font-medium transition-colors ${
+                                className={`inline-flex items-center pb-1 font-jp text-sm font-medium leading-5 tracking-[0.35px] transition-colors ${
                                     isActive
                                         ? "border-b-2 border-[#af111c] text-[#af111c]"
                                         : "text-stone-600 hover:text-stone-900"

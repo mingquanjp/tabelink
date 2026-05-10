@@ -1,6 +1,7 @@
 import { CalendarDays, Clock3, Users, Utensils } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import type { ReservationDto, RestaurantTableDto } from "@/lib/api/owner/reservation/api";
 
 type StatCard = {
     title: string;
@@ -46,10 +47,51 @@ const statCards: StatCard[] = [
     },
 ];
 
-export function StatsCards() {
+type StatsCardsProps = {
+    reservations: ReservationDto[];
+    tables: RestaurantTableDto[];
+};
+
+function isToday(value: string) {
+    const date = new Date(value);
+    const today = new Date();
+
+    return (
+        date.getFullYear() === today.getFullYear() &&
+        date.getMonth() === today.getMonth() &&
+        date.getDate() === today.getDate()
+    );
+}
+
+export function StatsCards({ reservations, tables }: StatsCardsProps) {
+    const todaysReservations = reservations.filter((reservation) => isToday(reservation.reservationDateTime));
+    const values = {
+        todayReservations: todaysReservations.length,
+        todayPax: todaysReservations.reduce((total, reservation) => total + reservation.pax, 0),
+        pending: reservations.filter((reservation) => reservation.status === "Pending").length,
+        emptySeats: tables
+            .filter((table) => table.status === "Empty")
+            .reduce((total, table) => total + table.capacity, 0),
+    };
+    const cards = statCards.map((card) => {
+        if (card.title === "本日の予約") {
+            return { ...card, value: String(values.todayReservations) };
+        }
+
+        if (card.title === "合計人数") {
+            return { ...card, value: String(values.todayPax) };
+        }
+
+        if (card.title === "確認待ち") {
+            return { ...card, value: String(values.pending) };
+        }
+
+        return { ...card, value: String(values.emptySeats) };
+    });
+
     return (
         <section className="grid grid-cols-4 gap-6">
-            {statCards.map((item) => {
+            {cards.map((item) => {
                 const Icon = item.icon;
 
                 return (
@@ -63,14 +105,14 @@ export function StatsCards() {
                             </div>
 
                             <div className="flex flex-col">
-                                <span className="[font-family:'Noto_Sans_JP-Medium',Helvetica] text-xs font-medium leading-4 tracking-[0.60px] text-[#5a6053]">
+                                <span className="font-jp text-xs font-medium leading-4 tracking-[0.60px] text-[#5a6053]">
                                     {item.title}
                                 </span>
                                 <div className="flex items-end">
-                                    <span className="[font-family:'Plus_Jakarta_Sans-Bold',Helvetica] text-2xl font-bold leading-8 text-[#1a1c1b]">
+                                    <span className="font-brand text-2xl font-bold leading-8 text-[#1a1c1b]">
                                         {item.value}
                                     </span>
-                                    <span className="ml-px mb-[3px] [font-family:'Noto_Sans_JP-Medium',Helvetica] text-sm font-medium leading-[13px] text-[#5a6053]">
+                                    <span className="ml-px mb-[3px] font-jp text-sm font-medium leading-[13px] text-[#5a6053]">
                                         {item.suffix}
                                     </span>
                                 </div>

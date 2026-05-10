@@ -32,20 +32,20 @@ export function AnnouncementsPanel() {
     return (
         <Card className="rounded-lg border-0 bg-[#e2e3e0] shadow-none">
             <CardContent className="p-8">
-                <h2 className="mb-6 [font-family:'Noto_Sans_JP-Medium',Helvetica] text-xl font-medium leading-7 text-[#1a1c1b]">
+                <h2 className="mb-6 font-jp text-xl font-medium leading-7 text-[#1a1c1b]">
                     お知らせ
                 </h2>
 
                 <div className="flex flex-col gap-4">
                     {announcements.map((item) => (
                         <article key={`${item.tag}-${item.title}`} className={`rounded border-l-4 bg-white p-4 ${item.borderClass}`}>
-                            <div className="[font-family:'Noto_Sans_JP-Medium',Helvetica] text-[10px] font-medium leading-[15px] text-[#5a6053]">
+                            <div className="font-jp text-[10px] font-medium leading-[15px] text-[#5a6053]">
                                 {item.tag}
                             </div>
-                            <p className="mt-1 [font-family:'Noto_Sans_JP-Medium',Helvetica] text-sm font-medium leading-5 text-[#1a1c1b]">
+                            <p className="mt-1 font-jp text-sm font-medium leading-5 text-[#1a1c1b]">
                                 {item.title}
                             </p>
-                            <div className="pt-1 [font-family:'Noto_Sans_JP-Medium',Helvetica] text-[10px] font-medium leading-[15px] text-stone-400">
+                            <div className="pt-1 font-jp text-[10px] font-medium leading-[15px] text-stone-400">
                                 {item.time}
                             </div>
                         </article>

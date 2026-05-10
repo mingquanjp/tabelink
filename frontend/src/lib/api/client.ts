@@ -25,15 +25,19 @@ export async function apiRequest<T>(
 ): Promise<T> {
   const { auth: _auth, headers, ...init } = options;
   void _auth;
+  const isFormData =
+    typeof FormData !== "undefined" && init.body instanceof FormData;
 
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     cache: "no-store",
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...headers,
-    },
+    headers: isFormData
+      ? headers
+      : {
+          "Content-Type": "application/json",
+          ...headers,
+        },
   });
 
   if (!response.ok) {

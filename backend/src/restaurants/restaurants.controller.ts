@@ -1,6 +1,19 @@
-import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common';
 import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Req,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import {
+  ApiBody,
   ApiBearerAuth,
+  ApiConsumes,
+  ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -8,10 +21,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
+import { UploadedRestaurantImageFile } from './restaurant-image-upload.types';
+import { RestaurantImagesService } from './restaurant-images.service';
 import { RestaurantsService } from './restaurants.service';
 
 interface AuthenticatedRequest extends Request {
@@ -21,11 +37,16 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('restaurants')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-@ApiForbiddenResponse({ description: 'Only restaurant owners can manage restaurant information.' })
+@ApiForbiddenResponse({
+  description: 'Only restaurant owners can manage restaurant information.',
+})
 @UseGuards(JwtAuthGuard)
 @Controller('owner')
 export class RestaurantsController {
-  constructor(private readonly restaurantsService: RestaurantsService) {}
+  constructor(
+    private readonly restaurantsService: RestaurantsService,
+    private readonly restaurantImagesService: RestaurantImagesService,
+  ) {}
 
   @Get('restaurant-options')
   @ApiOperation({
@@ -108,5 +129,55 @@ export class RestaurantsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.restaurantsService.update(dto, request.user);
+  }
+
+  @Post('restaurant/images')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 10 * 1024 * 1024,
+      },
+    }),
+  )
+  @ApiOperation({
+    summary: 'Upload owner restaurant image',
+    description:
+      'Uploads one restaurant profile image to Cloudinary. Use the returned imageUrl in the restaurant media array when updating restaurant information.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'JPG, PNG, or WEBP image. Max 10MB.',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'Restaurant image uploaded to Cloudinary.',
+    schema: {
+      example: {
+        imageUrl:
+          'https://res.cloudinary.com/demo/image/upload/v123/tabelink/restaurants/1/profile/cover.jpg',
+        publicId: 'tabelink/restaurants/1/profile/cover',
+        width: 1200,
+        height: 800,
+        bytes: 245678,
+        format: 'jpg',
+        originalName: 'cover.jpg',
+      },
+    },
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  uploadRestaurantImage(
+    @UploadedFile() file: UploadedRestaurantImageFile | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.restaurantImagesService.upload(file, request.user);
   }
 }

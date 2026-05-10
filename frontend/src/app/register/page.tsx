@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { saveRegisterDraft } from "@/lib/api/auth/register";
+import { readRegisterDraft, saveRegisterDraft } from "@/lib/api/auth/register";
 import type { RegisterRole } from "@/lib/api/auth/type";
 
 const imgStepCheck = "/register/step-check.png";
@@ -14,16 +14,21 @@ const imgButtonArrow = "/register/button-arrow.png";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [role, setRole] = useState("diner");
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [savedDraft] = useState(() =>
+    typeof window === "undefined" ? null : readRegisterDraft()
+  );
+  const [role, setRole] = useState(
+    savedDraft?.role === "Owner" ? "store" : "diner"
+  );
+  const [fullName, setFullName] = useState(savedDraft?.fullName ?? "");
+  const [email, setEmail] = useState(savedDraft?.email ?? "");
+  const [password, setPassword] = useState(savedDraft?.password ?? "");
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (password.length < 8) {
-      toast.error("Password must be at least 8 characters.");
+      toast.error("エラーが発生しました");
       return;
     }
 

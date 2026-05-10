@@ -14,6 +14,7 @@ import {
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
+const phonePattern = /^\d{4}-\d{3}-\d{3}$/;
 
 export default function RestaurantRegisterPage() {
   const router = useRouter();
@@ -45,6 +46,11 @@ export default function RestaurantRegisterPage() {
       return;
     }
 
+    if (!phonePattern.test(phone.trim())) {
+      toast.error("エラーが発生しました");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await registerAccount({
@@ -60,10 +66,10 @@ export default function RestaurantRegisterPage() {
       await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
-      toast.success("Restaurant registration completed. Please log in.");
+      toast.success("設定を保存しました");
       router.push("/login");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Registration failed.");
+    } catch {
+      toast.error("エラーが発生しました");
     } finally {
       setIsSubmitting(false);
     }
@@ -185,8 +191,10 @@ export default function RestaurantRegisterPage() {
             </div>
             <input
               type="tel"
-              placeholder="0123-456-789"
+              placeholder="1234-567-890"
               required
+              pattern="\d{4}-\d{3}-\d{3}"
+              title="xxxx-xxx-xxx"
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               className="w-full border-b border-[#e2e3e0] py-[14px] text-[18px] font-manrope font-medium text-[#1a1c1b] placeholder:text-[#e2e3e0] focus:outline-none focus:border-[#af111c] transition-colors bg-transparent"
@@ -214,6 +222,16 @@ export default function RestaurantRegisterPage() {
             </button>
           </div>
         </form>
+
+        <div className="flex justify-center">
+          <Link
+            className="flex items-center gap-2 text-[14px] font-medium text-[#5a6053] hover:text-[#af111c] transition-colors [font-family:'Noto_Sans_JP',sans-serif]"
+            href="/register"
+          >
+            <ArrowLeft className="size-4" />
+            前のステップに戻る
+          </Link>
+        </div>
       </div>
     </>
   );

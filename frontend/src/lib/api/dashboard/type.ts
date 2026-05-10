@@ -46,6 +46,11 @@ export type OwnerDashboardResponse = {
     japanese: number;
     others: number;
   }>;
+  revenueTrend: Array<{
+    date: string;
+    revenue: number;
+    orderCount: number;
+  }>;
   userAttributes: Array<{
     label: string;
     count: number;
@@ -65,6 +70,30 @@ export type OwnerDashboardResponse = {
       reservationCount: number;
     }>;
     insight: string;
+  };
+  verification: {
+    status: string;
+    application: {
+      appId: number;
+      restaurantId: number;
+      badgeId: number;
+      badge: {
+        badgeId: number;
+        badgeCode: string;
+        badgeNameVn: string | null;
+        badgeNameJp: string | null;
+      } | null;
+      submittedByOwnerAccountId: number;
+      businessLicenseUrl: string | null;
+      businessLicensePublicId: string | null;
+      foodSafetyCertUrl: string | null;
+      foodSafetyCertPublicId: string | null;
+      status: string;
+      submittedAt: string | Date;
+      reviewedByAdminId: number | null;
+      reviewedAt: string | Date | null;
+      reviewNote: string | null;
+    } | null;
   };
 };
 

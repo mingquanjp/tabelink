@@ -31,10 +31,10 @@ export function LoginForm() {
         rememberMe,
       });
 
-      toast.success("Login successful.");
+      toast.success("設定を保存しました");
       router.replace(getAuthenticatedRedirectPath(response.account.role));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Login failed.");
+    } catch {
+      toast.error("エラーが発生しました");
     } finally {
       setIsSubmitting(false);
     }

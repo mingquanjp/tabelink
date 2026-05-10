@@ -18,7 +18,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-    { label: "ホーム", href: "/" },
+    { label: "ホーム", href: "/owner/home" },
     { label: "ダッシュボード", href: "/owner/dashboard" },
     { label: "メニュー管理", href: "/owner/menu" },
     { label: "予約管理", href: "/owner/reservations" },
@@ -33,9 +33,9 @@ export function OwnerNavbar() {
     async function handleLogout() {
         try {
             await logoutAccount();
-            toast.success("Logged out.");
+            toast.success("設定を保存しました");
         } catch {
-            toast.error("Could not log out cleanly. Redirecting to login.");
+            toast.error("エラーが発生しました");
         } finally {
             router.replace("/login");
             router.refresh();

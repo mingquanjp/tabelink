@@ -99,14 +99,14 @@ const fallbackVisitorTrends: VisitorTrendItem[] = [
 ];
 
 const fallbackDemographics: DemographicItem[] = [
-  { name: "Japanese", value: 3434, color: "#af111c" },
-  { name: "Others", value: 1850, color: "#8f6f6c66" },
+  { name: "日本人", value: 3434, color: "#af111c" },
+  { name: "その他", value: 1850, color: "#8f6f6c66" },
 ];
 
 const fallbackSentiment: SentimentItem[] = [
-  { label: "Positive", value: 82, color: "#3d5f46", icon: Smile },
-  { label: "Neutral", value: 12, color: "#5a6053", icon: Meh },
-  { label: "Negative", value: 6, color: "#af111c", icon: Frown },
+  { label: "ポジティブ", value: 82, color: "#3d5f46", icon: Smile },
+  { label: "中立", value: 12, color: "#5a6053", icon: Meh },
+  { label: "ネガティブ", value: 6, color: "#af111c", icon: Frown },
 ];
 
 const fallbackPopularMenu: PopularMenuItem[] = [
@@ -140,7 +140,21 @@ function formatSignedPercent(value: number | null | undefined) {
 
 function formatDateLabel(date: string) {
   const [, month, day] = date.split("-");
-  return month && day ? `${month}/${day}` : date;
+  return month && day ? `${day}/${month}` : date;
+}
+
+function formatVisitorTrendName(name: string | number) {
+  const normalizedName = String(name).toLowerCase();
+
+  if (normalizedName === "japanese") {
+    return "日本人";
+  }
+
+  if (normalizedName === "others") {
+    return "その他";
+  }
+
+  return String(name);
 }
 
 function toPopularMenuItems(items: TopMenuItem[]): PopularMenuItem[] {
@@ -219,9 +233,9 @@ function PopularTimeBar({
         <g>
           <rect x={labelX - 11} y={labelY} width={22} height={40} rx={2} fill="#1a1c1b" />
           <text x={labelX} y={labelY + 11} textAnchor="middle" fill="#ffffff" fontSize={10} fontWeight={500}>
-            <tspan x={labelX} dy="0">P</tspan>
-            <tspan x={labelX} dy="11">E</tspan>
-            <tspan x={labelX} dy="11">AK</tspan>
+            <tspan x={labelX} dy="0">ピ</tspan>
+            <tspan x={labelX} dy="11">ー</tspan>
+            <tspan x={labelX} dy="11">ク</tspan>
           </text>
         </g>
       )}
@@ -339,24 +353,34 @@ export default function OwnerDashboardPage() {
           // Tracking must not block analytics rendering.
         });
 
-        const topMenuResponse = await getTopMenu(currentRestaurantId);
-
         if (cancelled) {
           return;
         }
 
         setDashboard(dashboardResponse);
-        setPopularMenuItems(
-          topMenuResponse.items.length > 0
-            ? toPopularMenuItems(topMenuResponse.items)
-            : fallbackPopularMenu
-        );
-      } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load dashboard analytics."
-        );
+
+        if (dashboardResponse.topMenus.length > 0) {
+          setPopularMenuItems(toPopularMenuItems(dashboardResponse.topMenus));
+          return;
+        }
+
+        try {
+          const topMenuResponse = await getTopMenu(currentRestaurantId);
+
+          if (!cancelled) {
+            setPopularMenuItems(
+              topMenuResponse.items.length > 0
+                ? toPopularMenuItems(topMenuResponse.items)
+                : fallbackPopularMenu
+            );
+          }
+        } catch {
+          if (!cancelled) {
+            setPopularMenuItems(fallbackPopularMenu);
+          }
+        }
+      } catch {
+        toast.error("エラーが発生しました");
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -452,7 +476,12 @@ export default function OwnerDashboardPage() {
     }
 
     return dashboard.userAttributes.map((item, index) => ({
-      name: item.label,
+      name:
+        item.label.toLowerCase() === "japanese"
+          ? "日本人"
+          : item.label.toLowerCase() === "others"
+            ? "その他"
+            : item.label,
       value: item.count,
       color: index === 0 ? "#af111c" : "#8f6f6c66",
     }));
@@ -465,19 +494,19 @@ export default function OwnerDashboardPage() {
 
     return [
       {
-        label: "Positive",
+        label: "ポジティブ",
         value: dashboard.reviewSentiment.positive,
         color: "#3d5f46",
         icon: Smile,
       },
       {
-        label: "Neutral",
+        label: "中立",
         value: dashboard.reviewSentiment.neutral,
         color: "#5a6053",
         icon: Meh,
       },
       {
-        label: "Negative",
+        label: "ネガティブ",
         value: dashboard.reviewSentiment.negative,
         color: "#af111c",
         icon: Frown,
@@ -488,10 +517,7 @@ export default function OwnerDashboardPage() {
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
 
   const handleApplySuccess = () => {
-    toast.success("申請が完了しました！", {
-      description:
-        "運営チームによる審査完了まで、数日かかる場合があります。",
-    });
+    toast.success("設定を保存しました");
   };
 
   const handleCertificationClick = async () => {
@@ -517,11 +543,9 @@ export default function OwnerDashboardPage() {
 
     try {
       await recordMenuItemView(item.itemId);
-      toast.success("Menu item view recorded.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to record menu view."
-      );
+      toast.success("設定を保存しました");
+    } catch {
+      toast.error("エラーが発生しました");
     }
   };
 
@@ -595,11 +619,11 @@ export default function OwnerDashboardPage() {
               <div className="flex gap-4">
                 <div className="flex items-center gap-2">
                   <div className="size-3 rounded-full bg-[#af111c]" />
-                  <span className="text-[10px] font-medium text-[#5a6053] uppercase tracking-widest">Japanese</span>
+                  <span className="text-[10px] font-medium text-[#5a6053] uppercase tracking-widest">日本人</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-3 rounded-full bg-[#8f6f6c]" />
-                  <span className="text-[10px] font-medium text-[#5a6053] uppercase tracking-widest">Others</span>
+                  <span className="text-[10px] font-medium text-[#5a6053] uppercase tracking-widest">その他</span>
                 </div>
               </div>
             </div>
@@ -618,6 +642,10 @@ export default function OwnerDashboardPage() {
                   <Tooltip
                     cursor={{ fill: "#af111c08" }}
                     contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                    formatter={(value, name) => [
+                      value,
+                      formatVisitorTrendName(name ?? ""),
+                    ]}
                   />
                   <Bar dataKey="japanese" stackId="visitors" fill="#af111c" barSize={120} />
                   <Bar dataKey="others" stackId="visitors" fill="#f0d8daff" radius={[2, 2, 0, 0]} barSize={120} />
@@ -652,7 +680,7 @@ export default function OwnerDashboardPage() {
                     {demographicsData[0]?.value ?? 0}
                   </span>
                   <span className="text-[8px] font-medium text-[#5a6053] uppercase tracking-tighter">
-                    Users
+                    日本人
                   </span>
                 </div>
               </div>

@@ -77,10 +77,10 @@ export default function ProfileRegisterPage() {
       await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
-      toast.success("Registration completed. Please log in.");
+      toast.success("設定を保存しました");
       router.push("/login");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Registration failed.");
+    } catch {
+      toast.error("エラーが発生しました");
     } finally {
       setIsSubmitting(false);
     }

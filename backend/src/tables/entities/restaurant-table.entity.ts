@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { Reservation } from './reservation.entity';
-import { Restaurant } from './restaurant.entity';
+import { Restaurant } from '../../restaurants/entities/restaurant.entity';
 
 export enum RestaurantTableStatus {
   Empty = 'Empty',

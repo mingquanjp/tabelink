@@ -12,12 +12,12 @@ import { JwtPayload } from '../auth/auth.types';
 import {
   Reservation,
   ReservationStatus,
-} from '../entities/reservation.entity';
+} from './entities/reservation.entity';
 import {
   RestaurantTable,
   RestaurantTableStatus,
-} from '../entities/restaurant-table.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+} from './entities/restaurant-table.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { CreateTableDto } from './dto/create-table.dto';
 import { ListReservationsQueryDto } from './dto/list-reservations-query.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';

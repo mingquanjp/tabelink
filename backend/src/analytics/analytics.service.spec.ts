@@ -3,8 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
-import { MenuItem } from '../entities/menu-item.entity';
-import { Restaurant } from '../entities/restaurant.entity';
+import { MenuItem } from '../menus/entities/menu-item.entity';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { AnalyticsService } from './analytics.service';
 
 describe('AnalyticsService', () => {

@@ -23,7 +23,7 @@ export default function RegisterPage() {
     event.preventDefault();
 
     if (password.length < 8) {
-      toast.error("Password must be at least 8 characters.");
+      toast.error("エラーが発生しました");
       return;
     }
 

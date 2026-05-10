@@ -8,6 +8,7 @@ import {
   Clock3,
   CreditCard,
   ExternalLink,
+  CircleAlert,
   MapPin,
   PencilLine,
   Phone,
@@ -18,8 +19,19 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import type { ReactNode } from "react";
-import { useState } from "react";
+import type { FormEvent, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import {
+  getOwnerHome,
+  updateOwnerRestaurant,
+  uploadOwnerRestaurantImage,
+} from "@/lib/api/owner-home/API";
+import type {
+  OwnerHomeMenuItem,
+  OwnerHomeResponse,
+  OwnerHomeReviewItem,
+} from "@/lib/api/owner-home/type";
 
 const photos = {
   dish:
@@ -149,6 +161,7 @@ const menuItems = [
 
 const reviews = [
   {
+    audience: "japanese" as const,
     name: "Kenji Sato",
     initial: "K",
     type: "在住日本人",
@@ -160,6 +173,7 @@ const reviews = [
     avatarClass: "bg-[#dfe5d4] text-[#5a6053]",
   },
   {
+    audience: "vietnamese" as const,
     name: "Nguyen H.",
     initial: "N",
     type: "ベトナム人",
@@ -171,6 +185,7 @@ const reviews = [
     avatarClass: "bg-[#af111c1a] text-[#af111c]",
   },
   {
+    audience: "japanese" as const,
     name: "Hiroshi Y.",
     initial: "H",
     type: "在住日本人",
@@ -182,6 +197,239 @@ const reviews = [
     avatarClass: "bg-[#dfe5d4] text-[#5a6053]",
   },
 ];
+
+type HomeInfoItem = (typeof infoItems)[number];
+type HomeFeatureItem = (typeof features)[number];
+type MenuCategoryDisplayItem = {
+  code: string;
+  label: string;
+};
+type MenuDisplayItem = {
+  categoryCode?: string | null;
+  categoryName?: string | null;
+  nameJp: string;
+  nameVn: string;
+  price: string;
+  description: string;
+  image: string;
+  spice: number;
+  coriander: number;
+  recommended?: boolean;
+  soldOut?: boolean;
+};
+type ReviewDisplayItem = {
+  audience: "all" | "japanese" | "vietnamese";
+  name: string;
+  initial: string;
+  type: string;
+  typeClass: string;
+  meta: string;
+  rating: number;
+  text: string;
+  verified: string;
+  avatarClass: string;
+};
+
+function formatVnd(value: number) {
+  return `${value.toLocaleString("vi-VN")} VND`;
+}
+
+function getCriterionLevel(item: OwnerHomeMenuItem, keyword: string) {
+  const criterion = item.criteria.find((entry) =>
+    entry.criterionName.toLowerCase().includes(keyword.toLowerCase())
+  );
+
+  if (!criterion) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(3, Math.round(criterion.ratingLevel)));
+}
+
+function toMenuDisplayItems(items: OwnerHomeMenuItem[]): MenuDisplayItem[] {
+  if (items.length === 0) {
+    return menuItems.map((item, index) => ({
+      ...item,
+      categoryCode:
+        index === 0 || index === 3
+          ? "main"
+          : index === 1
+            ? "starter"
+            : "dessert",
+      categoryName:
+        index === 0 || index === 3
+          ? "メイン料理"
+          : index === 1
+            ? "スターター"
+            : "デザート",
+    }));
+  }
+
+  return items.map((item, index) => ({
+    categoryCode:
+      item.category?.categoryCode ?? item.categoryId?.toString() ?? null,
+    categoryName:
+      item.category?.categoryNameJp || item.category?.categoryNameVn || null,
+    nameJp: item.nameJp || item.nameVn,
+    nameVn: item.nameVn,
+    price: formatVnd(item.price),
+    description: item.descriptionJp || item.descriptionVn || "",
+    image: item.imageUrl || menuItems[index % menuItems.length].image,
+    spice: getCriterionLevel(item, "辛") || getCriterionLevel(item, "spicy"),
+    coriander:
+      getCriterionLevel(item, "パクチー") || getCriterionLevel(item, "coriander"),
+    recommended: item.isRecommendedForJp,
+    soldOut: !item.isActive,
+  }));
+}
+
+function toMenuCategories(
+  categories: OwnerHomeResponse["menu"]["categories"] | undefined,
+  items: MenuDisplayItem[],
+): MenuCategoryDisplayItem[] {
+  if (categories && categories.length > 0) {
+    return categories.slice(0, 3).map((category) => ({
+      code: category.categoryCode || category.categoryId.toString(),
+      label: category.categoryNameJp || category.categoryNameVn,
+    }));
+  }
+
+  const categoryMap = new Map<string, string>();
+
+  for (const item of items) {
+    const code = item.categoryCode || "main";
+    const label = item.categoryName || "メイン料理";
+
+    if (!categoryMap.has(code)) {
+      categoryMap.set(code, label);
+    }
+  }
+
+  return Array.from(categoryMap, ([code, label]) => ({ code, label })).slice(
+    0,
+    3,
+  );
+}
+
+function toReviewDisplayItems(items: OwnerHomeReviewItem[]): ReviewDisplayItem[] {
+  if (items.length === 0) {
+    return reviews;
+  }
+
+  return items.slice(0, 3).map((item) => {
+    const name = item.customerName || `User #${item.customerAccountId}`;
+    const initial = name.trim().charAt(0).toUpperCase() || "U";
+
+    return {
+      audience: item.isJapaneseTag ? "japanese" : "vietnamese",
+      name,
+      initial,
+      type: item.isJapaneseTag ? "在住日本人" : "ベトナム人",
+      typeClass: item.isJapaneseTag
+        ? "border-[#3d5f4633] bg-[#3d5f461a] text-[#3d5f46]"
+        : "border-[#dbeafe] bg-[#eff6ff] text-[#1d4ed8]",
+      meta: item.isJapaneseTag ? "Japanese Community" : "Local Foodie",
+      rating: Math.max(0, Math.min(5, Math.round(item.rating))),
+      text: item.content || "コメントはありません。",
+      verified: item.isJapaneseTag ? "衛生・サービス確認済み" : "認証済みユーザー",
+      avatarClass: item.isJapaneseTag
+        ? "bg-[#dfe5d4] text-[#5a6053]"
+        : "bg-[#af111c1a] text-[#af111c]",
+    };
+  });
+}
+
+function buildInfoItems(homeData: OwnerHomeResponse | null): HomeInfoItem[] {
+  const restaurant = homeData?.restaurant;
+
+  if (!restaurant) {
+    return infoItems;
+  }
+
+  const socialLabels = restaurant.socialLinks
+    .map((link) => link.displayLabel || link.provider)
+    .filter(Boolean)
+    .join("    ");
+
+  return [
+    {
+      label: "住所 / Address",
+      value: restaurant.address,
+      icon: MapPin,
+      action: ExternalLink,
+    },
+    {
+      label: "営業時間 / Hours",
+      value: restaurant.openingHours || "未設定",
+      icon: Clock3,
+      badge: "Open Now",
+    },
+    {
+      label: "電話番号 / Contact",
+      value: restaurant.phone || "未設定",
+      icon: Phone,
+    },
+    {
+      label: "SNS",
+      value: socialLabels || "未設定",
+      icon: Share2,
+    },
+  ];
+}
+
+function buildFeatures(homeData: OwnerHomeResponse | null): HomeFeatureItem[] {
+  const restaurant = homeData?.restaurant;
+
+  if (!restaurant) {
+    return features;
+  }
+
+  const payment = restaurant.paymentMethods
+    .map((method) => method.methodName || method.methodCode)
+    .filter(Boolean)
+    .join(" / ");
+  const service = restaurant.features
+    .map((feature) => feature.featureNameJp || feature.featureNameVn)
+    .filter(Boolean)
+    .join(" / ");
+
+  return [
+    {
+      eyebrow: "お支払い・領収書",
+      title: restaurant.issuesVat ? "VAT対応 / レッドインボイス可" : "VAT情報未設定",
+      icon: ReceiptText,
+    },
+    {
+      eyebrow: "カード利用",
+      title: payment || "支払い方法未設定",
+      icon: CreditCard,
+    },
+    {
+      eyebrow: "サービス",
+      title: service || "サービス情報未設定",
+      icon: UsersRound,
+    },
+  ];
+}
+
+function buildEditFields(homeData: OwnerHomeResponse | null) {
+  const restaurant = homeData?.restaurant;
+
+  if (!restaurant) {
+    return formFields;
+  }
+
+  return {
+    name: restaurant.nameJp || restaurant.nameVn,
+    descriptionVn: restaurant.descriptionVn || "",
+    descriptionJp: restaurant.descriptionJp || "",
+    address: restaurant.address,
+    phone: restaurant.phone || "",
+    hours: restaurant.openingHours || "",
+    instagram: restaurant.sns.instagram || "",
+    facebook: restaurant.sns.facebook || "",
+  };
+}
 
 function PhotoTile({
   src,
@@ -251,7 +499,7 @@ function DotScale({
   );
 }
 
-function MenuCard({ item }: { item: (typeof menuItems)[number] }) {
+function MenuCard({ item }: { item: MenuDisplayItem }) {
   return (
     <article className="relative isolate flex min-h-[216px] overflow-hidden rounded-lg border border-[#e4beba1a] bg-white shadow-sm max-md:flex-col">
       {item.soldOut ? (
@@ -305,7 +553,7 @@ function StarRating({ rating, size = "size-3.5" }: { rating: number; size?: stri
   );
 }
 
-function ReviewCard({ review }: { review: (typeof reviews)[number] }) {
+function ReviewCard({ review }: { review: ReviewDisplayItem }) {
   return (
     <article className="flex min-h-[240px] flex-col rounded-lg border border-[#e4beba1a] bg-white p-8 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
       <div className="flex items-start">
@@ -342,7 +590,25 @@ function ReviewCard({ review }: { review: (typeof reviews)[number] }) {
   );
 }
 
-function MenuSection() {
+function MenuSection({
+  categories,
+  items,
+}: {
+  categories: MenuCategoryDisplayItem[];
+  items: MenuDisplayItem[];
+}) {
+  const [activeCategory, setActiveCategory] = useState(
+    categories[0]?.code ?? "main",
+  );
+  const selectedCategory = categories.some(
+    (category) => category.code === activeCategory,
+  )
+    ? activeCategory
+    : categories[0]?.code ?? "main";
+  const visibleItems = items.filter(
+    (item) => (item.categoryCode || "main") === selectedCategory,
+  ).slice(0, 4);
+
   return (
     <section className="mx-auto flex max-w-[1280px] flex-col gap-12 px-8 py-20 max-md:px-4">
       <div className="flex items-center justify-between gap-6 max-lg:flex-col max-lg:items-start">
@@ -350,27 +616,67 @@ function MenuSection() {
           おすすめメニュー / Recommended Menu
         </h2>
         <div className="flex flex-wrap gap-2">
-          <button className="rounded-xl bg-[#1a1c1b] px-4 py-2 text-sm font-medium leading-5 text-[#f9f9f6] font-jp">
-            メイン料理
-          </button>
-          <button className="rounded-xl bg-[#e8e8e5] px-4 py-2 text-sm font-medium leading-5 text-[#5b403d] font-jp">
-            スターター
-          </button>
-          <button className="rounded-xl bg-[#e8e8e5] px-4 py-2 text-sm font-medium leading-5 text-[#5b403d] font-jp">
-            デザート
-          </button>
+          {categories.map((category) => {
+            const isActive = category.code === selectedCategory;
+
+            return (
+              <button
+                key={category.code}
+                type="button"
+                onClick={() => setActiveCategory(category.code)}
+                className={`rounded-xl px-4 py-2 text-sm font-medium leading-5 transition-colors font-jp ${
+                  isActive
+                    ? "bg-[#1a1c1b] text-[#f9f9f6]"
+                    : "bg-[#e8e8e5] text-[#5b403d] hover:bg-[#dededb]"
+                }`}
+              >
+                {category.label}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="grid gap-8 lg:grid-cols-2">
-        {menuItems.map((item) => (
+        {visibleItems.map((item) => (
           <MenuCard key={item.nameJp} item={item} />
         ))}
+        {visibleItems.length === 0 ? (
+          <div className="rounded-lg border border-[#e4beba33] bg-white px-5 py-8 text-sm text-[#5a6053] font-jp lg:col-span-2">
+            このカテゴリーのメニューはまだありません。
+          </div>
+        ) : null}
       </div>
     </section>
   );
 }
 
-function CommunityReviewsSection() {
+function CommunityReviewsSection({
+  items,
+  summary,
+}: {
+  items: ReviewDisplayItem[];
+  summary: OwnerHomeResponse["reviews"]["summary"] | null;
+}) {
+  const averageRating = summary?.averageRating ?? 4.2;
+  const visibleCount = summary?.visibleCount ?? 120;
+  const [audienceFilter, setAudienceFilter] = useState<
+    "all" | "japanese" | "vietnamese"
+  >("all");
+  const [ratingFilter, setRatingFilter] = useState<number | "all">("all");
+  const audienceOptions = [
+    { value: "all", label: "すべて" },
+    { value: "japanese", label: "在住日本人" },
+    { value: "vietnamese", label: "ベトナム人" },
+  ] as const;
+  const filteredItems = items.filter((item) => {
+    const matchesAudience =
+      audienceFilter === "all" || item.audience === audienceFilter;
+    const matchesRating =
+      ratingFilter === "all" || item.rating === ratingFilter;
+
+    return matchesAudience && matchesRating;
+  });
+
   return (
     <section className="bg-[#f4f4f1] py-20">
       <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-8 max-md:px-4">
@@ -384,9 +690,9 @@ function CommunityReviewsSection() {
             </h2>
           </div>
           <div className="flex flex-col items-end gap-2 max-md:items-start">
-            <StarRating rating={4} size="size-5" />
+            <StarRating rating={Math.round(averageRating)} size="size-5" />
             <p className="text-sm font-bold leading-5 text-[#5b403d] font-jp">
-              4.2 (120件のレビュー)
+              {averageRating.toFixed(1)} ({visibleCount}件のレビュー)
             </p>
           </div>
         </div>
@@ -395,25 +701,59 @@ function CommunityReviewsSection() {
             <span className="mr-1 text-xs font-medium uppercase tracking-[1.2px] text-[#5a6053] font-jp">
               絞り込み:
             </span>
-            <button className="rounded bg-[#af111c] px-3 py-1.5 text-xs font-medium leading-4 text-white font-jp">すべて</button>
-            <button className="rounded bg-[#e8e8e5] px-3 py-1.5 text-xs font-medium leading-4 text-[#5b403d] font-jp">在住日本人</button>
-            <button className="rounded bg-[#e8e8e5] px-3 py-1.5 text-xs font-medium leading-4 text-[#5b403d] font-jp">ベトナム人</button>
+            {audienceOptions.map((option) => {
+              const isActive = option.value === audienceFilter;
+
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setAudienceFilter(option.value)}
+                  className={`rounded px-3 py-1.5 text-xs font-medium leading-4 transition-colors font-jp ${
+                    isActive
+                      ? "bg-[#af111c] text-white"
+                      : "bg-[#e8e8e5] text-[#5b403d] hover:bg-[#dededb]"
+                  }`}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
           </div>
           <div className="h-6 w-px bg-[#e4beba33] max-sm:hidden" />
           <div className="flex items-center gap-3">
             <span className="text-xs font-medium uppercase tracking-[1.2px] text-[#5a6053] font-jp">
               評価:
             </span>
-            <button className="inline-flex items-center gap-3 rounded bg-[#e8e8e5] px-3 py-1.5 text-xs font-medium leading-4 text-[#1a1c1b] font-jp">
-              すべての評価
-              <ChevronDown className="size-4 text-[#5a6053]" />
-            </button>
+            <div className="relative">
+              <select
+                value={ratingFilter}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setRatingFilter(value === "all" ? "all" : Number(value));
+                }}
+                className="appearance-none rounded bg-[#e8e8e5] py-1.5 pl-3 pr-9 text-xs font-medium leading-4 text-[#1a1c1b] outline-none transition-colors hover:bg-[#dededb] focus:ring-1 focus:ring-[#af111c] font-jp"
+              >
+                <option value="all">すべての評価</option>
+                <option value="5">5つ星</option>
+                <option value="4">4つ星</option>
+                <option value="3">3つ星</option>
+                <option value="2">2つ星</option>
+                <option value="1">1つ星</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-[#5a6053]" />
+            </div>
           </div>
         </div>
         <div className="grid gap-6 pb-4 lg:grid-cols-3">
-          {reviews.map((review) => (
+          {filteredItems.map((review) => (
             <ReviewCard key={review.name} review={review} />
           ))}
+          {filteredItems.length === 0 ? (
+            <div className="rounded-lg border border-[#e4beba33] bg-white px-5 py-8 text-sm text-[#5a6053] font-jp lg:col-span-3">
+              条件に一致するレビューはありません。
+            </div>
+          ) : null}
         </div>
       </div>
     </section>
@@ -423,7 +763,164 @@ function CommunityReviewsSection() {
 const inputClass =
   "w-full rounded bg-[#f4f4f1] px-4 py-3 text-sm leading-5 text-[#1a1c1b] outline-none transition-shadow focus:ring-1 focus:ring-[#af111c] font-manrope";
 
-function EditRestaurantModal({ onClose }: { onClose: () => void }) {
+function normalizeSocialUrl(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return "";
+  }
+
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+function showRestaurantToast(type: "success" | "error") {
+  toast.custom((toastId) => {
+    const isSuccess = type === "success";
+    const Icon = isSuccess ? CheckCircle2 : CircleAlert;
+
+    return (
+      <div className="flex items-center gap-3 rounded-lg border border-[#e2e3e04d] bg-white px-[25px] py-[17px] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)]">
+        <div
+          className={`flex size-8 shrink-0 items-center justify-center rounded-xl ${
+            isSuccess ? "bg-[#d1fae5]" : "bg-[#fad1d2]"
+          }`}
+        >
+          <Icon
+            className={`size-[15px] ${
+              isSuccess ? "text-[#10b981]" : "text-[#d32f2f]"
+            }`}
+          />
+        </div>
+        <p className="text-sm leading-5 text-[#1a1c1b] font-jp">
+          {isSuccess ? "設定を保存しました" : "エラーが発生しました"}
+        </p>
+        <button
+          type="button"
+          aria-label="Close notification"
+          onClick={() => toast.dismiss(toastId)}
+          className="ml-4 rounded p-1 text-[#5a6053] transition-colors hover:bg-[#eeeeeb] hover:text-[#1a1c1b]"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+    );
+  });
+}
+
+function EditRestaurantModal({
+  fields,
+  galleryImage,
+  heroImage,
+  onClose,
+  onSaved,
+}: {
+  fields: typeof formFields;
+  galleryImage: string;
+  heroImage: string;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [formValues, setFormValues] = useState(fields);
+  const [heroPreview, setHeroPreview] = useState(heroImage);
+  const [galleryPreview, setGalleryPreview] = useState(galleryImage);
+  const [heroFile, setHeroFile] = useState<File | null>(null);
+  const [galleryFile, setGalleryFile] = useState<File | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (heroPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(heroPreview);
+      }
+
+      if (galleryPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(galleryPreview);
+      }
+    };
+  }, [galleryPreview, heroPreview]);
+
+  function updateField(field: keyof typeof formFields, value: string) {
+    setFormValues((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function selectImage(file: File | undefined, target: "hero" | "gallery") {
+    if (!file) {
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+
+    if (target === "hero") {
+      setHeroFile(file);
+      setHeroPreview(previewUrl);
+      return;
+    }
+
+    setGalleryFile(file);
+    setGalleryPreview(previewUrl);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const [uploadedHero, uploadedGallery] = await Promise.all([
+        heroFile ? uploadOwnerRestaurantImage(heroFile) : Promise.resolve(null),
+        galleryFile
+          ? uploadOwnerRestaurantImage(galleryFile)
+          : Promise.resolve(null),
+      ]);
+      const savedHeroImage = uploadedHero?.imageUrl ?? heroImage;
+      const savedGalleryImage = uploadedGallery?.imageUrl ?? galleryImage;
+      const socialLinks = [
+        {
+          provider: "Instagram" as const,
+          url: normalizeSocialUrl(formValues.instagram),
+          displayLabel: "Instagram",
+          sortOrder: 0,
+          isActive: true,
+        },
+        {
+          provider: "Facebook" as const,
+          url: normalizeSocialUrl(formValues.facebook),
+          displayLabel: "Facebook",
+          sortOrder: 1,
+          isActive: true,
+        },
+      ].filter((link) => link.url);
+
+      await updateOwnerRestaurant({
+        nameJp: formValues.name,
+        address: formValues.address,
+        descriptionVn: formValues.descriptionVn,
+        descriptionJp: formValues.descriptionJp,
+        phone: formValues.phone,
+        openingHours: formValues.hours,
+        media: [
+          { mediaUrl: savedHeroImage, mediaType: "Cover", sortOrder: 0 },
+          { mediaUrl: savedGalleryImage, mediaType: "Photo", sortOrder: 1 },
+        ],
+        socialLinks,
+      });
+      await onSaved();
+      showRestaurantToast("success");
+      onClose();
+    } catch {
+      showRestaurantToast("error");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#1a1c1b]/40 px-4 py-6 backdrop-blur-[2px]"
@@ -431,7 +928,10 @@ function EditRestaurantModal({ onClose }: { onClose: () => void }) {
       aria-modal="true"
       aria-labelledby="edit-restaurant-title"
     >
-      <div className="relative flex max-h-[calc(100dvh-48px)] w-full max-w-[896px] flex-col overflow-hidden rounded-lg bg-[#f9f9f6] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
+      <form
+        onSubmit={handleSubmit}
+        className="relative flex max-h-[calc(100dvh-48px)] w-full max-w-[896px] flex-col overflow-hidden rounded-lg bg-[#f9f9f6] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]"
+      >
         <div className="z-10 flex shrink-0 items-center justify-between bg-[#f9f9f6]/90 px-8 py-5 backdrop-blur-md">
           <h2
             id="edit-restaurant-title"
@@ -463,33 +963,47 @@ function EditRestaurantModal({ onClose }: { onClose: () => void }) {
                 aria-label="Current hero photo"
                 className="relative col-span-2 h-[309px] overflow-hidden rounded-lg bg-cover bg-center max-md:col-span-1"
                 role="img"
-                style={{ backgroundImage: `url(${photos.editHero})` }}
+                style={{ backgroundImage: `url(${heroPreview})` }}
               >
                 <div className="absolute inset-0 bg-gradient-to-t from-[#1a1c1b]/60 to-[#1a1c1b]/0" />
-                <button
-                  type="button"
+                <label
                   className="absolute bottom-6 left-6 inline-flex items-center gap-2 rounded border border-white/30 bg-[#f9f9f6]/20 px-4 py-2 text-sm font-bold text-white backdrop-blur-md font-manrope"
                 >
                   <Camera className="size-3.5" />
                   Change Hero Photo
-                </button>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={(event) =>
+                      selectImage(event.target.files?.[0], "hero")
+                    }
+                  />
+                </label>
               </div>
 
               <div className="grid gap-4">
-                <button
-                  type="button"
+                <label
                   className="flex h-[146px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#e4beba4d] bg-[#eeeeeb] text-[#5a6053] transition-colors hover:bg-[#e8e8e5]"
                 >
                   <Camera className="size-6" />
                   <span className="text-[10px] font-bold uppercase tracking-[1px] font-manrope">
                     Add Gallery
                   </span>
-                </button>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    onChange={(event) =>
+                      selectImage(event.target.files?.[0], "gallery")
+                    }
+                  />
+                </label>
                 <div
                   aria-label="Gallery food photo"
                   className="h-[146px] rounded-lg bg-cover bg-center"
                   role="img"
-                  style={{ backgroundImage: `url(${photos.editGallery})` }}
+                  style={{ backgroundImage: `url(${galleryPreview})` }}
                 />
               </div>
             </div>
@@ -500,19 +1014,26 @@ function EditRestaurantModal({ onClose }: { onClose: () => void }) {
               <Field label="店名">
                 <input
                   className={`${inputClass} text-lg font-bold leading-7 font-brand`}
-                  defaultValue={formFields.name}
+                  value={formValues.name}
+                  onChange={(event) => updateField("name", event.target.value)}
                 />
               </Field>
               <Field label="説明 (ベトナム語)">
                 <textarea
                   className={`${inputClass} min-h-[80px] resize-none leading-[22px]`}
-                  defaultValue={formFields.descriptionVn}
+                  value={formValues.descriptionVn}
+                  onChange={(event) =>
+                    updateField("descriptionVn", event.target.value)
+                  }
                 />
               </Field>
               <Field label="説明 (日本語)">
                 <textarea
                   className={`${inputClass} min-h-[102px] resize-none leading-[22px] font-jp`}
-                  defaultValue={formFields.descriptionJp}
+                  value={formValues.descriptionJp}
+                  onChange={(event) =>
+                    updateField("descriptionJp", event.target.value)
+                  }
                 />
               </Field>
             </div>
@@ -523,17 +1044,32 @@ function EditRestaurantModal({ onClose }: { onClose: () => void }) {
                   <MapPin className="absolute left-4 top-1/2 size-3.5 -translate-y-1/2 text-[#af111c]" />
                   <input
                     className={`${inputClass} pl-11`}
-                    defaultValue={formFields.address}
+                    value={formValues.address}
+                    onChange={(event) =>
+                      updateField("address", event.target.value)
+                    }
                   />
                 </div>
               </Field>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="電話番号">
-                  <input className={inputClass} defaultValue={formFields.phone} />
+                  <input
+                    className={inputClass}
+                    value={formValues.phone}
+                    onChange={(event) =>
+                      updateField("phone", event.target.value)
+                    }
+                  />
                 </Field>
                 <Field label="Operating Hours / 営業時間">
-                  <input className={inputClass} defaultValue={formFields.hours} />
+                  <input
+                    className={inputClass}
+                    value={formValues.hours}
+                    onChange={(event) =>
+                      updateField("hours", event.target.value)
+                    }
+                  />
                 </Field>
               </div>
 
@@ -547,7 +1083,10 @@ function EditRestaurantModal({ onClose }: { onClose: () => void }) {
                     </span>
                     <input
                       className="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs leading-4 text-[#1a1c1b] outline-none font-manrope"
-                      defaultValue={formFields.instagram}
+                      value={formValues.instagram}
+                      onChange={(event) =>
+                        updateField("instagram", event.target.value)
+                      }
                     />
                   </div>
                   <div className="flex items-center gap-3 rounded bg-[#f4f4f1] p-2">
@@ -558,7 +1097,10 @@ function EditRestaurantModal({ onClose }: { onClose: () => void }) {
                     </span>
                     <input
                       className="min-w-0 flex-1 bg-transparent px-3 py-2 text-xs leading-4 text-[#1a1c1b] outline-none font-manrope"
-                      defaultValue={formFields.facebook}
+                      value={formValues.facebook}
+                      onChange={(event) =>
+                        updateField("facebook", event.target.value)
+                      }
                     />
                   </div>
                 </div>
@@ -575,20 +1117,96 @@ function EditRestaurantModal({ onClose }: { onClose: () => void }) {
               キャンセル
             </button>
             <button
-              type="button"
-              className="min-w-[140px] rounded bg-[linear-gradient(169deg,#af111c_0%,#d32f31_100%)] px-7 py-2.5 text-sm font-bold leading-5 tracking-[0.4px] text-white shadow-[0_10px_15px_-3px_rgba(175,17,28,0.2),0_4px_6px_-4px_rgba(175,17,28,0.2)] transition-opacity hover:opacity-90 font-jp"
+              type="submit"
+              disabled={isSaving}
+              className="min-w-[140px] rounded bg-[linear-gradient(169deg,#af111c_0%,#d32f31_100%)] px-7 py-2.5 text-sm font-bold leading-5 tracking-[0.4px] text-white shadow-[0_10px_15px_-3px_rgba(175,17,28,0.2),0_4px_6px_-4px_rgba(175,17,28,0.2)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 font-jp"
             >
-              保存する
+              {isSaving ? "保存中..." : "保存する"}
             </button>
           </div>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
 
 export default function OwnerHomePage() {
+  const [homeData, setHomeData] = useState<OwnerHomeResponse | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isLoadingHome, setIsLoadingHome] = useState(true);
+  const refreshOwnerHome = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoadingHome(true);
+    }
+
+    try {
+      const response = await getOwnerHome();
+      setHomeData(response);
+    } catch (error) {
+      toast.error("エラーが発生しました");
+      throw error;
+    } finally {
+      if (showLoading) {
+        setIsLoadingHome(false);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHome() {
+      setIsLoadingHome(true);
+
+      try {
+        const response = await getOwnerHome();
+
+        if (!cancelled) {
+          setHomeData(response);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("エラーが発生しました");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingHome(false);
+        }
+      }
+    }
+
+    loadHome();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const restaurant = homeData?.restaurant;
+  const media = restaurant?.media ?? [];
+  const coverImage = restaurant?.coverImageUrl || photos.interior;
+  const galleryImages = media
+    .map((item) => item.mediaUrl)
+    .filter((url) => url !== coverImage);
+  const dishImage = galleryImages[0] || photos.dish;
+  const staffImage = galleryImages[1] || photos.staff;
+  const foodDisplayImage = galleryImages[2] || photos.foodDisplay;
+  const mapImage = photos.map;
+  const dynamicInfoItems = useMemo(() => buildInfoItems(homeData), [homeData]);
+  const dynamicFeatures = useMemo(() => buildFeatures(homeData), [homeData]);
+  const editFields = useMemo(() => buildEditFields(homeData), [homeData]);
+  const dynamicMenuItems = useMemo(
+    () => toMenuDisplayItems(homeData?.menu.items ?? []),
+    [homeData]
+  );
+  const dynamicMenuCategories = useMemo(
+    () => toMenuCategories(homeData?.menu.categories, dynamicMenuItems),
+    [dynamicMenuItems, homeData?.menu.categories]
+  );
+  const dynamicReviews = useMemo(
+    () => toReviewDisplayItems(homeData?.reviews.items ?? []),
+    [homeData]
+  );
 
   return (
     <main className="min-h-screen bg-[#f9f9f6] pb-12">
@@ -598,56 +1216,55 @@ export default function OwnerHomePage() {
             aria-label="Hoang Yen Cuisine restaurant interior"
             className="relative col-span-2 row-span-2 overflow-hidden rounded bg-cover bg-center max-md:col-span-1 max-md:h-[360px]"
             role="img"
-            style={{ backgroundImage: `url(${photos.interior})` }}
+            style={{ backgroundImage: `url(${coverImage})` }}
           >
-            <div className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-xl bg-[#3d5f46] px-4 py-2 text-xs font-medium uppercase tracking-[1.2px] text-white shadow-lg font-jp">
-              <BadgeCheck className="size-3.5" />
-              認証済みレストラン
-            </div>
+            {homeData?.badges.isVerified ?? true ? (
+              <div className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-xl bg-[#3d5f46] px-4 py-2 text-xs font-medium uppercase tracking-[1.2px] text-white shadow-lg font-jp">
+                <BadgeCheck className="size-3.5" />
+                認証済みレストラン
+              </div>
+            ) : null}
           </div>
           <PhotoTile
-            src={photos.dish}
+            src={dishImage}
             alt="Vietnamese dish"
             className="max-md:h-56"
           />
           <PhotoTile
-            src={photos.staff}
+            src={staffImage}
             alt="Restaurant staff"
             className="max-md:h-56"
           />
           <PhotoTile
-            src={photos.foodDisplay}
+            src={foodDisplayImage}
             alt="Food display"
             className="col-span-2 max-md:col-span-1 max-md:h-56"
           />
         </div>
       </section>
 
-      <section className="relative z-10 mx-8 -mt-16 rounded-lg border border-[#e4beba1a] bg-white p-10 shadow-[0_20px_25px_-5px_rgba(26,28,27,0.05),0_8px_10px_-6px_rgba(26,28,27,0.05)] max-md:mx-4 max-md:p-6">
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <section className="relative z-10 mx-auto -mt-16 w-[calc(100%-64px)] max-w-[1280px] rounded-lg border border-[#e4beba1a] bg-white p-10 shadow-[0_20px_25px_-5px_rgba(26,28,27,0.05),0_8px_10px_-6px_rgba(26,28,27,0.05)] max-md:w-[calc(100%-32px)] max-md:p-6">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-2">
               <p className="text-sm font-medium uppercase tracking-[1.4px] text-[#3d5f46] font-jp">
                 伝統的なベトナム料理
               </p>
               <h1 className="text-5xl font-extrabold leading-none tracking-[-2.4px] text-[#1a1c1b] font-brand max-md:text-4xl">
-                Hoang Yen Cuisine
+                {restaurant?.nameVn || "Hoang Yen Cuisine"}
               </h1>
-              <button
-                type="button"
-                onClick={() => setIsEditModalOpen(true)}
-                className="mt-1 inline-flex w-fit items-center gap-2 rounded-md border-2 border-[#d32f2f] px-[18px] py-2.5 text-sm font-bold text-[#d32f2f] transition-colors hover:bg-[#d32f2f]/5 font-jp"
-              >
-                <PencilLine className="size-3.5" />
-                店舗情報を編集
-              </button>
-              <p className="pt-2 text-lg font-medium leading-7 text-[#5a6053] font-jp">
-                ホアン・イェン・キュイジーヌ
+              {isLoadingHome ? (
+                <span className="w-fit rounded-full bg-[#eeeeeb] px-3 py-1 text-[11px] font-semibold text-[#5a6053]">
+                  Loading API data
+                </span>
+              ) : null}
+              <p className="text-lg font-medium leading-7 text-[#5a6053] font-jp">
+                {restaurant?.nameJp || "ホアン・イェン・キュイジーヌ"}
               </p>
             </div>
 
             <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
-              {infoItems.map((item) => {
+              {dynamicInfoItems.map((item) => {
                 const Icon = item.icon;
                 const Action = item.action;
 
@@ -682,19 +1299,28 @@ export default function OwnerHomePage() {
                 );
               })}
             </div>
+
+            <button
+              type="button"
+              onClick={() => setIsEditModalOpen(true)}
+              className="inline-flex w-fit items-center gap-2 rounded-md border-2 border-[#d32f2f] px-[18px] py-2.5 text-sm font-bold text-[#d32f2f] transition-colors hover:bg-[#d32f2f]/5 font-jp"
+            >
+              <PencilLine className="size-3.5" />
+              店舗情報を編集
+            </button>
           </div>
 
-          <div className="relative min-h-[300px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
+          <div className="relative min-h-[280px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
             <div
               aria-label="Map near Hoang Yen Cuisine"
               className="absolute inset-0 bg-cover bg-center opacity-90 saturate-50"
               role="img"
-              style={{ backgroundImage: `url(${photos.map})` }}
+              style={{ backgroundImage: `url(${mapImage})` }}
             />
             <div className="absolute inset-0 bg-black/5" />
             <div className="absolute left-1/2 top-[62px] flex -translate-x-1/2 flex-col items-center">
               <div className="rounded border-2 border-white bg-[#d32f2f] px-4 py-2 text-[11px] font-bold leading-none text-white shadow-[0_0_0_4px_rgba(211,47,47,0.2),0_20px_25px_-5px_rgba(0,0,0,0.1)]">
-                Takumi Japanese Restaurant
+                {restaurant?.nameVn || "Takumi Japanese Restaurant"}
               </div>
               <div className="mt-3 flex size-14 items-center justify-center rounded-xl border-4 border-white bg-[#d32f2f] text-white shadow-2xl">
                 <Utensils className="size-7" />
@@ -713,7 +1339,7 @@ export default function OwnerHomePage() {
 
         <div className="mt-12 border-t border-[#e4beba1a] pt-10">
           <div className="grid gap-8 md:grid-cols-3">
-            {features.map((feature) => {
+            {dynamicFeatures.map((feature) => {
               const Icon = feature.icon;
 
               return (
@@ -735,10 +1361,19 @@ export default function OwnerHomePage() {
           </div>
         </div>
       </section>
-      <MenuSection />
-      <CommunityReviewsSection />
+      <MenuSection categories={dynamicMenuCategories} items={dynamicMenuItems} />
+      <CommunityReviewsSection
+        items={dynamicReviews}
+        summary={homeData?.reviews.summary ?? null}
+      />
       {isEditModalOpen ? (
-        <EditRestaurantModal onClose={() => setIsEditModalOpen(false)} />
+        <EditRestaurantModal
+          fields={editFields}
+          galleryImage={galleryImages[0] || photos.editGallery}
+          heroImage={coverImage || photos.editHero}
+          onClose={() => setIsEditModalOpen(false)}
+          onSaved={() => refreshOwnerHome(false)}
+        />
       ) : null}
     </main>
   );

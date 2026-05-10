@@ -339,24 +339,34 @@ export default function OwnerDashboardPage() {
           // Tracking must not block analytics rendering.
         });
 
-        const topMenuResponse = await getTopMenu(currentRestaurantId);
-
         if (cancelled) {
           return;
         }
 
         setDashboard(dashboardResponse);
-        setPopularMenuItems(
-          topMenuResponse.items.length > 0
-            ? toPopularMenuItems(topMenuResponse.items)
-            : fallbackPopularMenu
-        );
-      } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "Failed to load dashboard analytics."
-        );
+
+        if (dashboardResponse.topMenus.length > 0) {
+          setPopularMenuItems(toPopularMenuItems(dashboardResponse.topMenus));
+          return;
+        }
+
+        try {
+          const topMenuResponse = await getTopMenu(currentRestaurantId);
+
+          if (!cancelled) {
+            setPopularMenuItems(
+              topMenuResponse.items.length > 0
+                ? toPopularMenuItems(topMenuResponse.items)
+                : fallbackPopularMenu
+            );
+          }
+        } catch {
+          if (!cancelled) {
+            setPopularMenuItems(fallbackPopularMenu);
+          }
+        }
+      } catch {
+        toast.error("エラーが発生しました");
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -488,10 +498,7 @@ export default function OwnerDashboardPage() {
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
 
   const handleApplySuccess = () => {
-    toast.success("申請が完了しました！", {
-      description:
-        "運営チームによる審査完了まで、数日かかる場合があります。",
-    });
+    toast.success("設定を保存しました");
   };
 
   const handleCertificationClick = async () => {
@@ -517,11 +524,9 @@ export default function OwnerDashboardPage() {
 
     try {
       await recordMenuItemView(item.itemId);
-      toast.success("Menu item view recorded.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to record menu view."
-      );
+      toast.success("設定を保存しました");
+    } catch {
+      toast.error("エラーが発生しました");
     }
   };
 

@@ -33,9 +33,9 @@ export function OwnerNavbar() {
     async function handleLogout() {
         try {
             await logoutAccount();
-            toast.success("Logged out.");
+            toast.success("設定を保存しました");
         } catch {
-            toast.error("Could not log out cleanly. Redirecting to login.");
+            toast.error("エラーが発生しました");
         } finally {
             router.replace("/login");
             router.refresh();

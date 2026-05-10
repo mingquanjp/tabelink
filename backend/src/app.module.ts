@@ -7,6 +7,8 @@ import { AdsModule } from './ads/ads.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { MenusModule } from './menus/menus.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
+import { TablesModule } from './tables/tables.module';
 import { VerificationModule } from './verification/verification.module';
 
 @Module({
@@ -28,8 +30,10 @@ import { VerificationModule } from './verification/verification.module';
       }),
     }),
     AuthModule,
+    RestaurantsModule,
     AdsModule,
     MenusModule,
+    TablesModule,
     VerificationModule,
     AnalyticsModule,
   ],

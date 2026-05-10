@@ -34,6 +34,15 @@ export class MenuItemCriterionDto {
 }
 
 export class CreateMenuItemDto {
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'MENU_CATEGORY.CategoryID for grouping items into Home screen tabs.',
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  categoryId?: number;
+
   @ApiProperty({ example: 'Pho bo' })
   @IsString()
   @IsNotEmpty()

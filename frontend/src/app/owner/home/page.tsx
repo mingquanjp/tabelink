@@ -12,6 +12,7 @@ import {
   MapPin,
   PencilLine,
   Phone,
+  Plus,
   ReceiptText,
   Share2,
   Star,
@@ -452,6 +453,152 @@ function PhotoTile({
   );
 }
 
+function RestaurantPhotoGrid({
+  galleryImages,
+  heroImage,
+  isVerified,
+  onViewMore,
+}: {
+  galleryImages: string[];
+  heroImage: string;
+  isVerified: boolean;
+  onViewMore: () => void;
+}) {
+  const visibleGalleryImages = galleryImages.slice(0, 3);
+  const displayImages = [
+    visibleGalleryImages[0] || photos.dish,
+    visibleGalleryImages[1] || photos.staff,
+    visibleGalleryImages[2] || photos.foodDisplay,
+  ];
+  const extraCount = Math.max(galleryImages.length - 3, 0);
+
+  return (
+    <section className="bg-[#eeeeeb]">
+      <div className="grid h-[614px] grid-cols-4 grid-rows-2 gap-2 p-2 max-lg:h-[520px] max-md:h-auto max-md:grid-cols-1 max-md:grid-rows-none">
+        <div
+          aria-label="Restaurant main photo"
+          className="relative col-span-2 row-span-2 overflow-hidden rounded bg-cover bg-center max-md:col-span-1 max-md:h-[360px]"
+          role="img"
+          style={{ backgroundImage: `url(${heroImage})` }}
+        >
+          {isVerified ? (
+            <div className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-xl bg-[#3d5f46] px-4 py-2 text-xs font-medium uppercase tracking-[1.2px] text-white shadow-lg font-jp">
+              <BadgeCheck className="size-3.5" />
+              認証済みレストラン
+            </div>
+          ) : null}
+        </div>
+        <PhotoTile
+          src={displayImages[0]}
+          alt="Restaurant gallery photo"
+          className="max-md:h-56"
+        />
+        <PhotoTile
+          src={displayImages[1]}
+          alt="Restaurant gallery photo"
+          className="max-md:h-56"
+        />
+        <div className="relative col-span-2 overflow-hidden rounded max-md:col-span-1 max-md:h-56">
+          <PhotoTile
+            src={displayImages[2]}
+            alt="Restaurant gallery photo"
+            className="absolute inset-0"
+          />
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/45 to-transparent" />
+          <button
+            type="button"
+            onClick={onViewMore}
+            className="absolute bottom-5 right-5 z-10 inline-flex items-center gap-2 rounded-lg bg-white/95 px-4 py-2 text-sm font-bold text-[#1a1c1b] shadow-lg transition-colors hover:bg-white font-jp"
+          >
+            <Plus className="size-4 text-[#af111c]" />
+            {extraCount > 0 ? `${extraCount}枚 もっと見る` : "写真を見る"}
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EditablePhotoGrid({
+  galleryImages,
+  heroImage,
+  onAddGallery,
+  onChangeHero,
+}: {
+  galleryImages: string[];
+  heroImage: string;
+  onAddGallery: (files: FileList | null) => void;
+  onChangeHero: (file: File | undefined) => void;
+}) {
+  const displayImages = [
+    galleryImages[0] || photos.dish,
+    galleryImages[1] || photos.staff,
+    galleryImages[2] || photos.foodDisplay,
+  ];
+  const extraCount = Math.max(galleryImages.length - 3, 0);
+
+  return (
+    <div className="grid h-[386px] grid-cols-4 grid-rows-2 gap-3 max-md:h-auto max-md:grid-cols-1 max-md:grid-rows-none">
+      <div
+        aria-label="Current hero photo"
+        className="relative col-span-2 row-span-2 overflow-hidden rounded-lg bg-cover bg-center max-md:col-span-1 max-md:h-[260px]"
+        role="img"
+        style={{ backgroundImage: `url(${heroImage})` }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-[#1a1c1b]/60 to-[#1a1c1b]/0" />
+        <label className="absolute bottom-6 left-6 inline-flex cursor-pointer items-center gap-2 rounded border border-white/30 bg-[#f9f9f6]/20 px-4 py-2 text-sm font-bold text-white backdrop-blur-md font-manrope">
+          <Camera className="size-3.5" />
+          Change Hero Photo
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={(event) => onChangeHero(event.target.files?.[0])}
+          />
+        </label>
+      </div>
+      <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#e4beba4d] bg-[#eeeeeb] text-[#5a6053] transition-colors hover:bg-[#e8e8e5] max-md:h-40">
+        <Plus className="size-6" />
+        <span className="text-[10px] font-bold uppercase tracking-[1px] font-manrope">
+          画像を追加
+        </span>
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+          className="sr-only"
+          onChange={(event) => onAddGallery(event.target.files)}
+        />
+      </label>
+      <PhotoTile
+        src={displayImages[0]}
+        alt="Gallery food photo"
+        className="max-md:h-40"
+      />
+      <PhotoTile
+        src={displayImages[1]}
+        alt="Gallery food photo"
+        className="max-md:h-40"
+      />
+      <div className="relative overflow-hidden rounded max-md:h-40">
+        <PhotoTile
+          src={displayImages[2]}
+          alt="Gallery food photo"
+          className="absolute inset-0"
+        />
+        {extraCount > 0 ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#1a1c1b]/45">
+            <span className="inline-flex items-center gap-2 rounded-lg bg-white/95 px-4 py-2 text-sm font-bold text-[#1a1c1b] shadow-lg font-jp">
+              <Plus className="size-4 text-[#af111c]" />
+              {extraCount}枚 もっと見る
+            </span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function Field({
   label,
   children,
@@ -809,35 +956,23 @@ function showRestaurantToast(type: "success" | "error") {
 
 function EditRestaurantModal({
   fields,
-  galleryImage,
+  galleryImages,
   heroImage,
   onClose,
   onSaved,
 }: {
   fields: typeof formFields;
-  galleryImage: string;
+  galleryImages: string[];
   heroImage: string;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const [formValues, setFormValues] = useState(fields);
   const [heroPreview, setHeroPreview] = useState(heroImage);
-  const [galleryPreview, setGalleryPreview] = useState(galleryImage);
+  const [galleryPreviews, setGalleryPreviews] = useState(galleryImages);
   const [heroFile, setHeroFile] = useState<File | null>(null);
-  const [galleryFile, setGalleryFile] = useState<File | null>(null);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    return () => {
-      if (heroPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(heroPreview);
-      }
-
-      if (galleryPreview.startsWith("blob:")) {
-        URL.revokeObjectURL(galleryPreview);
-      }
-    };
-  }, [galleryPreview, heroPreview]);
 
   function updateField(field: keyof typeof formFields, value: string) {
     setFormValues((current) => ({
@@ -846,21 +981,28 @@ function EditRestaurantModal({
     }));
   }
 
-  function selectImage(file: File | undefined, target: "hero" | "gallery") {
+  function changeHeroImage(file: File | undefined) {
     if (!file) {
       return;
     }
 
     const previewUrl = URL.createObjectURL(file);
+    setHeroFile(file);
+    setHeroPreview(previewUrl);
+  }
 
-    if (target === "hero") {
-      setHeroFile(file);
-      setHeroPreview(previewUrl);
+  function addGalleryImages(files: FileList | null) {
+    const selectedFiles = Array.from(files ?? []);
+
+    if (selectedFiles.length === 0) {
       return;
     }
 
-    setGalleryFile(file);
-    setGalleryPreview(previewUrl);
+    setGalleryFiles((current) => [...current, ...selectedFiles]);
+    setGalleryPreviews((current) => [
+      ...current,
+      ...selectedFiles.map((file) => URL.createObjectURL(file)),
+    ]);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -873,14 +1015,18 @@ function EditRestaurantModal({
     setIsSaving(true);
 
     try {
-      const [uploadedHero, uploadedGallery] = await Promise.all([
+      const [uploadedHero, uploadedGalleryItems] = await Promise.all([
         heroFile ? uploadOwnerRestaurantImage(heroFile) : Promise.resolve(null),
-        galleryFile
-          ? uploadOwnerRestaurantImage(galleryFile)
-          : Promise.resolve(null),
+        Promise.all(galleryFiles.map((file) => uploadOwnerRestaurantImage(file))),
       ]);
       const savedHeroImage = uploadedHero?.imageUrl ?? heroImage;
-      const savedGalleryImage = uploadedGallery?.imageUrl ?? galleryImage;
+      const existingGalleryImages = galleryPreviews.filter(
+        (image) => !image.startsWith("blob:"),
+      );
+      const savedGalleryImages = [
+        ...existingGalleryImages,
+        ...uploadedGalleryItems.map((item) => item.imageUrl),
+      ];
       const socialLinks = [
         {
           provider: "Instagram" as const,
@@ -907,7 +1053,11 @@ function EditRestaurantModal({
         openingHours: formValues.hours,
         media: [
           { mediaUrl: savedHeroImage, mediaType: "Cover", sortOrder: 0 },
-          { mediaUrl: savedGalleryImage, mediaType: "Photo", sortOrder: 1 },
+          ...savedGalleryImages.map((mediaUrl, index) => ({
+            mediaUrl,
+            mediaType: "Photo" as const,
+            sortOrder: index + 1,
+          })),
         ],
         socialLinks,
       });
@@ -958,55 +1108,12 @@ function EditRestaurantModal({
               </h3>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 max-md:grid-cols-1">
-              <div
-                aria-label="Current hero photo"
-                className="relative col-span-2 h-[309px] overflow-hidden rounded-lg bg-cover bg-center max-md:col-span-1"
-                role="img"
-                style={{ backgroundImage: `url(${heroPreview})` }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-t from-[#1a1c1b]/60 to-[#1a1c1b]/0" />
-                <label
-                  className="absolute bottom-6 left-6 inline-flex items-center gap-2 rounded border border-white/30 bg-[#f9f9f6]/20 px-4 py-2 text-sm font-bold text-white backdrop-blur-md font-manrope"
-                >
-                  <Camera className="size-3.5" />
-                  Change Hero Photo
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    onChange={(event) =>
-                      selectImage(event.target.files?.[0], "hero")
-                    }
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-4">
-                <label
-                  className="flex h-[146px] flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[#e4beba4d] bg-[#eeeeeb] text-[#5a6053] transition-colors hover:bg-[#e8e8e5]"
-                >
-                  <Camera className="size-6" />
-                  <span className="text-[10px] font-bold uppercase tracking-[1px] font-manrope">
-                    Add Gallery
-                  </span>
-                  <input
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    className="sr-only"
-                    onChange={(event) =>
-                      selectImage(event.target.files?.[0], "gallery")
-                    }
-                  />
-                </label>
-                <div
-                  aria-label="Gallery food photo"
-                  className="h-[146px] rounded-lg bg-cover bg-center"
-                  role="img"
-                  style={{ backgroundImage: `url(${galleryPreview})` }}
-                />
-              </div>
-            </div>
+            <EditablePhotoGrid
+              galleryImages={galleryPreviews}
+              heroImage={heroPreview}
+              onAddGallery={addGalleryImages}
+              onChangeHero={changeHeroImage}
+            />
           </section>
 
           <section className="grid gap-8 md:grid-cols-2">
@@ -1188,9 +1295,10 @@ export default function OwnerHomePage() {
   const galleryImages = media
     .map((item) => item.mediaUrl)
     .filter((url) => url !== coverImage);
-  const dishImage = galleryImages[0] || photos.dish;
-  const staffImage = galleryImages[1] || photos.staff;
-  const foodDisplayImage = galleryImages[2] || photos.foodDisplay;
+  const displayGalleryImages =
+    galleryImages.length > 0
+      ? galleryImages
+      : [photos.dish, photos.staff, photos.foodDisplay];
   const mapImage = photos.map;
   const dynamicInfoItems = useMemo(() => buildInfoItems(homeData), [homeData]);
   const dynamicFeatures = useMemo(() => buildFeatures(homeData), [homeData]);
@@ -1210,40 +1318,16 @@ export default function OwnerHomePage() {
 
   return (
     <main className="min-h-screen bg-[#f9f9f6] pb-12">
-      <section className="bg-[#eeeeeb]">
-        <div className="grid h-[614px] grid-cols-4 grid-rows-2 gap-2 p-2 max-lg:h-[520px] max-md:h-auto max-md:grid-cols-1 max-md:grid-rows-none">
-          <div
-            aria-label="Hoang Yen Cuisine restaurant interior"
-            className="relative col-span-2 row-span-2 overflow-hidden rounded bg-cover bg-center max-md:col-span-1 max-md:h-[360px]"
-            role="img"
-            style={{ backgroundImage: `url(${coverImage})` }}
-          >
-            {homeData?.badges.isVerified ?? true ? (
-              <div className="absolute left-6 top-6 inline-flex items-center gap-2 rounded-xl bg-[#3d5f46] px-4 py-2 text-xs font-medium uppercase tracking-[1.2px] text-white shadow-lg font-jp">
-                <BadgeCheck className="size-3.5" />
-                認証済みレストラン
-              </div>
-            ) : null}
-          </div>
-          <PhotoTile
-            src={dishImage}
-            alt="Vietnamese dish"
-            className="max-md:h-56"
-          />
-          <PhotoTile
-            src={staffImage}
-            alt="Restaurant staff"
-            className="max-md:h-56"
-          />
-          <PhotoTile
-            src={foodDisplayImage}
-            alt="Food display"
-            className="col-span-2 max-md:col-span-1 max-md:h-56"
-          />
-        </div>
-      </section>
+      <div className="relative z-0 mb-10">
+        <RestaurantPhotoGrid
+          galleryImages={displayGalleryImages}
+          heroImage={coverImage}
+          isVerified={homeData?.badges.isVerified ?? true}
+          onViewMore={() => setIsEditModalOpen(true)}
+        />
+      </div>
 
-      <section className="relative z-10 mx-auto -mt-16 w-[calc(100%-64px)] max-w-[1280px] rounded-lg border border-[#e4beba1a] bg-white p-10 shadow-[0_20px_25px_-5px_rgba(26,28,27,0.05),0_8px_10px_-6px_rgba(26,28,27,0.05)] max-md:w-[calc(100%-32px)] max-md:p-6">
+      <section className="relative z-20 mx-auto w-[calc(100%-64px)] max-w-[1280px] rounded-lg border border-[#e4beba1a] bg-white p-10 shadow-[0_20px_25px_-5px_rgba(26,28,27,0.05),0_8px_10px_-6px_rgba(26,28,27,0.05)] max-md:w-[calc(100%-32px)] max-md:p-6">
         <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-2">
@@ -1369,7 +1453,7 @@ export default function OwnerHomePage() {
       {isEditModalOpen ? (
         <EditRestaurantModal
           fields={editFields}
-          galleryImage={galleryImages[0] || photos.editGallery}
+          galleryImages={displayGalleryImages}
           heroImage={coverImage || photos.editHero}
           onClose={() => setIsEditModalOpen(false)}
           onSaved={() => refreshOwnerHome(false)}

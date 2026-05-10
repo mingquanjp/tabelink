@@ -3,6 +3,7 @@
 import React, { useState, useRef } from "react";
 import { X, Upload, FileText, CheckCircle2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OWNER_TOAST_MESSAGES, showErrorToast } from "@/lib/app-toast";
 
 interface CertificationBadgeModalProps {
   isOpen: boolean;
@@ -24,16 +25,28 @@ export function CertificationBadgeModal({
 
   if (!isOpen) return null;
 
-  const handleFileChange1 = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile1(e.target.files[0]);
+  const readCertificationFile = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    setter: (file: File | null) => void
+  ) => {
+    const file = e.target.files?.[0] ?? null;
+
+    if (file && file.size > 10 * 1024 * 1024) {
+      e.target.value = "";
+      setter(null);
+      showErrorToast(OWNER_TOAST_MESSAGES.uploadError);
+      return;
     }
+
+    setter(file);
+  };
+
+  const handleFileChange1 = (e: React.ChangeEvent<HTMLInputElement>) => {
+    readCertificationFile(e, setFile1);
   };
 
   const handleFileChange2 = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile2(e.target.files[0]);
-    }
+    readCertificationFile(e, setFile2);
   };
 
   const isFormValid = file1 && file2 && isAgreed;

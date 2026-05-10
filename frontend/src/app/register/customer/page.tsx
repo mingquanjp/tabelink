@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
 import { logoutAccount, registerAccount } from "@/lib/api/auth/API";
 import {
   clearRegisterDraft,
   readRegisterDraft,
   type RegisterDraft,
 } from "@/lib/api/auth/register";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
@@ -77,10 +78,10 @@ export default function ProfileRegisterPage() {
       await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
-      toast.success("設定を保存しました");
+      showSuccessToast("登録が完了しました");
       router.push("/login");
     } catch {
-      toast.error("エラーが発生しました");
+      showErrorToast();
     } finally {
       setIsSubmitting(false);
     }
@@ -88,6 +89,15 @@ export default function ProfileRegisterPage() {
 
   return (
     <>
+      <div className="mb-6">
+        <Link
+          href="/register"
+          className="p-2 text-[#af111c] hover:bg-[#af111c]/10 rounded-full transition-colors inline-block"
+        >
+          <ArrowLeft className="size-6" />
+        </Link>
+      </div>
+
       <div className="space-y-2">
         <h2 className="text-[36px] font-bold tracking-[-0.9px] text-[#af111c] [font-family:'Noto_Sans_JP',sans-serif]">
           プロフィール設定
@@ -213,23 +223,6 @@ export default function ProfileRegisterPage() {
           {isSubmitting ? "登録中..." : "登録を完了する"}
         </button>
       </form>
-
-      <div className="mt-8 flex justify-center">
-        <Link
-          className="flex items-center gap-2 text-[14px] font-medium text-[#5a6053] hover:text-[#af111c] transition-colors [font-family:'Noto_Sans_JP',sans-serif]"
-          href="/register"
-        >
-          <svg className="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-            />
-          </svg>
-          前のステップに戻る
-        </Link>
-      </div>
     </>
   );
 }

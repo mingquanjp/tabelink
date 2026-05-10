@@ -19,6 +19,16 @@ export type RegisterPayload = {
   issuesVat?: boolean;
 };
 
+export type RequestPasswordResetPayload = {
+  email: string;
+  lang?: "vi" | "ja";
+};
+
+export type RequestPasswordResetResponse = {
+  message: string;
+  tempPassword?: string;
+};
+
 export type AuthTokens = {
   accessToken: string;
   refreshToken: string;

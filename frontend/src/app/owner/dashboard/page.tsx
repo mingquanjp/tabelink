@@ -27,7 +27,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { toast } from "sonner";
 import { CertificationBadgeModal } from "@/components/owner/dashboard/CertificationBadgeModal";
 import {
   findOwnerDashboard,
@@ -35,13 +34,13 @@ import {
   recordAdClick,
   recordAdImpression,
   recordMenuItemView,
-  recordRestaurantView,
 } from "@/lib/api/dashboard/API";
 import type {
   AdCounterResponse,
   OwnerDashboardResponse,
   TopMenuItem,
 } from "@/lib/api/dashboard/type";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 
 type VisitorTrendItem = {
   name: string;
@@ -90,45 +89,6 @@ type KPIData = {
   showTrendIcon?: boolean;
 };
 
-const fallbackVisitorTrends: VisitorTrendItem[] = [
-  { name: "Week 1", japanese: 1200, others: 800 },
-  { name: "Week 2", japanese: 1800, others: 900 },
-  { name: "Week 3", japanese: 1500, others: 1100 },
-  { name: "Week 4", japanese: 2100, others: 1300 },
-  { name: "Week 5", japanese: 1900, others: 1000 },
-];
-
-const fallbackDemographics: DemographicItem[] = [
-  { name: "日本人", value: 3434, color: "#af111c" },
-  { name: "その他", value: 1850, color: "#8f6f6c66" },
-];
-
-const fallbackSentiment: SentimentItem[] = [
-  { label: "ポジティブ", value: 82, color: "#3d5f46", icon: Smile },
-  { label: "中立", value: 12, color: "#5a6053", icon: Meh },
-  { label: "ネガティブ", value: 6, color: "#af111c", icon: Frown },
-];
-
-const fallbackPopularMenu: PopularMenuItem[] = [
-  { id: 1, name: "Top menu item", orders: 482, progress: 95 },
-  { id: 2, name: "Second menu item", orders: 356, progress: 70 },
-  { id: 3, name: "Third menu item", orders: 291, progress: 55 },
-];
-
-const fallbackPopularTimes: PopularTimeItem[] = [
-  { time: "11:00", value: 20 },
-  { time: "12:00", value: 35 },
-  { time: "13:00", value: 70 },
-  { time: "14:00", value: 100, isPeak: true },
-  { time: "15:00", value: 60 },
-  { time: "16:00", value: 30 },
-  { time: "17:00", value: 45 },
-  { time: "18:00", value: 55 },
-  { time: "19:00", value: 25 },
-  { time: "20:00", value: 40 },
-  { time: "21:00", value: 50 },
-];
-
 function formatNumber(value: number | null | undefined) {
   return (value ?? 0).toLocaleString();
 }
@@ -175,7 +135,10 @@ function buildPopularTimes(
   const apiItems = dashboard?.busyHoursToday.items ?? [];
 
   if (apiItems.length === 0) {
-    return fallbackPopularTimes;
+    return Array.from({ length: 11 }, (_, index) => ({
+      time: `${String(index + 11).padStart(2, "0")}:00`,
+      value: 0,
+    }));
   }
 
   const maxValue = Math.max(...apiItems.map((item) => item.reservationCount), 1);
@@ -319,9 +282,8 @@ function KPICard({ data }: { data: KPIData }) {
 export default function OwnerDashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [dashboard, setDashboard] = useState<OwnerDashboardResponse | null>(null);
-  const [restaurantId, setRestaurantId] = useState<number | null>(null);
   const [popularMenuItems, setPopularMenuItems] =
-    useState<PopularMenuItem[]>(fallbackPopularMenu);
+    useState<PopularMenuItem[]>([]);
   const [adCounters, setAdCounters] = useState<AdCounterResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -345,14 +307,6 @@ export default function OwnerDashboardPage() {
         const { restaurantId: currentRestaurantId, dashboard: dashboardResponse } =
           await findOwnerDashboard();
 
-        if (!cancelled) {
-          setRestaurantId(currentRestaurantId);
-        }
-
-        recordRestaurantView(currentRestaurantId, true).catch(() => {
-          // Tracking must not block analytics rendering.
-        });
-
         if (cancelled) {
           return;
         }
@@ -371,16 +325,16 @@ export default function OwnerDashboardPage() {
             setPopularMenuItems(
               topMenuResponse.items.length > 0
                 ? toPopularMenuItems(topMenuResponse.items)
-                : fallbackPopularMenu
+                : []
             );
           }
         } catch {
           if (!cancelled) {
-            setPopularMenuItems(fallbackPopularMenu);
+            setPopularMenuItems([]);
           }
         }
       } catch {
-        toast.error("エラーが発生しました");
+        showErrorToast();
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -419,16 +373,16 @@ export default function OwnerDashboardPage() {
 
     return [
       {
-        label: "Monthly views",
+        label: "今月の訪問者数",
         value: formatNumber(summary?.monthlyViews.value),
         sub: formatSignedPercent(summary?.monthlyViews.changeRate),
         trend: "up",
-        unit: "views",
+        unit: "名",
         icon: Users,
         progress: 75,
       },
       {
-        label: "Japanese avg rating",
+        label: "日本人顧客の平均評価",
         value: rating === null ? "0.0" : rating.toFixed(1),
         sub: "/ 5.0",
         trend: "neutral",
@@ -436,21 +390,21 @@ export default function OwnerDashboardPage() {
         rating: rating ?? 0,
       },
       {
-        label: "Campaign orders",
+        label: "キャンペーン適用注文数",
         value: formatNumber(summary?.campaignWeeklyOrders.value),
         sub: `${summary?.campaignWeeklyOrders.activeCampaignCount ?? 0} active`,
         trend: "up",
         icon: Ticket,
-        unit: "orders",
+        unit: "件",
         coupons: true,
       },
       {
-        label: "Published reviews",
+        label: "レビュー増加数",
         value: formatNumber(summary?.publishedReviews.value),
         sub: "",
         trend: "up",
         icon: MessageSquare,
-        unit: "reviews",
+        unit: "件",
         target: String(summary?.publishedReviews.target ?? 100),
         progress: summary?.publishedReviews.progressRate ?? 0,
         showTrendIcon: false,
@@ -460,7 +414,7 @@ export default function OwnerDashboardPage() {
 
   const visitorTrends = useMemo<VisitorTrendItem[]>(() => {
     if (!dashboard?.visitorTrend.length) {
-      return fallbackVisitorTrends;
+      return [];
     }
 
     return dashboard.visitorTrend.map((item) => ({
@@ -472,7 +426,7 @@ export default function OwnerDashboardPage() {
 
   const demographicsData = useMemo<DemographicItem[]>(() => {
     if (!dashboard?.userAttributes.length) {
-      return fallbackDemographics;
+      return [];
     }
 
     return dashboard.userAttributes.map((item, index) => ({
@@ -488,26 +442,22 @@ export default function OwnerDashboardPage() {
   }, [dashboard]);
 
   const sentimentData = useMemo<SentimentItem[]>(() => {
-    if (!dashboard) {
-      return fallbackSentiment;
-    }
-
     return [
       {
         label: "ポジティブ",
-        value: dashboard.reviewSentiment.positive,
+        value: dashboard?.reviewSentiment.positive ?? 0,
         color: "#3d5f46",
         icon: Smile,
       },
       {
         label: "中立",
-        value: dashboard.reviewSentiment.neutral,
+        value: dashboard?.reviewSentiment.neutral ?? 0,
         color: "#5a6053",
         icon: Meh,
       },
       {
         label: "ネガティブ",
-        value: dashboard.reviewSentiment.negative,
+        value: dashboard?.reviewSentiment.negative ?? 0,
         color: "#af111c",
         icon: Frown,
       },
@@ -517,7 +467,7 @@ export default function OwnerDashboardPage() {
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
 
   const handleApplySuccess = () => {
-    toast.success("設定を保存しました");
+    showSuccessToast();
   };
 
   const handleCertificationClick = async () => {
@@ -543,9 +493,9 @@ export default function OwnerDashboardPage() {
 
     try {
       await recordMenuItemView(item.itemId);
-      toast.success("設定を保存しました");
+      showSuccessToast();
     } catch {
-      toast.error("エラーが発生しました");
+      showErrorToast();
     }
   };
 
@@ -560,11 +510,6 @@ export default function OwnerDashboardPage() {
           <h1 className="text-3xl font-bold text-[#1a1c1b] tracking-tight">
             データ分析・インサイト
           </h1>
-          {restaurantId && (
-            <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[#5a6053] shadow-sm">
-              Restaurant #{restaurantId}
-            </span>
-          )}
         </div>
         <p className="text-base font-medium text-[#5a6053]">
           店舗パフォーマンスの可視化と日本人顧客の動向分析
@@ -627,7 +572,7 @@ export default function OwnerDashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="h-[300px] w-full">
+            <div className="relative h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={visitorTrends} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid vertical={false} horizontal={false} />
@@ -651,6 +596,11 @@ export default function OwnerDashboardPage() {
                   <Bar dataKey="others" stackId="visitors" fill="#f0d8daff" radius={[2, 2, 0, 0]} barSize={120} />
                 </BarChart>
               </ResponsiveContainer>
+              {visitorTrends.length === 0 ? (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-[#8a8d85]">
+                  訪問データはまだありません。
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -658,23 +608,25 @@ export default function OwnerDashboardPage() {
             <div className="bg-white p-8 rounded-2xl border border-[#e4beba1a] shadow-sm flex flex-col gap-4">
               <h3 className="text-lg font-medium text-[#1a1c1b]">ユーザー属性</h3>
               <div className="relative h-40 w-full flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={demographicsData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={70}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {demographicsData.map((entry) => (
-                        <Cell key={entry.name} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
+                {demographicsData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={demographicsData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={70}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {demographicsData.map((entry) => (
+                          <Cell key={entry.name} fill={entry.color} />
+                        ))}
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : null}
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-2xl font-bold text-[#1a1c1b]">
                     {demographicsData[0]?.value ?? 0}
@@ -701,6 +653,11 @@ export default function OwnerDashboardPage() {
                     </div>
                   );
                 })}
+                {demographicsData.length === 0 ? (
+                  <p className="text-[12px] font-medium text-[#8a8d85]">
+                    ユーザー属性データはまだありません。
+                  </p>
+                ) : null}
               </div>
             </div>
 
@@ -750,7 +707,9 @@ export default function OwnerDashboardPage() {
                   </div>
                   <div className="flex-1 flex flex-col gap-1.5">
                     <div className="flex items-center justify-between text-white">
-                      <span className="text-[14px] font-medium truncate max-w-[160px]">{item.name}</span>
+                      <span className="line-clamp-2 max-w-[160px] text-[14px] font-medium leading-5">
+                        {item.name}
+                      </span>
                       <span className="text-[10px] opacity-80">{item.orders} orders</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
@@ -759,6 +718,11 @@ export default function OwnerDashboardPage() {
                   </div>
                 </button>
               ))}
+              {popularMenuItems.length === 0 ? (
+                <p className="text-sm font-medium leading-6 text-white/80">
+                  メニュー閲覧データはまだありません。
+                </p>
+              ) : null}
             </div>
             <div className="absolute top-0 right-0 size-32 bg-white/10 blur-3xl -mr-16 -mt-16 rounded-full" />
             <Trophy className="absolute bottom-4 right-4 size-16 text-white/5" />

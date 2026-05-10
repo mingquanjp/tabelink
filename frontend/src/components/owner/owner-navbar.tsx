@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { Bell, LogOut, User } from "lucide-react";
-import { toast } from "sonner";
 import { logoutAccount } from "@/lib/api/auth/API";
+import { getAuthSession } from "@/lib/api/auth/session";
+import type { AuthRestaurantContext } from "@/lib/api/auth/type";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -29,13 +32,43 @@ const navItems: NavItem[] = [
 export function OwnerNavbar() {
     const pathname = usePathname();
     const router = useRouter();
+    const [restaurant, setRestaurant] = useState<AuthRestaurantContext | null>(null);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        async function loadRestaurantContext() {
+            const session = await getAuthSession();
+
+            if (!cancelled) {
+                setRestaurant(session?.restaurant ?? null);
+            }
+        }
+
+        loadRestaurantContext();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const restaurantName = restaurant?.nameVn || restaurant?.nameJp || "Restaurant";
+    const restaurantHandle = useMemo(() => {
+        const normalized = restaurantName
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/^_+|_+$/g, "");
+
+        return normalized ? `@${normalized}` : "@restaurant";
+    }, [restaurantName]);
 
     async function handleLogout() {
         try {
             await logoutAccount();
-            toast.success("設定を保存しました");
+            showSuccessToast("ログアウトしました");
         } catch {
-            toast.error("エラーが発生しました");
+            showErrorToast();
         } finally {
             router.replace("/login");
             router.refresh();
@@ -89,13 +122,31 @@ export function OwnerNavbar() {
                                 <User size={20} />
                             </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
+                        <DropdownMenuContent
+                            align="end"
+                            className="w-56 rounded-none border border-[#e2e3e0] bg-white p-3 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
+                        >
+                            <div className="px-1 pb-2">
+                                <p className="truncate text-sm font-semibold leading-5 text-[#1a1c1b]">
+                                    {restaurantName}
+                                </p>
+                                <p className="truncate text-[11px] leading-4 text-[#5a6053]">
+                                    {restaurantHandle}
+                                </p>
+                            </div>
                             <DropdownMenuItem
-                                className="cursor-pointer text-[#af111c] focus:text-[#af111c]"
+                                className="mb-1 flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm font-semibold text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
+                                onSelect={() => router.push("/owner/home")}
+                            >
+                                <User className="size-4" />
+                                レストラン詳細を表示
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm font-semibold text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
                                 onSelect={handleLogout}
                             >
                                 <LogOut className="size-4" />
-                                Logout
+                                ログアウト
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

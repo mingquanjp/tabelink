@@ -8,7 +8,6 @@ import {
   Clock3,
   CreditCard,
   ExternalLink,
-  CircleAlert,
   MapPin,
   PencilLine,
   Phone,
@@ -22,7 +21,6 @@ import {
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import {
   getOwnerHome,
   updateOwnerRestaurant,
@@ -33,6 +31,7 @@ import type {
   OwnerHomeResponse,
   OwnerHomeReviewItem,
 } from "@/lib/api/owner-home/type";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 
 const photos = {
   dish:
@@ -66,7 +65,6 @@ const infoItems = [
     label: "住所 / Address",
     value: "7-9 Ngô Đức Kế, Bến Nghé, Quận 1, TP. HCM",
     icon: MapPin,
-    action: ExternalLink,
   },
   {
     label: "営業時間 / Hours",
@@ -162,45 +160,6 @@ const menuItems = [
   },
 ];
 
-const reviews = [
-  {
-    audience: "japanese" as const,
-    name: "Kenji Sato",
-    initial: "K",
-    type: "在住日本人",
-    typeClass: "border-[#3d5f4633] bg-[#3d5f461a] text-[#3d5f46]",
-    meta: "ハノイ在住 (3年)",
-    rating: 5,
-    text: "とにかく清潔感が素晴らしい。おしぼりも綺麗で、トイレの清掃も行き届いています。会食で利用しましたが、ベトナム料理が初めての出張者も大満足でした。",
-    verified: "衛生・サービス確認済み",
-    avatarClass: "bg-[#dfe5d4] text-[#5a6053]",
-  },
-  {
-    audience: "vietnamese" as const,
-    name: "Nguyen H.",
-    initial: "N",
-    type: "ベトナム人",
-    typeClass: "border-[#dbeafe] bg-[#eff6ff] text-[#1d4ed8]",
-    meta: "Local Foodie",
-    rating: 4,
-    text: "Gia đình tôi thường xuyên đến đây vào cuối tuần. Không gian ấm cúng, món ăn mang hương vị truyền thống nhưng trình bày rất hiện đại.",
-    verified: "認証済みユーザー",
-    avatarClass: "bg-[#af111c1a] text-[#af111c]",
-  },
-  {
-    audience: "japanese" as const,
-    name: "Hiroshi Y.",
-    initial: "H",
-    type: "在住日本人",
-    typeClass: "border-[#3d5f4633] bg-[#3d5f461a] text-[#3d5f46]",
-    meta: "法人マネージャー",
-    rating: 5,
-    text: "日本人スタッフの方がいるので、予約時の細かな要望（個室の指定や、アレルギー対応など）が日本語で伝えられるのが最大の安心材料です。",
-    verified: "予約の安心感確認済み",
-    avatarClass: "bg-[#dfe5d4] text-[#5a6053]",
-  },
-];
-
 type HomeInfoItem = (typeof infoItems)[number];
 type HomeFeatureItem = (typeof features)[number];
 type MenuCategoryDisplayItem = {
@@ -208,6 +167,7 @@ type MenuCategoryDisplayItem = {
   label: string;
 };
 type MenuDisplayItem = {
+  itemId: number;
   categoryCode?: string | null;
   categoryName?: string | null;
   nameJp: string;
@@ -215,8 +175,11 @@ type MenuDisplayItem = {
   price: string;
   description: string;
   image: string;
-  spice: number;
-  coriander: number;
+  criteria: Array<{
+    criterionName: string;
+    ratingLevel: number;
+    sortOrder: number;
+  }>;
   recommended?: boolean;
   soldOut?: boolean;
 };
@@ -237,38 +200,24 @@ function formatVnd(value: number) {
   return `${value.toLocaleString("vi-VN")} VND`;
 }
 
-function getCriterionLevel(item: OwnerHomeMenuItem, keyword: string) {
-  const criterion = item.criteria.find((entry) =>
-    entry.criterionName.toLowerCase().includes(keyword.toLowerCase())
-  );
-
-  if (!criterion) {
-    return 0;
+function buildGoogleMapsUrl(restaurant: OwnerHomeResponse["restaurant"] | undefined) {
+  if (!restaurant) {
+    return "https://www.google.com/maps";
   }
 
-  return Math.max(0, Math.min(3, Math.round(criterion.ratingLevel)));
+  if (restaurant.latitude !== null && restaurant.longitude !== null) {
+    return `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
+  }
+
+  const address = restaurant.address.trim();
+  return address
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    : "https://www.google.com/maps";
 }
 
 function toMenuDisplayItems(items: OwnerHomeMenuItem[]): MenuDisplayItem[] {
-  if (items.length === 0) {
-    return menuItems.map((item, index) => ({
-      ...item,
-      categoryCode:
-        index === 0 || index === 3
-          ? "main"
-          : index === 1
-            ? "starter"
-            : "dessert",
-      categoryName:
-        index === 0 || index === 3
-          ? "メイン料理"
-          : index === 1
-            ? "スターター"
-            : "デザート",
-    }));
-  }
-
   return items.map((item, index) => ({
+    itemId: item.itemId,
     categoryCode:
       item.category?.categoryCode ?? item.categoryId?.toString() ?? null,
     categoryName:
@@ -278,9 +227,13 @@ function toMenuDisplayItems(items: OwnerHomeMenuItem[]): MenuDisplayItem[] {
     price: formatVnd(item.price),
     description: item.descriptionJp || item.descriptionVn || "",
     image: item.imageUrl || menuItems[index % menuItems.length].image,
-    spice: getCriterionLevel(item, "辛") || getCriterionLevel(item, "spicy"),
-    coriander:
-      getCriterionLevel(item, "パクチー") || getCriterionLevel(item, "coriander"),
+    criteria: item.criteria
+      .map((criterion) => ({
+        criterionName: criterion.criterionName,
+        ratingLevel: Math.max(0, Math.min(5, Math.round(criterion.ratingLevel))),
+        sortOrder: criterion.sortOrder,
+      }))
+      .sort((a, b) => a.sortOrder - b.sortOrder),
     recommended: item.isRecommendedForJp,
     soldOut: !item.isActive,
   }));
@@ -300,8 +253,8 @@ function toMenuCategories(
   const categoryMap = new Map<string, string>();
 
   for (const item of items) {
-    const code = item.categoryCode || "main";
-    const label = item.categoryName || "メイン料理";
+    const code = item.categoryCode || "uncategorized";
+    const label = item.categoryName || "未分類";
 
     if (!categoryMap.has(code)) {
       categoryMap.set(code, label);
@@ -315,10 +268,6 @@ function toMenuCategories(
 }
 
 function toReviewDisplayItems(items: OwnerHomeReviewItem[]): ReviewDisplayItem[] {
-  if (items.length === 0) {
-    return reviews;
-  }
-
   return items.slice(0, 3).map((item) => {
     const name = item.customerName || `User #${item.customerAccountId}`;
     const initial = name.trim().charAt(0).toUpperCase() || "U";
@@ -359,7 +308,6 @@ function buildInfoItems(homeData: OwnerHomeResponse | null): HomeInfoItem[] {
       label: "住所 / Address",
       value: restaurant.address,
       icon: MapPin,
-      action: ExternalLink,
     },
     {
       label: "営業時間 / Hours",
@@ -661,10 +609,10 @@ function DotScale({
         {label}
       </span>
       <div className="flex gap-1">
-        {[1, 2, 3].map((level) => (
+        {[1, 2, 3, 4, 5].map((level) => (
           <span
             key={level}
-            className="size-2 rounded-full"
+            className="size-1.5 rounded-full"
             style={{
               backgroundColor:
                 level <= value ? color : color === "#af111c" ? "#f0d8da" : "#d8e1d7",
@@ -680,14 +628,14 @@ function MenuCard({ item }: { item: MenuDisplayItem }) {
   return (
     <article className="relative isolate flex min-h-[216px] overflow-hidden rounded-lg border border-[#e4beba1a] bg-white shadow-sm max-md:flex-col">
       {item.soldOut ? (
-        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/5">
-          <span className="rounded-xl border border-[#8f6f6c] bg-white/90 px-6 py-2 text-base font-bold tracking-[1.6px] text-[#5b403d] shadow-sm font-jp">
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/55">
+          <span className="rounded-xl border border-[#8f6f6c]/50 bg-white/95 px-6 py-2 text-base font-bold tracking-[1.6px] text-[#5b403d] shadow-sm font-jp">
             売り切れ / Out of Stock
           </span>
         </div>
       ) : null}
-      <div className={`w-[34%] min-w-40 bg-cover bg-center max-md:h-52 max-md:w-full ${item.soldOut ? "opacity-75 grayscale" : ""}`} style={{ backgroundImage: `url(${item.image})` }} />
-      <div className={`flex flex-1 flex-col justify-between p-6 ${item.soldOut ? "opacity-60 grayscale" : ""}`}>
+      <div className={`w-[34%] min-w-40 bg-cover bg-center max-md:h-52 max-md:w-full ${item.soldOut ? "opacity-60 grayscale" : ""}`} style={{ backgroundImage: `url(${item.image})` }} />
+      <div className={`flex flex-1 flex-col justify-between p-6 ${item.soldOut ? "opacity-45 grayscale" : ""}`}>
         <div>
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -707,8 +655,20 @@ function MenuCard({ item }: { item: MenuDisplayItem }) {
           </p>
         </div>
         <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-[#e4beba1a] pt-4">
-          <DotScale label="辛さ" value={item.spice} color="#af111c" />
-          <DotScale label="パクチー" value={item.coriander} color="#3d5f46" />
+          {item.criteria.length > 0 ? (
+            item.criteria.map((criterion, index) => (
+              <DotScale
+                key={`${item.itemId}-${criterion.criterionName}-${index}`}
+                label={criterion.criterionName}
+                value={criterion.ratingLevel}
+                color={index % 2 === 0 ? "#af111c" : "#3d5f46"}
+              />
+            ))
+          ) : (
+            <span className="text-[11px] font-medium text-[#8a8d85] font-jp">
+              評価項目はまだありません。
+            </span>
+          )}
           {item.recommended ? (
             <span className="rounded-sm bg-[#af111c] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.5px] text-[#fff2f0] font-jp">
               おすすめ
@@ -783,7 +743,7 @@ function MenuSection({
     ? activeCategory
     : categories[0]?.code ?? "main";
   const visibleItems = items.filter(
-    (item) => (item.categoryCode || "main") === selectedCategory,
+    (item) => (item.categoryCode || "uncategorized") === selectedCategory,
   ).slice(0, 4);
 
   return (
@@ -829,13 +789,9 @@ function MenuSection({
 
 function CommunityReviewsSection({
   items,
-  summary,
 }: {
   items: ReviewDisplayItem[];
-  summary: OwnerHomeResponse["reviews"]["summary"] | null;
 }) {
-  const averageRating = summary?.averageRating ?? 4.2;
-  const visibleCount = summary?.visibleCount ?? 120;
   const [audienceFilter, setAudienceFilter] = useState<
     "all" | "japanese" | "vietnamese"
   >("all");
@@ -853,6 +809,11 @@ function CommunityReviewsSection({
 
     return matchesAudience && matchesRating;
   });
+  const allReviewCount = items.length;
+  const allAverageRating =
+    allReviewCount > 0
+      ? items.reduce((sum, item) => sum + item.rating, 0) / allReviewCount
+      : 0;
 
   return (
     <section className="bg-[#f4f4f1] py-20">
@@ -867,9 +828,9 @@ function CommunityReviewsSection({
             </h2>
           </div>
           <div className="flex flex-col items-end gap-2 max-md:items-start">
-            <StarRating rating={Math.round(averageRating)} size="size-5" />
+            <StarRating rating={Math.round(allAverageRating)} size="size-5" />
             <p className="text-sm font-bold leading-5 text-[#5b403d] font-jp">
-              {averageRating.toFixed(1)} ({visibleCount}件のレビュー)
+              {allAverageRating.toFixed(1)} ({allReviewCount}件のレビュー)
             </p>
           </div>
         </div>
@@ -948,40 +909,6 @@ function normalizeSocialUrl(value: string) {
   }
 
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-}
-
-function showRestaurantToast(type: "success" | "error") {
-  toast.custom((toastId) => {
-    const isSuccess = type === "success";
-    const Icon = isSuccess ? CheckCircle2 : CircleAlert;
-
-    return (
-      <div className="flex items-center gap-3 rounded-lg border border-[#e2e3e04d] bg-white px-[25px] py-[17px] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)]">
-        <div
-          className={`flex size-8 shrink-0 items-center justify-center rounded-xl ${
-            isSuccess ? "bg-[#d1fae5]" : "bg-[#fad1d2]"
-          }`}
-        >
-          <Icon
-            className={`size-[15px] ${
-              isSuccess ? "text-[#10b981]" : "text-[#d32f2f]"
-            }`}
-          />
-        </div>
-        <p className="text-sm leading-5 text-[#1a1c1b] font-jp">
-          {isSuccess ? "設定を保存しました" : "エラーが発生しました"}
-        </p>
-        <button
-          type="button"
-          aria-label="Close notification"
-          onClick={() => toast.dismiss(toastId)}
-          className="ml-4 rounded p-1 text-[#5a6053] transition-colors hover:bg-[#eeeeeb] hover:text-[#1a1c1b]"
-        >
-          <X className="size-3.5" />
-        </button>
-      </div>
-    );
-  });
 }
 
 function EditRestaurantModal({
@@ -1137,10 +1064,10 @@ function EditRestaurantModal({
         socialLinks,
       });
       await onSaved();
-      showRestaurantToast("success");
+      showSuccessToast();
       onClose();
     } catch {
-      showRestaurantToast("error");
+      showErrorToast();
     } finally {
       setIsSaving(false);
     }
@@ -1326,7 +1253,7 @@ export default function OwnerHomePage() {
       const response = await getOwnerHome();
       setHomeData(response);
     } catch (error) {
-      toast.error("エラーが発生しました");
+      showErrorToast();
       throw error;
     } finally {
       if (showLoading) {
@@ -1349,7 +1276,7 @@ export default function OwnerHomePage() {
         }
       } catch {
         if (!cancelled) {
-          toast.error("エラーが発生しました");
+          showErrorToast();
         }
       } finally {
         if (!cancelled) {
@@ -1376,6 +1303,7 @@ export default function OwnerHomePage() {
       ? galleryImages
       : [photos.dish, photos.staff, photos.foodDisplay];
   const mapImage = photos.map;
+  const googleMapsUrl = buildGoogleMapsUrl(restaurant);
   const dynamicInfoItems = useMemo(() => buildInfoItems(homeData), [homeData]);
   const dynamicFeatures = useMemo(() => buildFeatures(homeData), [homeData]);
   const editFields = useMemo(() => buildEditFields(homeData), [homeData]);
@@ -1398,7 +1326,7 @@ export default function OwnerHomePage() {
         <RestaurantPhotoGrid
           galleryImages={displayGalleryImages}
           heroImage={coverImage}
-          isVerified={homeData?.badges.isVerified ?? true}
+          isVerified={homeData?.badges.isVerified ?? false}
         />
       </div>
 
@@ -1486,13 +1414,15 @@ export default function OwnerHomePage() {
               </div>
               <div className="h-4 w-1.5 bg-[#d32f2f] shadow-md" />
             </div>
-            <button
-              type="button"
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noreferrer"
               className="absolute bottom-4 right-4 inline-flex items-center gap-1 rounded-md border border-[#e4beba4d] bg-white px-2.5 py-2 text-xs font-bold text-[#5b403d] shadow-md font-jp"
             >
               <ExternalLink className="size-3" />
               Google Mapで開く
-            </button>
+            </a>
           </div>
         </div>
 
@@ -1523,7 +1453,6 @@ export default function OwnerHomePage() {
       <MenuSection categories={dynamicMenuCategories} items={dynamicMenuItems} />
       <CommunityReviewsSection
         items={dynamicReviews}
-        summary={homeData?.reviews.summary ?? null}
       />
       {isEditModalOpen ? (
         <EditRestaurantModal

@@ -10,7 +10,7 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-    { label: "ホーム", href: "/" },
+    { label: "ホーム", href: "/owner/home" },
     { label: "ダッシュボード", href: "/owner/dashboard" },
     { label: "メニュー管理", href: "/owner/menu" },
     { label: "予約管理", href: "/owner/reservations" },

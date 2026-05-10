@@ -3,6 +3,8 @@
 import {
   BadgeCheck,
   Camera,
+  CheckCircle2,
+  ChevronDown,
   Clock3,
   CreditCard,
   ExternalLink,
@@ -11,6 +13,7 @@ import {
   Phone,
   ReceiptText,
   Share2,
+  Star,
   Utensils,
   UsersRound,
   X,
@@ -33,6 +36,14 @@ const photos = {
     "https://www.figma.com/api/mcp/asset/8a5d54ff-7f26-45ea-9725-874ddacaed60",
   editGallery:
     "https://www.figma.com/api/mcp/asset/aaf2da13-3a6c-4366-86ba-e54cfa1c063d",
+  springRolls:
+    "https://www.figma.com/api/mcp/asset/481b2035-11e0-451d-a901-a83179ecc8a7",
+  grilledPork:
+    "https://www.figma.com/api/mcp/asset/eaa5e26a-0b5b-49e4-abf7-7f303610592b",
+  lotusStemSalad:
+    "https://www.figma.com/api/mcp/asset/00d5438d-b901-4775-a3f0-fdbd32971daf",
+  steamedFish:
+    "https://www.figma.com/api/mcp/asset/ae77030d-184a-4b5a-9e0d-f3d12ca8131c",
 };
 
 const infoItems = [
@@ -91,6 +102,87 @@ const formFields = {
   facebook: "fb.com/tsubomijapanese",
 };
 
+const menuItems = [
+  {
+    nameJp: "伝統的な揚げ春巻き",
+    nameVn: "Nem Rán Truyền Thống",
+    price: "120,000 VND",
+    description:
+      "マイルドな味わいで、日本の方にも大変人気があります。外はカリッと、中はジューシーな豚肉と野菜の旨味が広がります。",
+    image: photos.springRolls,
+    spice: 0,
+    coriander: 1,
+    recommended: true,
+  },
+  {
+    nameJp: "竹筒入りの豚肉焼き",
+    nameVn: "Thịt Heo Nướng Ống Tre",
+    price: "245,000 VND",
+    description:
+      "竹の香りがほのかに移った香ばしい豚肉です。スパイスは控えめで、肉本来の甘みを楽しめる逸品です。",
+    image: photos.grilledPork,
+    spice: 1,
+    coriander: 0,
+    soldOut: true,
+  },
+  {
+    nameJp: "蓮の茎と海老のサラダ",
+    nameVn: "Gỏi Ngó Sen Tôm Thịt",
+    price: "185,000 VND",
+    description:
+      "シャキシャキとした蓮の茎の食感が特徴的。甘酸っぱいタレでさっぱりと頂けます。パクチー抜きも可能です。",
+    image: photos.lotusStemSalad,
+    spice: 1,
+    coriander: 2,
+  },
+  {
+    nameJp: "シーバスの香港蒸し",
+    nameVn: "Cá Chẽm Hấp Hồng Kông",
+    price: "580,000 VND",
+    description:
+      "非常に柔らかく蒸し上げられたシーバス。生姜と醤油の味付けは日本人の口に非常に馴染みやすいです。",
+    image: photos.steamedFish,
+    spice: 0,
+    coriander: 0,
+  },
+];
+
+const reviews = [
+  {
+    name: "Kenji Sato",
+    initial: "K",
+    type: "在住日本人",
+    typeClass: "border-[#3d5f4633] bg-[#3d5f461a] text-[#3d5f46]",
+    meta: "ハノイ在住 (3年)",
+    rating: 5,
+    text: "とにかく清潔感が素晴らしい。おしぼりも綺麗で、トイレの清掃も行き届いています。会食で利用しましたが、ベトナム料理が初めての出張者も大満足でした。",
+    verified: "衛生・サービス確認済み",
+    avatarClass: "bg-[#dfe5d4] text-[#5a6053]",
+  },
+  {
+    name: "Nguyen H.",
+    initial: "N",
+    type: "ベトナム人",
+    typeClass: "border-[#dbeafe] bg-[#eff6ff] text-[#1d4ed8]",
+    meta: "Local Foodie",
+    rating: 4,
+    text: "Gia đình tôi thường xuyên đến đây vào cuối tuần. Không gian ấm cúng, món ăn mang hương vị truyền thống nhưng trình bày rất hiện đại.",
+    verified: "認証済みユーザー",
+    avatarClass: "bg-[#af111c1a] text-[#af111c]",
+  },
+  {
+    name: "Hiroshi Y.",
+    initial: "H",
+    type: "在住日本人",
+    typeClass: "border-[#3d5f4633] bg-[#3d5f461a] text-[#3d5f46]",
+    meta: "法人マネージャー",
+    rating: 5,
+    text: "日本人スタッフの方がいるので、予約時の細かな要望（個室の指定や、アレルギー対応など）が日本語で伝えられるのが最大の安心材料です。",
+    verified: "予約の安心感確認済み",
+    avatarClass: "bg-[#dfe5d4] text-[#5a6053]",
+  },
+];
+
 function PhotoTile({
   src,
   alt,
@@ -126,6 +218,205 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function DotScale({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[10px] font-medium uppercase tracking-[0.5px] text-[#5a6053] font-jp">
+        {label}
+      </span>
+      <div className="flex gap-1">
+        {[1, 2, 3].map((level) => (
+          <span
+            key={level}
+            className="size-2 rounded-full"
+            style={{
+              backgroundColor:
+                level <= value ? color : color === "#af111c" ? "#f0d8da" : "#d8e1d7",
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function MenuCard({ item }: { item: (typeof menuItems)[number] }) {
+  return (
+    <article className="relative isolate flex min-h-[216px] overflow-hidden rounded-lg border border-[#e4beba1a] bg-white shadow-sm max-md:flex-col">
+      {item.soldOut ? (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/5">
+          <span className="rounded-xl border border-[#8f6f6c] bg-white/90 px-6 py-2 text-base font-bold tracking-[1.6px] text-[#5b403d] shadow-sm font-jp">
+            売り切れ / Out of Stock
+          </span>
+        </div>
+      ) : null}
+      <div className={`w-[34%] min-w-40 bg-cover bg-center max-md:h-52 max-md:w-full ${item.soldOut ? "opacity-75 grayscale" : ""}`} style={{ backgroundImage: `url(${item.image})` }} />
+      <div className={`flex flex-1 flex-col justify-between p-6 ${item.soldOut ? "opacity-60 grayscale" : ""}`}>
+        <div>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-xl font-medium leading-7 text-[#1a1c1b] font-jp">
+                {item.nameJp}
+              </h3>
+              <p className="mt-0.5 text-xs font-medium leading-4 text-[#5a6053] font-manrope">
+                {item.nameVn}
+              </p>
+            </div>
+            <p className={`shrink-0 text-base font-medium leading-6 font-jp ${item.soldOut ? "text-[#5b403d]/50 line-through" : "text-[#af111c]"}`}>
+              {item.price}
+            </p>
+          </div>
+          <p className="mt-4 text-sm font-medium leading-[22.75px] text-[#5b403d] font-jp">
+            {item.description}
+          </p>
+        </div>
+        <div className="mt-5 flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-[#e4beba1a] pt-4">
+          <DotScale label="辛さ" value={item.spice} color="#af111c" />
+          <DotScale label="パクチー" value={item.coriander} color="#3d5f46" />
+          {item.recommended ? (
+            <span className="rounded-sm bg-[#af111c] px-2 py-0.5 text-[10px] font-medium uppercase tracking-[0.5px] text-[#fff2f0] font-jp">
+              おすすめ
+            </span>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function StarRating({ rating, size = "size-3.5" }: { rating: number; size?: string }) {
+  return (
+    <div className="flex items-center gap-0.5 text-[#f5a400]" aria-label={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((score) => (
+        <Star key={score} className={`${size} ${score <= rating ? "fill-current" : ""}`} />
+      ))}
+    </div>
+  );
+}
+
+function ReviewCard({ review }: { review: (typeof reviews)[number] }) {
+  return (
+    <article className="flex min-h-[240px] flex-col rounded-lg border border-[#e4beba1a] bg-white p-8 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
+      <div className="flex items-start">
+        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-base font-medium font-jp ${review.avatarClass}`}>
+          {review.initial}
+        </div>
+        <div className="min-w-0 pl-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-medium leading-5 text-[#1a1c1b] font-jp">
+              {review.name}
+            </h3>
+            <span className={`rounded-sm border px-2 py-0.5 text-[10px] font-medium leading-[15px] font-jp ${review.typeClass}`}>
+              {review.type}
+            </span>
+          </div>
+          <span className="mt-1 inline-flex rounded-full bg-[#5a6053] px-2 py-0.5 text-[10px] leading-[15px] text-[#dfe5d4] font-jp">
+            {review.meta}
+          </span>
+        </div>
+      </div>
+      <div className="mt-5">
+        <StarRating rating={review.rating} />
+      </div>
+      <p className="mt-2 flex-1 text-sm leading-[22.75px] text-[#5b403d] font-jp">
+        &quot;{review.text}&quot;
+      </p>
+      <div className="mt-6 border-t border-[#e4beba1a] pt-4">
+        <div className="flex items-center gap-2 text-xs font-medium leading-4 text-[#3d5f46] font-jp">
+          <CheckCircle2 className="size-3.5" />
+          {review.verified}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function MenuSection() {
+  return (
+    <section className="mx-auto flex max-w-[1280px] flex-col gap-12 px-8 py-20 max-md:px-4">
+      <div className="flex items-center justify-between gap-6 max-lg:flex-col max-lg:items-start">
+        <h2 className="text-3xl font-bold leading-9 tracking-[-0.75px] text-[#1a1c1b] font-brand max-md:text-2xl">
+          おすすめメニュー / Recommended Menu
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          <button className="rounded-xl bg-[#1a1c1b] px-4 py-2 text-sm font-medium leading-5 text-[#f9f9f6] font-jp">
+            メイン料理
+          </button>
+          <button className="rounded-xl bg-[#e8e8e5] px-4 py-2 text-sm font-medium leading-5 text-[#5b403d] font-jp">
+            スターター
+          </button>
+          <button className="rounded-xl bg-[#e8e8e5] px-4 py-2 text-sm font-medium leading-5 text-[#5b403d] font-jp">
+            デザート
+          </button>
+        </div>
+      </div>
+      <div className="grid gap-8 lg:grid-cols-2">
+        {menuItems.map((item) => (
+          <MenuCard key={item.nameJp} item={item} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CommunityReviewsSection() {
+  return (
+    <section className="bg-[#f4f4f1] py-20">
+      <div className="mx-auto flex max-w-[1280px] flex-col gap-8 px-8 max-md:px-4">
+        <div className="flex items-end justify-between gap-6 pb-4 max-md:flex-col max-md:items-start">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm font-medium uppercase leading-5 tracking-[1.4px] text-[#af111c] font-jp">
+              コミュニティの声
+            </p>
+            <h2 className="text-3xl font-bold leading-9 tracking-[-0.75px] text-[#1a1c1b] font-brand max-md:text-2xl">
+              ユーザーレビュー / Community Reviews
+            </h2>
+          </div>
+          <div className="flex flex-col items-end gap-2 max-md:items-start">
+            <StarRating rating={4} size="size-5" />
+            <p className="text-sm font-bold leading-5 text-[#5b403d] font-jp">
+              4.2 (120件のレビュー)
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-6 rounded-lg border border-[#e4beba1a] bg-white p-4 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-xs font-medium uppercase tracking-[1.2px] text-[#5a6053] font-jp">
+              絞り込み:
+            </span>
+            <button className="rounded bg-[#af111c] px-3 py-1.5 text-xs font-medium leading-4 text-white font-jp">すべて</button>
+            <button className="rounded bg-[#e8e8e5] px-3 py-1.5 text-xs font-medium leading-4 text-[#5b403d] font-jp">在住日本人</button>
+            <button className="rounded bg-[#e8e8e5] px-3 py-1.5 text-xs font-medium leading-4 text-[#5b403d] font-jp">ベトナム人</button>
+          </div>
+          <div className="h-6 w-px bg-[#e4beba33] max-sm:hidden" />
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-medium uppercase tracking-[1.2px] text-[#5a6053] font-jp">
+              評価:
+            </span>
+            <button className="inline-flex items-center gap-3 rounded bg-[#e8e8e5] px-3 py-1.5 text-xs font-medium leading-4 text-[#1a1c1b] font-jp">
+              すべての評価
+              <ChevronDown className="size-4 text-[#5a6053]" />
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-6 pb-4 lg:grid-cols-3">
+          {reviews.map((review) => (
+            <ReviewCard key={review.name} review={review} />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -444,6 +735,8 @@ export default function OwnerHomePage() {
           </div>
         </div>
       </section>
+      <MenuSection />
+      <CommunityReviewsSection />
       {isEditModalOpen ? (
         <EditRestaurantModal onClose={() => setIsEditModalOpen(false)} />
       ) : null}

@@ -1,4 +1,8 @@
 import { ApiError, apiRequest } from "@/lib/api/client";
+import {
+  getAuthSession,
+  requireOwnerRestaurant,
+} from "@/lib/api/auth/session";
 import type {
   AdCounterResponse,
   MenuItemViewResponse,
@@ -14,32 +18,20 @@ export function getOwnerDashboard(restaurantId: number) {
   );
 }
 
-export async function findOwnerDashboard(maxRestaurantId = 100) {
-  let lastError: unknown = null;
+export async function findOwnerDashboard() {
+  const session = await getAuthSession();
 
-  for (let restaurantId = 1; restaurantId <= maxRestaurantId; restaurantId += 1) {
-    try {
-      const dashboard = await getOwnerDashboard(restaurantId);
-      return {
-        restaurantId,
-        dashboard,
-      };
-    } catch (error) {
-      lastError = error;
-
-      if (error instanceof ApiError && error.status === 401) {
-        throw error;
-      }
-    }
+  if (!session) {
+    throw new ApiError("Authentication is required.", 401);
   }
 
-  if (lastError instanceof Error) {
-    throw new Error(
-      `No owned restaurant dashboard found from ID 1 to ${maxRestaurantId}. Last error: ${lastError.message}`
-    );
-  }
+  const restaurant = requireOwnerRestaurant(session);
+  const dashboard = await getOwnerDashboard(restaurant.restaurantId);
 
-  throw new Error(`No owned restaurant dashboard found from ID 1 to ${maxRestaurantId}.`);
+  return {
+    restaurantId: restaurant.restaurantId,
+    dashboard,
+  };
 }
 
 export function getTopMenu(restaurantId: number) {

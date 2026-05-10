@@ -1,4 +1,4 @@
-import type { AuthTokens, RegisterRole } from "@/lib/api/auth/type";
+import type { RegisterRole } from "@/lib/api/auth/type";
 
 export const REGISTER_DRAFT_KEY = "tabelink.registerDraft";
 
@@ -34,9 +34,4 @@ export function readRegisterDraft(): RegisterDraft | null {
 
 export function clearRegisterDraft() {
   sessionStorage.removeItem(REGISTER_DRAFT_KEY);
-}
-
-export function persistAuthSession(tokens: AuthTokens) {
-  localStorage.setItem("accessToken", tokens.accessToken);
-  localStorage.setItem("refreshToken", tokens.refreshToken);
 }

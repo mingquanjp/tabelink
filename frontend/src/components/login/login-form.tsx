@@ -9,17 +9,8 @@ import { Button } from "@/components/ui/button";
 import { ForgotPasswordDialog } from "@/components/login/forgot-password-dialog";
 import { Input } from "@/components/ui/input";
 import { loginAccount } from "@/lib/api/auth/API";
-import { persistAuthSession } from "@/lib/api/auth/register";
-import type { AuthAccountRole } from "@/lib/api/auth/type";
+import { getAuthenticatedRedirectPath } from "@/lib/api/auth/routes";
 import { cn } from "@/lib/utils";
-
-function getLoginRedirectPath(role: AuthAccountRole) {
-  if (role === "Owner" || role === "Admin") {
-    return "/owner/home";
-  }
-
-  return "/";
-}
 
 export function LoginForm() {
   const router = useRouter();
@@ -40,9 +31,8 @@ export function LoginForm() {
         rememberMe,
       });
 
-      persistAuthSession(response.tokens);
       toast.success("Login successful.");
-      router.push(getLoginRedirectPath(response.account.role));
+      router.replace(getAuthenticatedRedirectPath(response.account.role));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Login failed.");
     } finally {

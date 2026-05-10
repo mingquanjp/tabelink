@@ -33,9 +33,18 @@ export type AuthAccount = {
   status: string;
 };
 
+export type AuthRestaurantContext = {
+  restaurantId: number;
+  ownerAccountId: number;
+  nameVn: string;
+  nameJp: string;
+  status: string;
+};
+
 export type RegisterResponse = {
   account: AuthAccount;
   profile: unknown;
+  restaurant: AuthRestaurantContext | null;
   tokens: AuthTokens;
 };
 
@@ -47,5 +56,14 @@ export type LoginPayload = {
 
 export type LoginResponse = {
   account: AuthAccount;
+  restaurant: AuthRestaurantContext | null;
   tokens: AuthTokens;
+};
+
+export type MeResponse = {
+  account: AuthAccount;
+  profile: unknown;
+  restaurant: AuthRestaurantContext | null;
+  profileCompleted: boolean;
+  guest?: boolean;
 };

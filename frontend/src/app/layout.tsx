@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { ClientRouteGuard } from "@/components/auth/client-route-guard";
 
 import { Toaster } from "sonner";
 
@@ -20,7 +21,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("h-full antialiased", "font-sans", inter.variable)}>
       <body className="min-h-full flex flex-col">
-        {children}
+        <ClientRouteGuard>{children}</ClientRouteGuard>
         <Toaster position="top-right" richColors />
       </body>
     </html>

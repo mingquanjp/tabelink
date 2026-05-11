@@ -10,6 +10,13 @@ export const OWNER_TOAST_MESSAGES = {
   uploadError: "ファイルのアップロードに失敗しました",
 } as const;
 
+export const AUTH_TOAST_MESSAGES = {
+  validationError: "入力形式が正しくありません。再度入力してください",
+  loginSuccess: "ログインに成功しました",
+  passwordResetSuccess: "パスワードリセット完了",
+  registerSuccess: "新規登録に成功しました",
+} as const;
+
 type AppToastVariant = "success" | "error";
 
 const toastStyle = {

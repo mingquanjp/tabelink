@@ -10,7 +10,8 @@ import {
   readRegisterDraft,
   type RegisterDraft,
 } from "@/lib/api/auth/register";
-import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { isValidShortText } from "@/lib/auth-form-validation";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
@@ -57,6 +58,14 @@ export default function ProfileRegisterPage() {
       return;
     }
 
+    if (
+      !isValidShortText(displayName) ||
+      (selectedNationality === "Other" && !isValidShortText(otherNationality))
+    ) {
+      showErrorToast(AUTH_TOAST_MESSAGES.validationError);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const nationality =
@@ -78,7 +87,7 @@ export default function ProfileRegisterPage() {
       await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
-      showSuccessToast("登録が完了しました");
+      showSuccessToast(AUTH_TOAST_MESSAGES.registerSuccess);
       router.push("/login");
     } catch {
       showErrorToast();
@@ -133,7 +142,7 @@ export default function ProfileRegisterPage() {
         </div>
       </div>
 
-      <form className="mt-10 space-y-8" onSubmit={handleSubmit}>
+      <form className="mt-10 space-y-8" noValidate onSubmit={handleSubmit}>
         <div className="space-y-3">
           <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053] [font-family:'Noto_Sans_JP',sans-serif]">
             ユーザー名

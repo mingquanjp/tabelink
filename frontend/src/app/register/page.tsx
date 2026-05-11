@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { readRegisterDraft, saveRegisterDraft } from "@/lib/api/auth/register";
 import type { RegisterRole } from "@/lib/api/auth/type";
-import { showErrorToast } from "@/lib/app-toast";
+import { AUTH_TOAST_MESSAGES, showErrorToast } from "@/lib/app-toast";
+import { isValidEmail, isValidShortText } from "@/lib/auth-form-validation";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account.png";
@@ -27,8 +28,8 @@ export default function RegisterPage() {
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (password.length < 8) {
-      showErrorToast("パスワードは8文字以上で入力してください");
+    if (!isValidShortText(fullName) || !isValidEmail(email) || password.length < 8) {
+      showErrorToast(AUTH_TOAST_MESSAGES.validationError);
       return;
     }
 
@@ -80,7 +81,7 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      <form className="mt-10 space-y-6" onSubmit={handleSubmit}>
+      <form className="mt-10 space-y-6" noValidate onSubmit={handleSubmit}>
         <label className="block">
           <span className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053] [font-family:'Noto_Sans_JP',sans-serif]">
             お名前（フルネーム）

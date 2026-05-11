@@ -10,7 +10,8 @@ import { Input } from "@/components/ui/input";
 import { loginAccount } from "@/lib/api/auth/API";
 import { getAuthenticatedRedirectPath } from "@/lib/api/auth/routes";
 import { cn } from "@/lib/utils";
-import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { isValidEmail } from "@/lib/auth-form-validation";
 
 export function LoginForm() {
   const router = useRouter();
@@ -23,6 +24,11 @@ export function LoginForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (!isValidEmail(email) || !password) {
+      showErrorToast(AUTH_TOAST_MESSAGES.validationError);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await loginAccount({
@@ -31,7 +37,7 @@ export function LoginForm() {
         rememberMe,
       });
 
-      showSuccessToast("ログインしました");
+      showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
       router.replace(getAuthenticatedRedirectPath(response.account.role));
     } catch {
       showErrorToast();
@@ -41,7 +47,7 @@ export function LoginForm() {
   }
 
   return (
-    <form className="mt-10 space-y-8" onSubmit={handleSubmit}>
+    <form className="mt-10 space-y-8" noValidate onSubmit={handleSubmit}>
       <div className="space-y-5">
         <div className="space-y-2">
           <label className="text-xs font-medium uppercase tracking-[0.12em] text-(--ink-600)">

@@ -248,6 +248,12 @@ export class AuthController {
       ...baseOptions,
       maxAge: (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000,
     });
+    response.cookie('hasSession', 'true', {
+      secure: isProduction,
+      sameSite: sameSite,
+      path: '/',
+      maxAge: (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000,
+    });
   }
 
   private clearAuthCookies(response: Response) {
@@ -262,6 +268,11 @@ export class AuthController {
 
     response.clearCookie('accessToken', options);
     response.clearCookie('refreshToken', options);
+    response.clearCookie('hasSession', {
+      secure: isProduction,
+      sameSite: sameSite,
+      path: '/',
+    });
   }
 
   private readCookie(request: Request, name: string) {

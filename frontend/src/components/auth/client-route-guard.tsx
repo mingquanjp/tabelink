@@ -43,7 +43,7 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
 
       const session = await getAuthSession();
 
-      if (session) {
+      if (session && canAccessOwnerRoutes(session.account.role) && session.restaurant) {
         router.replace(getAuthenticatedRedirectPath(session.account.role));
       }
 

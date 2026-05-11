@@ -42,15 +42,7 @@ function getAuthenticatedRedirectPath(role?: string) {
     return "/owner/home";
   }
 
-  return "/login";
-}
-
-function clearAuthCookies(response: NextResponse) {
-  response.cookies.delete("accessToken");
-  response.cookies.delete("refreshToken");
-  response.cookies.delete("hasSession");
-
-  return response;
+  return "/";
 }
 
 function redirectToLogin(request: NextRequest) {
@@ -73,20 +65,12 @@ export function proxy(request: NextRequest) {
   const hasSessionCookie = Boolean(hasUsableAccessToken || refreshToken);
 
   if (pathname === "/login" || pathname.startsWith("/register")) {
-    if (payload?.role === "Guest") {
-      const response = NextResponse.next();
-      response.headers.set("Cache-Control", "no-store");
-
-      return clearAuthCookies(response);
-    }
-
-    if (hasUsableAccessToken) {
+    if (hasUsableAccessToken && payload?.role === "Owner") {
       const url = request.nextUrl.clone();
       url.pathname = getAuthenticatedRedirectPath(payload?.role);
       url.search = "";
 
-      const response = NextResponse.redirect(url);
-      return payload?.role ? response : clearAuthCookies(response);
+      return NextResponse.redirect(url);
     }
 
     const response = NextResponse.next();

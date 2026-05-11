@@ -379,7 +379,7 @@ export default function OwnerDashboardPage() {
         trend: "up",
         unit: "名",
         icon: Users,
-        progress: 75,
+        progress: summary?.monthlyViews.progressRate ?? 0,
       },
       {
         label: "日本人顧客の平均評価",

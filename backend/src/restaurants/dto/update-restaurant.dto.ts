@@ -45,7 +45,9 @@ export class UpdateRestaurantDto {
   @IsLongitude()
   longitude?: number;
 
-  @ApiPropertyOptional({ example: 'Quán Việt phù hợp khách Nhật, có menu song ngữ.' })
+  @ApiPropertyOptional({
+    example: 'Quán Việt phù hợp khách Nhật, có menu song ngữ.',
+  })
   @IsOptional()
   @IsString()
   descriptionVn?: string;
@@ -75,7 +77,8 @@ export class UpdateRestaurantDto {
   @ApiPropertyOptional({
     type: [Number],
     example: [1, 2, 3],
-    description: 'FEATURE_MASTER.FeatureID values selected for this restaurant.',
+    description:
+      'FEATURE_MASTER.FeatureID values selected for this restaurant.',
   })
   @IsOptional()
   @IsArray()
@@ -88,7 +91,8 @@ export class UpdateRestaurantDto {
   @ApiPropertyOptional({
     type: [Number],
     example: [1, 2],
-    description: 'PAYMENT_METHOD.PaymentMethodID values selected for this restaurant.',
+    description:
+      'PAYMENT_METHOD.PaymentMethodID values selected for this restaurant.',
   })
   @IsOptional()
   @IsArray()

@@ -21,7 +21,9 @@ import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { SubmitVerificationApplicationDto } from './dto/submit-verification-application.dto';
 import { UploadedVerificationFile } from './verification-upload.types';
 
-export type VerificationDocumentType = 'business-license' | 'food-safety-certificate';
+export type VerificationDocumentType =
+  | 'business-license'
+  | 'food-safety-certificate';
 
 @Injectable()
 export class VerificationService {
@@ -68,7 +70,9 @@ export class VerificationService {
 
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png'];
     if (!allowedTypes.includes(file.mimetype)) {
-      throw new BadRequestException('Only PDF, JPG, and PNG files are allowed.');
+      throw new BadRequestException(
+        'Only PDF, JPG, and PNG files are allowed.',
+      );
     }
 
     this.configureCloudinary();
@@ -110,7 +114,9 @@ export class VerificationService {
     });
 
     if (existingPending) {
-      throw new ConflictException('A pending verification application already exists.');
+      throw new ConflictException(
+        'A pending verification application already exists.',
+      );
     }
 
     const application = this.applicationRepo.create({
@@ -175,7 +181,9 @@ export class VerificationService {
     }
 
     if (user.role !== AuthRole.Owner) {
-      throw new ForbiddenException('Only restaurant owners can view this application.');
+      throw new ForbiddenException(
+        'Only restaurant owners can view this application.',
+      );
     }
 
     return this.toResponse(application);
@@ -199,7 +207,9 @@ export class VerificationService {
   ) {
     return new Promise<UploadApiResponse>((resolve, reject) => {
       const folderSegment =
-        documentType === 'business-license' ? 'business-license' : 'food-safety';
+        documentType === 'business-license'
+          ? 'business-license'
+          : 'food-safety';
 
       const stream = cloudinary.uploader.upload_stream(
         {
@@ -247,7 +257,9 @@ export class VerificationService {
 
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {
     if (user.role !== AuthRole.Owner) {
-      throw new ForbiddenException('Only restaurant owners can manage verification applications.');
+      throw new ForbiddenException(
+        'Only restaurant owners can manage verification applications.',
+      );
     }
 
     const restaurant = await this.restaurantRepo.findOne({

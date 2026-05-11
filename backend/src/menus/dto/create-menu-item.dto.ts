@@ -22,7 +22,8 @@ export class MenuItemCriterionDto {
   @IsNotEmpty()
   @MaxLength(255)
   @Matches(/^[\p{L}\p{N}\p{M}\sー々ぁ-んァ-ン一-龯]+$/u, {
-    message: 'criterionName must not contain special characters or line breaks.',
+    message:
+      'criterionName must not contain special characters or line breaks.',
   })
   criterionName!: string;
 
@@ -36,7 +37,8 @@ export class MenuItemCriterionDto {
 export class CreateMenuItemDto {
   @ApiPropertyOptional({
     example: 1,
-    description: 'MENU_CATEGORY.CategoryID for grouping items into Home screen tabs.',
+    description:
+      'MENU_CATEGORY.CategoryID for grouping items into Home screen tabs.',
   })
   @IsOptional()
   @IsInt()

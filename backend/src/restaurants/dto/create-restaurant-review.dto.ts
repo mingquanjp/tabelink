@@ -37,7 +37,9 @@ export class CreateRestaurantReviewDto {
   @Max(5)
   spaceCleanliness?: number;
 
-  @ApiPropertyOptional({ example: 'Clean, friendly, and easy to reserve in Japanese.' })
+  @ApiPropertyOptional({
+    example: 'Clean, friendly, and easy to reserve in Japanese.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(2000)
@@ -45,7 +47,8 @@ export class CreateRestaurantReviewDto {
 
   @ApiPropertyOptional({
     example: true,
-    description: 'Marks the review as Japanese-audience feedback for Home review filters.',
+    description:
+      'Marks the review as Japanese-audience feedback for Home review filters.',
   })
   @IsOptional()
   @IsBoolean()

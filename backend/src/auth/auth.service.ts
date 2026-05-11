@@ -243,7 +243,6 @@ export class AuthService {
     };
   }
 
-
   async guestLogin() {
     const payload: JwtPayload = {
       sub: 0,
@@ -374,15 +373,17 @@ export class AuthService {
       const profile = account.customerProfile;
       return Boolean(
         profile?.displayName &&
-          profile?.dob &&
-          profile?.gender &&
-          profile?.nationality,
+        profile?.dob &&
+        profile?.gender &&
+        profile?.nationality,
       );
     }
 
     if (account.role === UserRole.Owner) {
       const profile = account.ownerProfile;
-      return Boolean(profile?.businessName && profile?.phone && profile?.fullName);
+      return Boolean(
+        profile?.businessName && profile?.phone && profile?.fullName,
+      );
     }
 
     return false;

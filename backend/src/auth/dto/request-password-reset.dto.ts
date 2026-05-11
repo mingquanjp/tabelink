@@ -11,7 +11,8 @@ export class RequestPasswordResetDto {
   @ApiProperty({
     required: false,
     example: 'vi',
-    description: 'Email language: "vi" (Vietnamese) or "ja" (Japanese). Defaults to "vi".',
+    description:
+      'Email language: "vi" (Vietnamese) or "ja" (Japanese). Defaults to "vi".',
     enum: ['vi', 'ja'],
   })
   lang?: 'vi' | 'ja';

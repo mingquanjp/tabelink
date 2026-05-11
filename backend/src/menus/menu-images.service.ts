@@ -27,7 +27,11 @@ export class MenuImagesService {
     private readonly configService: ConfigService,
   ) {}
 
-  async upload(restaurantId: number, file: UploadedMenuImageFile | undefined, user: JwtPayload) {
+  async upload(
+    restaurantId: number,
+    file: UploadedMenuImageFile | undefined,
+    user: JwtPayload,
+  ) {
     await this.assertOwnerRestaurant(restaurantId, user);
 
     if (!file) {
@@ -35,7 +39,9 @@ export class MenuImagesService {
     }
 
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
-      throw new BadRequestException('Only JPG, PNG, and WEBP images are allowed.');
+      throw new BadRequestException(
+        'Only JPG, PNG, and WEBP images are allowed.',
+      );
     }
 
     this.configureCloudinary();
@@ -52,14 +58,20 @@ export class MenuImagesService {
     };
   }
 
-  async deleteUploaded(restaurantId: number, dto: DeleteMenuImageDto, user: JwtPayload) {
+  async deleteUploaded(
+    restaurantId: number,
+    dto: DeleteMenuImageDto,
+    user: JwtPayload,
+  ) {
     await this.assertOwnerRestaurant(restaurantId, user);
 
     const publicId = dto.publicId.trim();
     const restaurantMenuFolder = `tabelink/restaurants/${restaurantId}/menus/`;
 
     if (!publicId.startsWith(restaurantMenuFolder)) {
-      throw new BadRequestException('Image publicId does not belong to this restaurant menu folder.');
+      throw new BadRequestException(
+        'Image publicId does not belong to this restaurant menu folder.',
+      );
     }
 
     this.configureCloudinary();
@@ -76,7 +88,9 @@ export class MenuImagesService {
         restaurantId,
       };
     } catch {
-      throw new InternalServerErrorException('Failed to delete Cloudinary image.');
+      throw new InternalServerErrorException(
+        'Failed to delete Cloudinary image.',
+      );
     }
   }
 
@@ -128,7 +142,9 @@ export class MenuImagesService {
 
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {
     if (user.role !== AuthRole.Owner) {
-      throw new ForbiddenException('Only restaurant owners can upload menu images.');
+      throw new ForbiddenException(
+        'Only restaurant owners can upload menu images.',
+      );
     }
 
     const restaurant = await this.restaurantRepo.findOne({

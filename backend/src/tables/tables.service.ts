@@ -9,10 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Between, In, Not, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
-import {
-  Reservation,
-  ReservationStatus,
-} from './entities/reservation.entity';
+import { Reservation, ReservationStatus } from './entities/reservation.entity';
 import {
   RestaurantTable,
   RestaurantTableStatus,
@@ -60,7 +57,11 @@ export class TablesService {
     };
   }
 
-  async createTable(restaurantId: number, dto: CreateTableDto, user: JwtPayload) {
+  async createTable(
+    restaurantId: number,
+    dto: CreateTableDto,
+    user: JwtPayload,
+  ) {
     await this.assertOwnerRestaurant(restaurantId, user);
 
     const table = this.tableRepo.create({
@@ -80,7 +81,9 @@ export class TablesService {
       return this.toTableResponse(saved);
     } catch (error) {
       if (this.isUniqueViolation(error)) {
-        throw new ConflictException('Table name already exists in this restaurant.');
+        throw new ConflictException(
+          'Table name already exists in this restaurant.',
+        );
       }
 
       throw error;
@@ -134,7 +137,9 @@ export class TablesService {
       return this.toTableResponse(saved);
     } catch (error) {
       if (this.isUniqueViolation(error)) {
-        throw new ConflictException('Table name already exists in this restaurant.');
+        throw new ConflictException(
+          'Table name already exists in this restaurant.',
+        );
       }
 
       throw error;
@@ -178,7 +183,9 @@ export class TablesService {
     });
 
     if (hasReservation) {
-      throw new ConflictException('Cannot delete a table that has reservations.');
+      throw new ConflictException(
+        'Cannot delete a table that has reservations.',
+      );
     }
 
     await this.tableRepo.remove(table);
@@ -239,7 +246,10 @@ export class TablesService {
     user: JwtPayload,
   ) {
     await this.assertOwnerRestaurant(restaurantId, user);
-    const reservation = await this.findOwnedReservation(restaurantId, reservationId);
+    const reservation = await this.findOwnedReservation(
+      restaurantId,
+      reservationId,
+    );
 
     return this.toReservationResponse(reservation);
   }
@@ -251,7 +261,10 @@ export class TablesService {
     user: JwtPayload,
   ) {
     await this.assertOwnerRestaurant(restaurantId, user);
-    const reservation = await this.findOwnedReservation(restaurantId, reservationId);
+    const reservation = await this.findOwnedReservation(
+      restaurantId,
+      reservationId,
+    );
     const previousTableId = reservation.tableId ?? null;
     const nextTableId = dto.tableId ?? reservation.tableId ?? null;
 
@@ -263,8 +276,15 @@ export class TablesService {
       reservation.durationMinutes = dto.durationMinutes;
     }
 
-    if (nextTableId && (dto.tableId !== undefined || dto.durationMinutes !== undefined)) {
-      await this.assertTableCanBeAssigned(restaurantId, nextTableId, reservation);
+    if (
+      nextTableId &&
+      (dto.tableId !== undefined || dto.durationMinutes !== undefined)
+    ) {
+      await this.assertTableCanBeAssigned(
+        restaurantId,
+        nextTableId,
+        reservation,
+      );
     }
 
     if (dto.status !== undefined) {
@@ -276,9 +296,16 @@ export class TablesService {
     }
 
     const saved = await this.reservationRepo.save(reservation);
-    await this.syncReservationTableStatuses(restaurantId, saved, previousTableId);
+    await this.syncReservationTableStatuses(
+      restaurantId,
+      saved,
+      previousTableId,
+    );
 
-    const refreshed = await this.findOwnedReservation(restaurantId, reservationId);
+    const refreshed = await this.findOwnedReservation(
+      restaurantId,
+      reservationId,
+    );
     return this.toReservationResponse(refreshed);
   }
 
@@ -311,7 +338,10 @@ export class TablesService {
     return table;
   }
 
-  private async findOwnedReservation(restaurantId: number, reservationId: number) {
+  private async findOwnedReservation(
+    restaurantId: number,
+    reservationId: number,
+  ) {
     const reservation = await this.reservationRepo.findOne({
       where: { restaurantId, reservationId },
       relations: {
@@ -335,7 +365,9 @@ export class TablesService {
     const table = await this.findOwnedTable(restaurantId, tableId);
 
     if (table.capacity < reservation.pax) {
-      throw new BadRequestException('Table capacity is smaller than reservation pax.');
+      throw new BadRequestException(
+        'Table capacity is smaller than reservation pax.',
+      );
     }
 
     const alreadyBooked = await this.hasOverlappingActiveReservation(
@@ -345,11 +377,15 @@ export class TablesService {
     );
 
     if (alreadyBooked) {
-      throw new ConflictException('Table already has an active reservation for this time.');
+      throw new ConflictException(
+        'Table already has an active reservation for this time.',
+      );
     }
   }
 
-  private async assertCapacityCanServeActiveReservations(table: RestaurantTable) {
+  private async assertCapacityCanServeActiveReservations(
+    table: RestaurantTable,
+  ) {
     const oversizedReservation = await this.reservationRepo.findOne({
       where: {
         restaurantId: table.restaurantId,
@@ -382,12 +418,18 @@ export class TablesService {
           { status: RestaurantTableStatus.Reserved },
         );
       } else {
-        await this.releaseTableIfNoActiveReservations(restaurantId, currentTableId);
+        await this.releaseTableIfNoActiveReservations(
+          restaurantId,
+          currentTableId,
+        );
       }
     }
 
     if (previousTableId && previousTableId !== currentTableId) {
-      await this.releaseTableIfNoActiveReservations(restaurantId, previousTableId);
+      await this.releaseTableIfNoActiveReservations(
+        restaurantId,
+        previousTableId,
+      );
     }
   }
 
@@ -467,18 +509,22 @@ export class TablesService {
       tableName: table.tableName,
       capacity: table.capacity,
       status: table.status,
-      positionX: table.positionX === null || table.positionX === undefined
-        ? null
-        : Number(table.positionX),
-      positionY: table.positionY === null || table.positionY === undefined
-        ? null
-        : Number(table.positionY),
-      width: table.width === null || table.width === undefined
-        ? null
-        : Number(table.width),
-      height: table.height === null || table.height === undefined
-        ? null
-        : Number(table.height),
+      positionX:
+        table.positionX === null || table.positionX === undefined
+          ? null
+          : Number(table.positionX),
+      positionY:
+        table.positionY === null || table.positionY === undefined
+          ? null
+          : Number(table.positionY),
+      width:
+        table.width === null || table.width === undefined
+          ? null
+          : Number(table.width),
+      height:
+        table.height === null || table.height === undefined
+          ? null
+          : Number(table.height),
       zone: table.zone ?? null,
     };
   }
@@ -538,6 +584,8 @@ export class TablesService {
 
   private reservationEndDateTime(reservation: Reservation) {
     const durationMinutes = reservation.durationMinutes || 120;
-    return new Date(reservation.reservationDateTime.getTime() + durationMinutes * 60 * 1000);
+    return new Date(
+      reservation.reservationDateTime.getTime() + durationMinutes * 60 * 1000,
+    );
   }
 }

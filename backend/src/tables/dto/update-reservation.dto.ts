@@ -13,7 +13,8 @@ export class UpdateReservationDto {
 
   @ApiPropertyOptional({
     example: 3,
-    description: 'Assigns the reservation to an existing table in the same restaurant.',
+    description:
+      'Assigns the reservation to an existing table in the same restaurant.',
   })
   @IsOptional()
   @IsInt()
@@ -28,7 +29,8 @@ export class UpdateReservationDto {
   @ApiPropertyOptional({
     example: 120,
     default: 120,
-    description: 'Reservation duration in minutes. Default booking duration is 120 minutes.',
+    description:
+      'Reservation duration in minutes. Default booking duration is 120 minutes.',
   })
   @IsOptional()
   @IsInt()

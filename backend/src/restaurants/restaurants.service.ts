@@ -269,7 +269,11 @@ export class RestaurantsService {
       }
 
       if (dto.paymentMethodIds !== undefined) {
-        await this.replacePaymentMethodLinks(manager, restaurantId, dto.paymentMethodIds);
+        await this.replacePaymentMethodLinks(
+          manager,
+          restaurantId,
+          dto.paymentMethodIds,
+        );
       }
 
       if (dto.media !== undefined) {
@@ -335,7 +339,9 @@ export class RestaurantsService {
     user: JwtPayload,
   ) {
     if (user.role !== AuthRole.User) {
-      throw new ForbiddenException('Only customer users can submit restaurant reviews.');
+      throw new ForbiddenException(
+        'Only customer users can submit restaurant reviews.',
+      );
     }
 
     const content = this.optionalTrim(dto.content) ?? null;
@@ -426,7 +432,8 @@ export class RestaurantsService {
       reviewId: Number(row.reviewId),
       customerAccountId: Number(row.customerAccountId),
       restaurantId: Number(row.restaurantId),
-      reservationId: row.reservationId === null ? null : Number(row.reservationId),
+      reservationId:
+        row.reservationId === null ? null : Number(row.reservationId),
       rating: Number(row.rating),
       toiletCleanliness:
         row.toiletCleanliness === null ? null : Number(row.toiletCleanliness),
@@ -445,7 +452,9 @@ export class RestaurantsService {
 
   private assertOwner(user: JwtPayload) {
     if (user.role !== AuthRole.Owner) {
-      throw new ForbiddenException('Only restaurant owners can manage restaurant information.');
+      throw new ForbiddenException(
+        'Only restaurant owners can manage restaurant information.',
+      );
     }
   }
 
@@ -533,7 +542,10 @@ export class RestaurantsService {
 
     await manager.save(
       RestaurantPaymentMethod,
-      paymentMethodIds.map((paymentMethodId) => ({ restaurantId, paymentMethodId })),
+      paymentMethodIds.map((paymentMethodId) => ({
+        restaurantId,
+        paymentMethodId,
+      })),
     );
   }
 
@@ -699,14 +711,15 @@ export class RestaurantsService {
         itemId: Number(item.itemId),
         restaurantId: Number(item.restaurantId),
         categoryId: item.categoryId === null ? null : Number(item.categoryId),
-        category: item.categoryId === null
-          ? null
-          : {
-              categoryId: Number(item.categoryId),
-              categoryCode: item.categoryCode,
-              categoryNameVn: item.categoryNameVn,
-              categoryNameJp: item.categoryNameJp,
-            },
+        category:
+          item.categoryId === null
+            ? null
+            : {
+                categoryId: Number(item.categoryId),
+                categoryCode: item.categoryCode,
+                categoryNameVn: item.categoryNameVn,
+                categoryNameJp: item.categoryNameJp,
+              },
         nameVn: item.nameVn,
         nameJp: item.nameJp,
         price: Number(item.price),
@@ -795,9 +808,10 @@ export class RestaurantsService {
         impressions: Number(row.impressions),
         clicks: Number(row.clicks),
         totalCost: Number(row.totalCost),
-        ctr: Number(row.impressions) > 0
-          ? Number((Number(row.clicks) / Number(row.impressions)).toFixed(4))
-          : 0,
+        ctr:
+          Number(row.impressions) > 0
+            ? Number((Number(row.clicks) / Number(row.impressions)).toFixed(4))
+            : 0,
       })),
     };
   }
@@ -1081,8 +1095,14 @@ export class RestaurantsService {
       nameVn: restaurant.nameVn,
       nameJp: restaurant.nameJp,
       address: restaurant.address,
-      latitude: restaurant.latitude === null || restaurant.latitude === undefined ? null : Number(restaurant.latitude),
-      longitude: restaurant.longitude === null || restaurant.longitude === undefined ? null : Number(restaurant.longitude),
+      latitude:
+        restaurant.latitude === null || restaurant.latitude === undefined
+          ? null
+          : Number(restaurant.latitude),
+      longitude:
+        restaurant.longitude === null || restaurant.longitude === undefined
+          ? null
+          : Number(restaurant.longitude),
       descriptionVn: restaurant.descriptionVn ?? null,
       descriptionJp: restaurant.descriptionJp ?? null,
       phone: restaurant.phone ?? null,
@@ -1114,7 +1134,10 @@ export class RestaurantsService {
           status: media.status,
         })),
       socialLinks: (restaurant.socialLinks ?? [])
-        .sort((a, b) => a.sortOrder - b.sortOrder || a.socialLinkId - b.socialLinkId)
+        .sort(
+          (a, b) =>
+            a.sortOrder - b.sortOrder || a.socialLinkId - b.socialLinkId,
+        )
         .map((link) => ({
           socialLinkId: link.socialLinkId,
           provider: link.provider,
@@ -1152,8 +1175,14 @@ export class RestaurantsService {
       nameVn: restaurant.nameVn,
       nameJp: restaurant.nameJp,
       address: restaurant.address,
-      latitude: restaurant.latitude === null || restaurant.latitude === undefined ? null : Number(restaurant.latitude),
-      longitude: restaurant.longitude === null || restaurant.longitude === undefined ? null : Number(restaurant.longitude),
+      latitude:
+        restaurant.latitude === null || restaurant.latitude === undefined
+          ? null
+          : Number(restaurant.latitude),
+      longitude:
+        restaurant.longitude === null || restaurant.longitude === undefined
+          ? null
+          : Number(restaurant.longitude),
       descriptionVn: restaurant.descriptionVn ?? null,
       descriptionJp: restaurant.descriptionJp ?? null,
       phone: restaurant.phone ?? null,
@@ -1162,12 +1191,21 @@ export class RestaurantsService {
       status: restaurant.status,
       socialLinks,
       sns: {
-        facebook: socialLinks.find((link) => link.provider === 'Facebook')?.url ?? null,
-        instagram: socialLinks.find((link) => link.provider === 'Instagram')?.url ?? null,
+        facebook:
+          socialLinks.find((link) => link.provider === 'Facebook')?.url ?? null,
+        instagram:
+          socialLinks.find((link) => link.provider === 'Instagram')?.url ??
+          null,
       },
       map: {
-        latitude: restaurant.latitude === null || restaurant.latitude === undefined ? null : Number(restaurant.latitude),
-        longitude: restaurant.longitude === null || restaurant.longitude === undefined ? null : Number(restaurant.longitude),
+        latitude:
+          restaurant.latitude === null || restaurant.latitude === undefined
+            ? null
+            : Number(restaurant.latitude),
+        longitude:
+          restaurant.longitude === null || restaurant.longitude === undefined
+            ? null
+            : Number(restaurant.longitude),
         embedUrl:
           restaurant.latitude && restaurant.longitude
             ? `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`

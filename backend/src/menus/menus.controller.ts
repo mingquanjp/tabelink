@@ -42,7 +42,9 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('menus')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-@ApiForbiddenResponse({ description: 'Only restaurant owners can manage menus.' })
+@ApiForbiddenResponse({
+  description: 'Only restaurant owners can manage menus.',
+})
 @UseGuards(JwtAuthGuard)
 @Controller('owner/restaurants/:restaurantId/menus')
 export class MenusController {
@@ -222,7 +224,8 @@ export class MenusController {
     description: 'Image uploaded to Cloudinary.',
     schema: {
       example: {
-        imageUrl: 'https://res.cloudinary.com/demo/image/upload/v123/tabelink/restaurants/1/menus/pho-bo.jpg',
+        imageUrl:
+          'https://res.cloudinary.com/demo/image/upload/v123/tabelink/restaurants/1/menus/pho-bo.jpg',
         publicId: 'tabelink/restaurants/1/menus/pho-bo',
         width: 1200,
         height: 800,
@@ -265,7 +268,11 @@ export class MenusController {
     @Body() dto: DeleteMenuImageDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.menuImagesService.deleteUploaded(restaurantId, dto, request.user);
+    return this.menuImagesService.deleteUploaded(
+      restaurantId,
+      dto,
+      request.user,
+    );
   }
 
   @Patch(':itemId')

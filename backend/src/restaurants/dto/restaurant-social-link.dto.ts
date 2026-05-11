@@ -1,5 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, IsUrl, MaxLength, Min } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUrl,
+  MaxLength,
+  Min,
+} from 'class-validator';
 import { RestaurantSocialProvider } from '../entities/restaurant-social-link.entity';
 
 export class RestaurantSocialLinkDto {
@@ -8,7 +17,10 @@ export class RestaurantSocialLinkDto {
   @IsInt()
   socialLinkId?: number;
 
-  @ApiProperty({ enum: RestaurantSocialProvider, example: RestaurantSocialProvider.Facebook })
+  @ApiProperty({
+    enum: RestaurantSocialProvider,
+    example: RestaurantSocialProvider.Facebook,
+  })
   @IsEnum(RestaurantSocialProvider)
   provider!: RestaurantSocialProvider;
 

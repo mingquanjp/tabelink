@@ -27,7 +27,9 @@ export class MailService {
     });
   }
 
-  async sendTemporaryPassword(options: TemporaryPasswordMailOptions): Promise<void> {
+  async sendTemporaryPassword(
+    options: TemporaryPasswordMailOptions,
+  ): Promise<void> {
     const { to, tempPassword, lang = 'vi' } = options;
 
     const fromName = this.config.get<string>('SMTP_FROM_NAME', 'Tabelink');
@@ -54,7 +56,10 @@ export class MailService {
         );
         this.logger.warn(err);
       } else {
-        this.logger.error(`Failed to send temporary password email to ${to}`, err);
+        this.logger.error(
+          `Failed to send temporary password email to ${to}`,
+          err,
+        );
         throw err;
       }
     }

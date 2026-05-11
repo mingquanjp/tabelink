@@ -1,4 +1,12 @@
-import { Body, Controller, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Param,
+  ParseIntPipe,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -51,15 +59,22 @@ export class PublicRestaurantsController {
       },
     },
   })
-  @ApiForbiddenResponse({ description: 'Only customer users can submit restaurant reviews.' })
+  @ApiForbiddenResponse({
+    description: 'Only customer users can submit restaurant reviews.',
+  })
   @ApiNotFoundResponse({
-    description: 'Restaurant, customer profile, or completed reservation was not found.',
+    description:
+      'Restaurant, customer profile, or completed reservation was not found.',
   })
   createReview(
     @Param('restaurantId', ParseIntPipe) restaurantId: number,
     @Body() dto: CreateRestaurantReviewDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.restaurantsService.createReview(restaurantId, dto, request.user);
+    return this.restaurantsService.createReview(
+      restaurantId,
+      dto,
+      request.user,
+    );
   }
 }

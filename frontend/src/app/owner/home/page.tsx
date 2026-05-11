@@ -198,6 +198,7 @@ type ReviewDisplayItem = {
   verified: string;
   avatarClass: string;
 };
+type ReviewSummary = OwnerHomeResponse["reviews"]["summary"];
 
 function formatVnd(value: number) {
   return `${value.toLocaleString("vi-VN")} VND`;
@@ -857,8 +858,10 @@ function MenuSection({
 
 function CommunityReviewsSection({
   items,
+  summary,
 }: {
   items: ReviewDisplayItem[];
+  summary?: ReviewSummary;
 }) {
   const [audienceFilter, setAudienceFilter] = useState<
     "all" | "japanese" | "vietnamese"
@@ -877,11 +880,8 @@ function CommunityReviewsSection({
 
     return matchesAudience && matchesRating;
   });
-  const allReviewCount = items.length;
-  const allAverageRating =
-    allReviewCount > 0
-      ? items.reduce((sum, item) => sum + item.rating, 0) / allReviewCount
-      : 0;
+  const allReviewCount = summary?.visibleCount ?? 0;
+  const allAverageRating = summary?.averageRating ?? 0;
 
   return (
     <section className="bg-[#f4f4f1] py-20">
@@ -1543,6 +1543,7 @@ export default function OwnerHomePage() {
       <MenuSection categories={dynamicMenuCategories} items={dynamicMenuItems} />
       <CommunityReviewsSection
         items={dynamicReviews}
+        summary={homeData?.reviews.summary}
       />
       {isEditModalOpen ? (
         <EditRestaurantModal

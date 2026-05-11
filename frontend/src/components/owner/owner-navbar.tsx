@@ -7,7 +7,6 @@ import { Bell, LogOut, User } from "lucide-react";
 import { logoutAccount } from "@/lib/api/auth/API";
 import { getAuthSession } from "@/lib/api/auth/session";
 import type { AuthRestaurantContext } from "@/lib/api/auth/type";
-import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -66,9 +65,8 @@ export function OwnerNavbar() {
     async function handleLogout() {
         try {
             await logoutAccount();
-            showSuccessToast("ログアウトしました");
         } catch {
-            showErrorToast();
+            // Logout still navigates to the login page even if the local session is already cleared.
         } finally {
             router.replace("/login");
             router.refresh();

@@ -227,7 +227,7 @@ function buildGoogleMapsUrl(restaurant: OwnerHomeResponse["restaurant"] | undefi
 }
 
 function toMenuDisplayItems(items: OwnerHomeMenuItem[]): MenuDisplayItem[] {
-  return items.map((item, index) => ({
+  return items.filter((item) => item.isRecommendedForJp).map((item, index) => ({
     itemId: item.itemId,
     categoryCode:
       item.category?.categoryCode ?? item.categoryId?.toString() ?? null,
@@ -254,11 +254,21 @@ function toMenuCategories(
   categories: OwnerHomeResponse["menu"]["categories"] | undefined,
   items: MenuDisplayItem[],
 ): MenuCategoryDisplayItem[] {
+  const itemCategoryCodes = new Set(
+    items.map((item) => item.categoryCode || "uncategorized"),
+  );
+
   if (categories && categories.length > 0) {
-    return categories.slice(0, 3).map((category) => ({
-      code: category.categoryCode || category.categoryId.toString(),
-      label: category.categoryNameJp || category.categoryNameVn,
-    }));
+    const matchedCategories = categories
+      .map((category) => ({
+        code: category.categoryCode || category.categoryId.toString(),
+        label: category.categoryNameJp || category.categoryNameVn,
+      }))
+      .filter((category) => itemCategoryCodes.has(category.code));
+
+    if (matchedCategories.length > 0) {
+      return matchedCategories;
+    }
   }
 
   const categoryMap = new Map<string, string>();

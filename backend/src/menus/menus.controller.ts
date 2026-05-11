@@ -29,6 +29,7 @@ import { Request } from 'express';
 import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
+import { CreateMenuCategoryDto } from './dto/create-menu-category.dto';
 import { DeleteMenuImageDto } from './dto/delete-menu-image.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
 import { MenuImagesService } from './menu-images.service';
@@ -101,6 +102,37 @@ export class MenusController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.menusService.list(restaurantId, request.user);
+  }
+
+  @Get('categories')
+  @ApiOperation({
+    summary: 'List owner menu categories',
+    description:
+      'Returns active menu categories for the owner menu category tabs.',
+  })
+  @ApiOkResponse({ description: 'List active menu categories.' })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  listCategories(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menusService.listCategories(restaurantId, request.user);
+  }
+
+  @Post('categories')
+  @ApiOperation({
+    summary: 'Create owner menu category',
+    description:
+      'Creates a category used by owner menu tabs and owner home recommended menu tabs.',
+  })
+  @ApiCreatedResponse({ description: 'Created menu category.' })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  createCategory(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Body() dto: CreateMenuCategoryDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menusService.createCategory(restaurantId, dto, request.user);
   }
 
   @Get(':itemId')

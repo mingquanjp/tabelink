@@ -1,5 +1,7 @@
 import { apiRequest } from "@/lib/api/client";
 import type {
+  OwnerMenuCategory,
+  OwnerMenuCategoryPayload,
   OwnerMenuItem,
   OwnerMenuListResponse,
   OwnerMenuPayload,
@@ -24,6 +26,20 @@ export function createOwnerMenuItem(
   });
 }
 
+export function createOwnerMenuCategory(
+  restaurantId: number,
+  payload: OwnerMenuCategoryPayload
+) {
+  return apiRequest<OwnerMenuCategory>(
+    `/owner/restaurants/${restaurantId}/menus/categories`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+      auth: true,
+    }
+  );
+}
+
 export function updateOwnerMenuItem(
   restaurantId: number,
   itemId: number,
@@ -37,6 +53,19 @@ export function updateOwnerMenuItem(
       auth: true,
     }
   );
+}
+
+export function deleteOwnerMenuItem(restaurantId: number, itemId: number) {
+  return apiRequest<{
+    deleted: boolean;
+    softDeleted: boolean;
+    cloudinaryDeleted: boolean;
+    itemId: number;
+    restaurantId: number;
+  }>(`/owner/restaurants/${restaurantId}/menus/${itemId}`, {
+    method: "DELETE",
+    auth: true,
+  });
 }
 
 export function uploadOwnerMenuImage(restaurantId: number, file: File) {

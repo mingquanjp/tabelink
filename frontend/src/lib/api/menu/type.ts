@@ -25,10 +25,27 @@ export type OwnerMenuItem = {
   updatedAt: string | Date;
 };
 
+export type OwnerMenuCategory = {
+  categoryId: number;
+  restaurantId: number;
+  categoryCode: string;
+  categoryNameVn: string;
+  categoryNameJp: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
 export type OwnerMenuListResponse = {
   restaurantId: number;
   count: number;
+  categories: OwnerMenuCategory[];
   items: OwnerMenuItem[];
+};
+
+export type OwnerMenuCategoryPayload = {
+  categoryNameJp: string;
+  categoryNameVn?: string;
+  categoryCode?: string;
 };
 
 export type OwnerMenuPayload = {

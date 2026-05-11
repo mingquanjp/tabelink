@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
 import { logoutAccount, registerAccount } from "@/lib/api/auth/API";
 import {
   clearRegisterDraft,
   readRegisterDraft,
   type RegisterDraft,
 } from "@/lib/api/auth/register";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
@@ -47,7 +47,7 @@ export default function RestaurantRegisterPage() {
     }
 
     if (!phonePattern.test(phone.trim())) {
-      toast.error("エラーが発生しました");
+      showErrorToast("入力形式が正しくありません。再度入力してください");
       return;
     }
 
@@ -66,10 +66,10 @@ export default function RestaurantRegisterPage() {
       await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
-      toast.success("設定を保存しました");
+      showSuccessToast("登録が完了しました");
       router.push("/login");
     } catch {
-      toast.error("エラーが発生しました");
+      showErrorToast();
     } finally {
       setIsSubmitting(false);
     }
@@ -222,16 +222,6 @@ export default function RestaurantRegisterPage() {
             </button>
           </div>
         </form>
-
-        <div className="flex justify-center">
-          <Link
-            className="flex items-center gap-2 text-[14px] font-medium text-[#5a6053] hover:text-[#af111c] transition-colors [font-family:'Noto_Sans_JP',sans-serif]"
-            href="/register"
-          >
-            <ArrowLeft className="size-4" />
-            前のステップに戻る
-          </Link>
-        </div>
       </div>
     </>
   );

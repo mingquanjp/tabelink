@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowUpRight, Eye, EyeOff, LogIn } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ForgotPasswordDialog } from "@/components/login/forgot-password-dialog";
 import { Input } from "@/components/ui/input";
 import { loginAccount } from "@/lib/api/auth/API";
 import { getAuthenticatedRedirectPath } from "@/lib/api/auth/routes";
 import { cn } from "@/lib/utils";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 
 export function LoginForm() {
   const router = useRouter();
@@ -31,10 +31,10 @@ export function LoginForm() {
         rememberMe,
       });
 
-      toast.success("設定を保存しました");
+      showSuccessToast("ログインしました");
       router.replace(getAuthenticatedRedirectPath(response.account.role));
     } catch {
-      toast.error("エラーが発生しました");
+      showErrorToast();
     } finally {
       setIsSubmitting(false);
     }

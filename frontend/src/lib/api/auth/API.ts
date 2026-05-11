@@ -6,6 +6,8 @@ import type {
   MeResponse,
   RegisterPayload,
   RegisterResponse,
+  RequestPasswordResetPayload,
+  RequestPasswordResetResponse,
 } from "@/lib/api/auth/type";
 
 export function registerAccount(payload: RegisterPayload) {
@@ -46,5 +48,12 @@ export function guestLogin() {
 export function logoutAccount() {
   return apiRequest<{ loggedOut: true }>("/auth/logout", {
     method: "POST",
+  });
+}
+
+export function requestPasswordReset(payload: RequestPasswordResetPayload) {
+  return apiRequest<RequestPasswordResetResponse>("/auth/password/forgot", {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }

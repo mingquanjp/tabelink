@@ -17,6 +17,11 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  OWNER_TOAST_MESSAGES,
+  showErrorToast,
+  showSuccessToast,
+} from "@/lib/app-toast";
 
 type AdRequestDialogProps = {
   trigger: ReactNode;
@@ -89,6 +94,21 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
     setOpen(false);
   };
 
+  const handleCreativeFileChange = (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0] ?? null;
+
+    if (file && file.size > 5 * 1024 * 1024) {
+      event.target.value = "";
+      setCreativeFile(null);
+      showErrorToast(OWNER_TOAST_MESSAGES.uploadError);
+      return;
+    }
+
+    setCreativeFile(file);
+  };
+
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit) return;
@@ -102,6 +122,7 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
       message,
       creativeFileName: creativeFile?.name ?? null,
     });
+    showSuccessToast();
     setOpen(false);
   };
 
@@ -271,7 +292,7 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
                   type="file"
                   accept="image/png,image/jpeg"
                   className="hidden"
-                  onChange={(event) => setCreativeFile(event.target.files?.[0] ?? null)}
+                  onChange={handleCreativeFileChange}
                 />
               </label>
             </div>

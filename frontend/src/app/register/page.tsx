@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { toast } from "sonner";
 import { readRegisterDraft, saveRegisterDraft } from "@/lib/api/auth/register";
 import type { RegisterRole } from "@/lib/api/auth/type";
+import { showErrorToast } from "@/lib/app-toast";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account.png";
@@ -28,7 +28,7 @@ export default function RegisterPage() {
     event.preventDefault();
 
     if (password.length < 8) {
-      toast.error("エラーが発生しました");
+      showErrorToast("パスワードは8文字以上で入力してください");
       return;
     }
 

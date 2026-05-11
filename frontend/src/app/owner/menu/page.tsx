@@ -1,8 +1,7 @@
 "use client";
 
-import { CloudUpload, Plus, Utensils } from "lucide-react";
+import { CloudUpload, Plus, Trash2, Utensils } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
 import {
   createOwnerMenuItem,
   listOwnerMenuItems,
@@ -11,6 +10,11 @@ import {
 } from "@/lib/api/menu/API";
 import type { OwnerMenuItem, OwnerMenuPayload } from "@/lib/api/menu/type";
 import { getAuthSession, requireOwnerRestaurant } from "@/lib/api/auth/session";
+import {
+  OWNER_TOAST_MESSAGES,
+  showErrorToast,
+  showSuccessToast,
+} from "@/lib/app-toast";
 
 type MenuFormState = {
   nameJp: string;
@@ -19,9 +23,15 @@ type MenuFormState = {
   descriptionVn: string;
   ingredients: string;
   price: string;
+  criteria: MenuCriterionForm[];
   imageUrl: string;
   imagePublicId: string;
   isRecommendedForJp: boolean;
+};
+
+type MenuCriterionForm = {
+  criterionName: string;
+  ratingLevel: number;
 };
 
 const emptyForm: MenuFormState = {
@@ -31,6 +41,7 @@ const emptyForm: MenuFormState = {
   descriptionVn: "",
   ingredients: "",
   price: "",
+  criteria: [],
   imageUrl: "",
   imagePublicId: "",
   isRecommendedForJp: false,
@@ -43,7 +54,7 @@ function toPriceInput(value: number) {
 }
 
 function parsePrice(value: string) {
-  const numeric = Number(value.replace(/[^\d.]/g, ""));
+  const numeric = Number(value.replace(/\D/g, ""));
 
   return Number.isFinite(numeric) ? numeric : 0;
 }
@@ -60,6 +71,10 @@ function toFormState(item: OwnerMenuItem | null): MenuFormState {
     descriptionVn: item.descriptionVn ?? "",
     ingredients: item.ingredients ?? "",
     price: toPriceInput(item.price),
+    criteria: item.criteria.map((criterion) => ({
+      criterionName: criterion.criterionName,
+      ratingLevel: criterion.ratingLevel,
+    })),
     imageUrl: item.imageUrl ?? "",
     imagePublicId: item.imagePublicId ?? "",
     isRecommendedForJp: item.isRecommendedForJp,
@@ -74,6 +89,12 @@ function toPayload(form: MenuFormState): OwnerMenuPayload {
     descriptionVn: form.descriptionVn.trim(),
     ingredients: form.ingredients.trim(),
     price: parsePrice(form.price),
+    criteria: form.criteria
+      .map((criterion) => ({
+        criterionName: criterion.criterionName.trim(),
+        ratingLevel: criterion.ratingLevel,
+      }))
+      .filter((criterion) => criterion.criterionName),
     imageUrl: form.imageUrl.trim() || undefined,
     imagePublicId: form.imagePublicId.trim() || undefined,
     isRecommendedForJp: form.isRecommendedForJp,
@@ -90,6 +111,8 @@ export default function OwnerMenuPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [newCriterionName, setNewCriterionName] = useState("");
 
   const selectedItem = useMemo(
     () =>
@@ -124,7 +147,7 @@ export default function OwnerMenuPage() {
         setForm(toFormState(firstItem));
       } catch {
         if (!cancelled) {
-          toast.error("エラーが発生しました");
+          showErrorToast();
         }
       } finally {
         if (!cancelled) {
@@ -160,13 +183,59 @@ export default function OwnerMenuPage() {
     }));
   }
 
+  function addCriterion() {
+    setIsAddingCriterion(true);
+    setNewCriterionName("");
+  }
+
+  function saveNewCriterion() {
+    const criterionName = newCriterionName.trim();
+
+    if (!criterionName) {
+      showErrorToast(OWNER_TOAST_MESSAGES.validationError);
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      criteria: [...current.criteria, { criterionName, ratingLevel: 3 }],
+    }));
+    setIsAddingCriterion(false);
+    setNewCriterionName("");
+  }
+
+  function updateCriterion(
+    index: number,
+    key: keyof MenuCriterionForm,
+    value: string | number
+  ) {
+    setForm((current) => ({
+      ...current,
+      criteria: current.criteria.map((criterion, criterionIndex) =>
+        criterionIndex === index
+          ? {
+              ...criterion,
+              [key]: key === "ratingLevel" ? Number(value) : value,
+            }
+          : criterion
+      ),
+    }));
+  }
+
+  function removeCriterion(index: number) {
+    setForm((current) => ({
+      ...current,
+      criteria: current.criteria.filter((_, criterionIndex) => criterionIndex !== index),
+    }));
+  }
+
   async function uploadMainImage(file: File | undefined) {
     if (!file) {
       return;
     }
 
     if (!restaurantId) {
-      toast.error("エラーが発生しました");
+      showErrorToast();
       return;
     }
 
@@ -179,9 +248,9 @@ export default function OwnerMenuPage() {
         imageUrl: uploaded.imageUrl,
         imagePublicId: uploaded.publicId,
       }));
-      toast.success("設定を保存しました");
+      showSuccessToast();
     } catch {
-      toast.error("エラーが発生しました");
+      showErrorToast(OWNER_TOAST_MESSAGES.uploadError);
     } finally {
       setIsUploadingImage(false);
     }
@@ -189,14 +258,14 @@ export default function OwnerMenuPage() {
 
   async function saveMenuItem() {
     if (!restaurantId) {
-      toast.error("エラーが発生しました");
+      showErrorToast();
       return;
     }
 
     const payload = toPayload(form);
 
     if (!payload.nameJp || !payload.nameVn || !payload.price) {
-      toast.error("エラーが発生しました");
+      showErrorToast(OWNER_TOAST_MESSAGES.validationError);
       return;
     }
 
@@ -219,9 +288,9 @@ export default function OwnerMenuPage() {
       });
       setSelectedItemId(saved.itemId);
       setForm(toFormState(saved));
-      toast.success("設定を保存しました");
+      showSuccessToast();
     } catch {
-      toast.error("エラーが発生しました");
+      showErrorToast();
     } finally {
       setIsSaving(false);
     }
@@ -247,32 +316,16 @@ export default function OwnerMenuPage() {
         setForm(toFormState(updated));
       }
 
-      toast.success("設定を保存しました");
+      showSuccessToast();
     } catch {
-      toast.error("エラーが発生しました");
+      showErrorToast();
     }
   }
 
   return (
-    <main className="mx-auto flex max-w-[1280px] flex-col gap-12 px-6 py-10">
-      <section className="flex flex-col gap-1">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-[#1a1c1b]">
-            メニュー管理
-          </h1>
-          {isLoading ? (
-            <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[#5a6053] shadow-sm">
-              Loading API data
-            </span>
-          ) : null}
-        </div>
-        <p className="text-base font-medium text-[#5a6053]">
-          料理の登録・編集とバイリンガル設定
-        </p>
-      </section>
-
-      <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-5">
+    <main className="mx-auto max-w-[1280px] px-10 py-6">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[413px_minmax(0,1fr)]">
+        <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Utensils className="size-[18px] text-[#af111c]" />
@@ -283,7 +336,7 @@ export default function OwnerMenuPage() {
             </span>
           </div>
 
-          <div className="max-h-[800px] space-y-4 overflow-y-auto pr-2">
+          <div className="max-h-[666px] space-y-3 overflow-y-auto pr-2">
             {menuItems.map((item) => {
               const isSelected = item.itemId === selectedItemId;
               const isSoldOut = !item.isActive;
@@ -293,7 +346,7 @@ export default function OwnerMenuPage() {
                   key={item.itemId}
                   type="button"
                   onClick={() => selectItem(item)}
-                  className={`relative flex w-full cursor-pointer gap-4 rounded-lg bg-white p-4 text-left transition-all ${
+                  className={`relative flex min-h-[107px] w-full cursor-pointer gap-4 rounded-lg bg-white p-4 text-left transition-all ${
                     isSelected ? "ring-2 ring-[#af111c]" : "hover:bg-white/50"
                   } ${isSoldOut ? "opacity-70" : ""}`}
                 >
@@ -302,7 +355,7 @@ export default function OwnerMenuPage() {
                   ) : null}
 
                   <div
-                    className="relative size-24 shrink-0 overflow-hidden rounded bg-cover bg-center"
+                    className="relative h-20 w-20 shrink-0 overflow-hidden rounded bg-cover bg-center"
                     style={{
                       backgroundImage: `url(${item.imageUrl || fallbackImage})`,
                     }}
@@ -319,7 +372,7 @@ export default function OwnerMenuPage() {
                   <div className="flex flex-1 flex-col justify-between py-0.5">
                     <div className="space-y-1">
                       <div className="flex items-start justify-between gap-3">
-                        <h3 className="text-[18px] font-medium leading-tight">
+                        <h3 className="text-[16px] font-semibold leading-tight">
                           {item.nameJp}
                         </h3>
                         {item.isRecommendedForJp ? (
@@ -333,7 +386,7 @@ export default function OwnerMenuPage() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="text-[14px] text-[#5a6053]">{item.nameVn}</p>
+                      <p className="text-[13px] text-[#5a6053]">{item.nameVn}</p>
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
@@ -341,7 +394,7 @@ export default function OwnerMenuPage() {
                         <span className="text-[12px] font-bold text-[#af111c]">
                           VND
                         </span>
-                        <span className="text-[18px] font-bold tracking-tight">
+                        <span className="text-[18px] font-bold">
                           {toPriceInput(item.price)}
                         </span>
                       </div>
@@ -381,16 +434,16 @@ export default function OwnerMenuPage() {
           </button>
         </div>
 
-        <div className="space-y-8 rounded-[16px] border border-[#e4beba]/10 bg-white p-8 shadow-sm lg:col-span-7">
+        <div className="min-h-[820px] bg-white px-11 py-9">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-[24px] font-medium">
+            <h2 className="text-[24px] font-medium leading-none">
               {isCreating ? "新規メニュー追加" : "詳細を編集"}
             </h2>
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setForm(toFormState(selectedItem))}
-                className="rounded-[8px] bg-[#f4f4f5] px-6 py-2 text-[14px] font-medium text-[#5a6053] transition-colors hover:bg-[#e4e4e7]"
+                className="h-8 rounded-[8px] bg-[#f4f4f5] px-5 text-[13px] font-medium text-[#5a6053] transition-colors hover:bg-[#e4e4e7]"
               >
                 破棄
               </button>
@@ -398,20 +451,20 @@ export default function OwnerMenuPage() {
                 type="button"
                 onClick={saveMenuItem}
                 disabled={isSaving}
-                className="rounded-[8px] bg-[#af111c] px-8 py-2 text-[14px] font-medium text-white shadow-sm transition-all hover:bg-[#910e17] disabled:cursor-not-allowed disabled:opacity-60"
+                className="h-8 rounded-[8px] bg-[#af111c] px-8 text-[13px] font-medium text-white shadow-sm transition-all hover:bg-[#910e17] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSaving ? "保存中..." : "変更を保存"}
               </button>
             </div>
           </div>
 
-          <div className="space-y-8">
-            <div className="space-y-3">
-              <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053]">
+          <div className="mt-9 max-w-[600px] space-y-7">
+            <div className="space-y-2">
+              <label className="text-[11px] font-medium text-[#5a6053]">
                 メイン写真
               </label>
               <div
-                className="relative flex min-h-[180px] flex-col items-center justify-center gap-2 overflow-hidden rounded-[16px] border-2 border-dashed border-[#e4beba] bg-cover bg-center p-10 transition-colors hover:bg-[#f9f9f6]"
+                className="relative flex h-[150px] flex-col items-center justify-center gap-2 overflow-hidden rounded-[8px] border border-dashed border-[#6f625c] bg-[#f4f4f3] bg-cover bg-center p-8 transition-colors hover:bg-[#f9f9f6]"
                 style={{
                   backgroundImage: form.imageUrl ? `url(${form.imageUrl})` : undefined,
                 }}
@@ -422,7 +475,7 @@ export default function OwnerMenuPage() {
                 <label
                   className={`z-10 flex cursor-pointer items-center justify-center text-center text-[#5a6053] shadow-sm backdrop-blur-[1px] ${
                     form.imageUrl
-                      ? "absolute right-3 top-3 size-10 rounded-full bg-white/90 transition-colors hover:bg-white"
+                      ? "absolute right-3 top-3 size-9 rounded-full bg-white/90 transition-colors hover:bg-white"
                       : "relative flex-col gap-2 rounded-[8px] bg-white/85 px-5 py-3"
                   }`}
                 >
@@ -448,96 +501,186 @@ export default function OwnerMenuPage() {
                   />
                 </label>
               </div>
-              <input
-                type="url"
-                value={form.imageUrl}
-                onChange={(event) => updateForm("imageUrl", event.target.value)}
-                placeholder="https://example.com/menu.jpg"
-                className="w-full rounded-[8px] bg-[#e2e3e0]/30 px-4 py-3 text-[14px] focus:outline-none focus:ring-1 focus:ring-[#af111c]"
-              />
             </div>
 
-            <div className="grid grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053]">
+                <label className="text-[11px] font-medium text-[#5a6053]">
                   日本語名
                 </label>
                 <input
                   type="text"
                   value={form.nameJp}
                   onChange={(event) => updateForm("nameJp", event.target.value)}
-                  className="w-full rounded-[8px] bg-[#e2e3e0]/30 px-4 py-3 text-[16px] font-medium focus:outline-none focus:ring-1 focus:ring-[#af111c]"
+                  className="h-10 w-full rounded-[8px] bg-[#f4f4f3] px-3 text-[14px] font-semibold focus:outline-none focus:ring-1 focus:ring-[#af111c]"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053]">
+                <label className="text-[11px] font-medium text-[#5a6053]">
                   ベトナム語名
                 </label>
                 <input
                   type="text"
                   value={form.nameVn}
                   onChange={(event) => updateForm("nameVn", event.target.value)}
-                  className="w-full rounded-[8px] bg-[#e2e3e0]/30 px-4 py-3 text-[16px] font-bold focus:outline-none focus:ring-1 focus:ring-[#af111c]"
+                  className="h-10 w-full rounded-[8px] bg-[#f4f4f3] px-3 text-[14px] font-bold focus:outline-none focus:ring-1 focus:ring-[#af111c]"
                 />
               </div>
-              <div className="col-span-2 space-y-2">
-                <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053]">
+              <div className="space-y-2 sm:col-span-2">
+                <label className="text-[11px] font-medium text-[#5a6053]">
                   日本語説明
                 </label>
                 <textarea
-                  rows={3}
                   value={form.descriptionJp}
                   onChange={(event) =>
                     updateForm("descriptionJp", event.target.value)
                   }
-                  className="w-full resize-none rounded-[8px] bg-[#e2e3e0]/30 px-4 py-3 text-[16px] font-medium focus:outline-none focus:ring-1 focus:ring-[#af111c]"
+                  className="h-[58px] w-full resize-none rounded-[8px] bg-[#f4f4f3] px-3 py-3 text-[13px] font-semibold leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#af111c]"
                 />
               </div>
-              <div className="col-span-2 space-y-2">
-                <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053]">
-                  ベトナム語説明
+              <div className="space-y-2 sm:col-span-2">
+                <label className="text-[11px] font-medium text-[#5a6053]">
+                  材料（日本語）
                 </label>
                 <textarea
-                  rows={3}
-                  value={form.descriptionVn}
-                  onChange={(event) =>
-                    updateForm("descriptionVn", event.target.value)
-                  }
-                  className="w-full resize-none rounded-[8px] bg-[#e2e3e0]/30 px-4 py-3 text-[16px] font-medium focus:outline-none focus:ring-1 focus:ring-[#af111c]"
-                />
-              </div>
-              <div className="col-span-2 space-y-2">
-                <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053]">
-                  材料
-                </label>
-                <textarea
-                  rows={2}
                   value={form.ingredients}
                   onChange={(event) =>
                     updateForm("ingredients", event.target.value)
                   }
-                  className="w-full resize-none rounded-[8px] bg-[#e2e3e0]/30 px-4 py-3 text-[16px] font-medium focus:outline-none focus:ring-1 focus:ring-[#af111c]"
+                  className="h-[58px] w-full resize-none rounded-[8px] bg-[#f4f4f3] px-3 py-3 text-[13px] font-medium leading-relaxed focus:outline-none focus:ring-1 focus:ring-[#af111c]"
+                />
+              </div>
+              <div className="hidden">
+                <label className="text-[11px] font-medium text-[#5a6053]">
+                  ベトナム語説明
+                </label>
+                <textarea
+                  value={form.descriptionVn}
+                  onChange={(event) =>
+                    updateForm("descriptionVn", event.target.value)
+                  }
+                  className="h-[62px] w-full resize-none rounded-[8px] bg-[#f4f4f3] px-3 py-3 text-[14px] font-medium focus:outline-none focus:ring-1 focus:ring-[#af111c]"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[12px] font-medium uppercase tracking-[1.2px] text-[#5a6053]">
+                <label className="text-[11px] font-medium text-[#5a6053]">
                   価格 (VND)
                 </label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[#5a6053]">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold text-[#5a6053]">
                     ₫
                   </span>
                   <input
                     type="text"
                     value={form.price}
                     onChange={(event) => updateForm("price", event.target.value)}
-                    className="w-full rounded-[8px] bg-[#e2e3e0]/30 py-3 pl-8 pr-4 text-[16px] font-bold focus:outline-none focus:ring-1 focus:ring-[#af111c]"
+                    className="h-10 w-full rounded-[8px] bg-[#f4f4f3] py-2 pl-8 pr-3 text-[14px] font-bold focus:outline-none focus:ring-1 focus:ring-[#af111c]"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-[16px] border border-[#e4beba]/10 bg-[#f9f9f6] p-4">
+            <div className="border-t border-[#efefec] pt-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-[11px] font-medium text-[#5a6053]">
+                    追加評価（カスタム）
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={addCriterion}
+                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#af111c]"
+                >
+                  <Plus className="size-3" />
+                  項目を追加
+                </button>
+              </div>
+
+              {isAddingCriterion ? (
+                <div className="mb-3 flex gap-2">
+                  <input
+                    type="text"
+                    value={newCriterionName}
+                    onChange={(event) => setNewCriterionName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        saveNewCriterion();
+                      }
+                    }}
+                    placeholder="項目名を入力 (例: 香り, 歯ごたえ)"
+                    className="h-10 min-w-0 flex-1 rounded-[6px] border border-[#e2e3e0] bg-white px-3 text-[13px] font-medium outline-none focus:ring-1 focus:ring-[#af111c]"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={saveNewCriterion}
+                    className="h-10 rounded-[6px] bg-[#af111c] px-7 text-[12px] font-semibold text-white shadow-sm transition-colors hover:bg-[#910e17]"
+                  >
+                    保存
+                  </button>
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {form.criteria.map((criterion, index) => (
+                  <div
+                    key={index}
+                    className="rounded-[8px] bg-[#f7f7f5] p-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <input
+                        type="text"
+                        value={criterion.criterionName}
+                        onChange={(event) =>
+                          updateCriterion(index, "criterionName", event.target.value)
+                        }
+                        placeholder="項目名を入力"
+                        className="min-w-0 flex-1 bg-transparent text-[12px] font-semibold outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeCriterion(index)}
+                        className="text-[#9a9a94] transition-colors hover:text-[#af111c]"
+                        aria-label="評価項目を削除"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                      <span className="text-[9px] font-medium text-[#8a8d85]">
+                        Lv.{criterion.ratingLevel}/5
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 4, 5].map((level) => (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => updateCriterion(index, "ratingLevel", level)}
+                            className={`size-2 rounded-full transition-colors ${
+                              level <= criterion.ratingLevel
+                                ? "bg-[#af111c]"
+                                : "bg-[#d8d8d4] hover:bg-[#bdbdb8]"
+                            }`}
+                            aria-label={`${level} / 5`}
+                            aria-pressed={level === criterion.ratingLevel}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {form.criteria.length === 0 ? (
+                  <div className="rounded-[8px] bg-[#f7f7f5] p-3 text-[12px] font-medium text-[#8a8d85] sm:col-span-2">
+                    追加評価はまだありません。
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between rounded-[8px] bg-[#f4f4f3] px-4 py-3">
               <span className="text-[14px] font-medium">おすすめ設定</span>
               <button
                 type="button"

@@ -1,6 +1,8 @@
 "use client";
 
 import { KeyRound, Mail, X } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,9 +13,38 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { requestPasswordReset } from "@/lib/api/auth/API";
 import { cn } from "@/lib/utils";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 
 export function ForgotPasswordDialog() {
+  const [email, setEmail] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (isSubmitting) {
+      return;
+    }
+
+    toast.dismiss();
+    setIsSubmitting(true);
+
+    try {
+      await requestPasswordReset({
+        email: email.trim(),
+        lang: "ja",
+      });
+      showSuccessToast("パスワード再設定メールを送信しました");
+    } catch {
+      showErrorToast();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -32,7 +63,7 @@ export function ForgotPasswordDialog() {
               <X className="size-6" />
             </button>
           </DialogClose>
-          <div className="space-y-10">
+          <form className="space-y-10" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div className="flex size-16 items-center justify-center rounded-xl bg-(--primary)/10">
                 <KeyRound className="size-6 text-primary" />
@@ -64,7 +95,10 @@ export function ForgotPasswordDialog() {
                       "font-manrope"
                     )}
                     placeholder="email@example.com"
+                    required
                     type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
                   />
                 </div>
               </div>
@@ -80,13 +114,14 @@ export function ForgotPasswordDialog() {
                 </DialogClose>
                 <Button
                   className="h-12 w-full rounded-lg bg-primary text-white shadow-[0px_20px_25px_-5px_rgba(175,17,28,0.2),0px_8px_10px_-6px_rgba(175,17,28,0.2)] hover:brightness-95"
-                  type="button"
+                  disabled={isSubmitting}
+                  type="submit"
                 >
-                  送信する
+                  {isSubmitting ? "送信中..." : "送信する"}
                 </Button>
               </div>
             </div>
-          </div>
+          </form>
         </div>
         <div className="h-2 w-full bg-linear-to-r from-primary via-(--primary-bright) to-primary" />
       </DialogContent>

@@ -55,6 +55,17 @@ describe('RestaurantsService', () => {
     ],
     featureLinks: [],
     paymentMethodLinks: [],
+    socialLinks: [
+      {
+        socialLinkId: 1,
+        restaurantId: 1,
+        provider: 'Facebook',
+        url: 'https://facebook.com/seed',
+        displayLabel: 'Facebook',
+        sortOrder: 0,
+        isActive: true,
+      },
+    ],
   } as unknown as Restaurant;
 
   beforeEach(async () => {
@@ -208,16 +219,6 @@ describe('RestaurantsService', () => {
           grantedAt: '2026-05-01T00:00:00.000Z',
           expiresAt: null,
         },
-      ])
-      .mockResolvedValueOnce([
-        {
-          socialLinkId: 1,
-          restaurantId: 1,
-          provider: 'Facebook',
-          url: 'https://facebook.com/seed',
-          displayLabel: 'Facebook',
-          sortOrder: 0,
-        },
       ]);
 
     await expect(service.getOwnerHome(owner)).resolves.toMatchObject({
@@ -299,7 +300,7 @@ describe('RestaurantsService', () => {
         where: { ownerAccountId: 5 },
       }),
     );
-    expect(dataSource.query).toHaveBeenCalledTimes(8);
+    expect(dataSource.query).toHaveBeenCalledTimes(7);
     expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining('FROM PROMOTION'),
       [1],
@@ -312,7 +313,7 @@ describe('RestaurantsService', () => {
 
   it('rejects non-owner users for owner home', async () => {
     await expect(
-      service.getOwnerHome(1, {
+      service.getOwnerHome({
         sub: 9,
         email: 'user@example.com',
         role: AuthRole.User,

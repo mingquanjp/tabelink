@@ -7,7 +7,6 @@ import { ReservationsHeader } from "@/components/owner/reservations/Reservations
 import { ReservationsTable } from "@/components/owner/reservations/ReservationsTable";
 import { StatsCards } from "@/components/owner/reservations/StatsCards";
 import {
-    getOwnerRestaurant,
     getOwnerReservations,
     getOwnerTables,
     updateOwnerReservation,
@@ -17,22 +16,52 @@ import {
     type RestaurantTableDto,
     type RestaurantTableStatus,
 } from "@/lib/api/owner/reservation/api";
+import {
+    readSessionCache,
+    SESSION_CACHE_TTL,
+    writeSessionCache,
+} from "@/lib/api/cache";
+import { getAuthSession, requireOwnerRestaurant } from "@/lib/api/auth/session";
+
+const ownerReservationsCacheKey = "tabelink:owner:reservations:v1";
+
+type OwnerReservationsCache = {
+    restaurantId: number;
+    tables: RestaurantTableDto[];
+    reservations: ReservationDto[];
+};
 
 export default function OwnerReservationsPage() {
-    const [restaurantId, setRestaurantId] = useState<number | null>(null);
-    const [tables, setTables] = useState<RestaurantTableDto[]>([]);
-    const [reservations, setReservations] = useState<ReservationDto[]>([]);
+    const [cachedInitialData] = useState(() =>
+        readSessionCache<OwnerReservationsCache>(
+            ownerReservationsCacheKey,
+            SESSION_CACHE_TTL.reservations,
+        )
+    );
+    const [restaurantId, setRestaurantId] = useState<number | null>(
+        () => cachedInitialData?.restaurantId ?? null
+    );
+    const [tables, setTables] = useState<RestaurantTableDto[]>(
+        () => cachedInitialData?.tables ?? []
+    );
+    const [reservations, setReservations] = useState<ReservationDto[]>(
+        () => cachedInitialData?.reservations ?? []
+    );
     const [searchTerm, setSearchTerm] = useState("");
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(() => !cachedInitialData);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const loadData = useCallback(async () => {
-        setIsLoading(true);
+        if (!cachedInitialData) {
+            setIsLoading(true);
+        }
+
         setErrorMessage(null);
 
         try {
-            const restaurantResponse = await getOwnerRestaurant();
-            const ownerRestaurantId = restaurantResponse.restaurantId;
+            const session = await getAuthSession();
+            const restaurant = requireOwnerRestaurant(session);
+            const ownerRestaurantId = restaurant.restaurantId;
             const [tableResponse, reservationResponse] = await Promise.all([
                 getOwnerTables(ownerRestaurantId),
                 getOwnerReservations(ownerRestaurantId),
@@ -41,17 +70,31 @@ export default function OwnerReservationsPage() {
             setRestaurantId(ownerRestaurantId);
             setTables(tableResponse.tables);
             setReservations(reservationResponse.reservations);
+            writeSessionCache(ownerReservationsCacheKey, {
+                restaurantId: ownerRestaurantId,
+                tables: tableResponse.tables,
+                reservations: reservationResponse.reservations,
+            });
         } catch (error) {
+            if (cachedInitialData) {
+                return;
+            }
             setErrorMessage(error instanceof Error ? error.message : "予約データを取得できませんでした");
         } finally {
-            setIsLoading(false);
+            if (!cachedInitialData) {
+                setIsLoading(false);
+            }
         }
-    }, []);
+    }, [cachedInitialData]);
 
     useEffect(() => {
-        window.setTimeout(() => {
+        const timeoutId = window.setTimeout(() => {
             void loadData();
         }, 0);
+
+        return () => {
+            window.clearTimeout(timeoutId);
+        };
     }, [loadData]);
 
     async function handleTableStatusChange(tableId: number, status: RestaurantTableStatus) {
@@ -63,9 +106,17 @@ export default function OwnerReservationsPage() {
             setErrorMessage(null);
             const updatedTable = await updateOwnerTableStatus(restaurantId, tableId, status);
 
-            setTables((currentTables) =>
-                currentTables.map((table) => (table.tableId === tableId ? updatedTable : table))
-            );
+            setTables((currentTables) => {
+                const nextTables = currentTables.map((table) => (table.tableId === tableId ? updatedTable : table));
+
+                writeSessionCache(ownerReservationsCacheKey, {
+                    restaurantId,
+                    tables: nextTables,
+                    reservations,
+                });
+
+                return nextTables;
+            });
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : "テーブルの状態を更新できませんでした");
         }
@@ -84,14 +135,19 @@ export default function OwnerReservationsPage() {
                 { status }
             );
 
-            setReservations((currentReservations) =>
-                currentReservations.map((reservation) =>
-                    reservation.reservationId === reservationId ? updatedReservation : reservation
-                )
+            const nextReservations = reservations.map((reservation) =>
+                reservation.reservationId === reservationId ? updatedReservation : reservation
             );
+
+            setReservations(nextReservations);
 
             const tableResponse = await getOwnerTables(restaurantId);
             setTables(tableResponse.tables);
+            writeSessionCache(ownerReservationsCacheKey, {
+                restaurantId,
+                tables: tableResponse.tables,
+                reservations: nextReservations,
+            });
         } catch (error) {
             setErrorMessage(error instanceof Error ? error.message : "予約の状態を更新できませんでした");
         }

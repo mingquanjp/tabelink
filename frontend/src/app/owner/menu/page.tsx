@@ -15,6 +15,11 @@ import {
   showErrorToast,
   showSuccessToast,
 } from "@/lib/app-toast";
+import {
+  readSessionCache,
+  SESSION_CACHE_TTL,
+  writeSessionCache,
+} from "@/lib/api/cache";
 
 type MenuFormState = {
   nameJp: string;
@@ -48,6 +53,15 @@ const emptyForm: MenuFormState = {
 };
 
 const fallbackImage = "/menu/nemran.png";
+
+type OwnerMenuCache = {
+  restaurantId: number;
+  items: OwnerMenuItem[];
+};
+
+function getOwnerMenuCacheKey(restaurantId: number) {
+  return `tabelink:owner:menu:${restaurantId}:v1`;
+}
 
 function toPriceInput(value: number) {
   return value.toLocaleString("vi-VN");
@@ -128,11 +142,33 @@ export default function OwnerMenuPage() {
     let cancelled = false;
 
     async function loadMenu() {
-      setIsLoading(true);
+      let hasCachedMenu = false;
 
       try {
         const session = await getAuthSession();
         const restaurant = requireOwnerRestaurant(session);
+        const cacheKey = getOwnerMenuCacheKey(restaurant.restaurantId);
+        const cachedMenu = readSessionCache<OwnerMenuCache>(
+          cacheKey,
+          SESSION_CACHE_TTL.menu,
+        );
+        hasCachedMenu = Boolean(cachedMenu);
+
+        if (!cancelled) {
+          setRestaurantId(restaurant.restaurantId);
+
+          if (cachedMenu) {
+            setMenuItems(cachedMenu.items);
+
+            const firstCachedItem = cachedMenu.items[0] ?? null;
+            setSelectedItemId(firstCachedItem?.itemId ?? "new");
+            setForm(toFormState(firstCachedItem));
+            setIsLoading(false);
+          } else {
+            setIsLoading(true);
+          }
+        }
+
         const response = await listOwnerMenuItems(restaurant.restaurantId);
 
         if (cancelled) {
@@ -141,16 +177,20 @@ export default function OwnerMenuPage() {
 
         setRestaurantId(restaurant.restaurantId);
         setMenuItems(response.items);
+        writeSessionCache(cacheKey, {
+          restaurantId: restaurant.restaurantId,
+          items: response.items,
+        });
 
         const firstItem = response.items[0] ?? null;
         setSelectedItemId(firstItem?.itemId ?? "new");
         setForm(toFormState(firstItem));
       } catch {
-        if (!cancelled) {
+        if (!cancelled && !hasCachedMenu) {
           showErrorToast();
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !hasCachedMenu) {
           setIsLoading(false);
         }
       }
@@ -282,9 +322,16 @@ export default function OwnerMenuPage() {
 
       setMenuItems((current) => {
         const exists = current.some((item) => item.itemId === saved.itemId);
-        return exists
+        const nextItems = exists
           ? current.map((item) => (item.itemId === saved.itemId ? saved : item))
           : [saved, ...current];
+
+        writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
+          restaurantId,
+          items: nextItems,
+        });
+
+        return nextItems;
       });
       setSelectedItemId(saved.itemId);
       setForm(toFormState(saved));
@@ -306,11 +353,18 @@ export default function OwnerMenuPage() {
         isActive: !item.isActive,
       });
 
-      setMenuItems((current) =>
-        current.map((entry) =>
+      setMenuItems((current) => {
+        const nextItems = current.map((entry) =>
           entry.itemId === updated.itemId ? updated : entry
-        )
-      );
+        );
+
+        writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
+          restaurantId,
+          items: nextItems,
+        });
+
+        return nextItems;
+      });
 
       if (selectedItemId === updated.itemId) {
         setForm(toFormState(updated));

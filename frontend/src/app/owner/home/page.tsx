@@ -36,6 +36,11 @@ import {
   showErrorToast,
   showSuccessToast,
 } from "@/lib/app-toast";
+import {
+  readSessionCache,
+  SESSION_CACHE_TTL,
+  writeSessionCache,
+} from "@/lib/api/cache";
 
 const photos = {
   dish:
@@ -62,6 +67,7 @@ const photos = {
 
 const maxGalleryImages = 3;
 const fallbackGalleryImages = [photos.dish, photos.staff, photos.editGallery];
+const ownerHomeCacheKey = "tabelink:owner:home:v1";
 
 const infoItems = [
   {
@@ -187,6 +193,7 @@ type MenuDisplayItem = {
   soldOut?: boolean;
 };
 type ReviewDisplayItem = {
+  id: number;
   audience: "all" | "japanese" | "vietnamese";
   name: string;
   initial: string;
@@ -277,6 +284,7 @@ function toReviewDisplayItems(items: OwnerHomeReviewItem[]): ReviewDisplayItem[]
     const initial = name.trim().charAt(0).toUpperCase() || "U";
 
     return {
+      id: item.reviewId,
       audience: item.isJapaneseTag ? "japanese" : "vietnamese",
       name,
       initial,
@@ -522,6 +530,86 @@ function RestaurantPhotoGrid({
         </div>
       </div>
     </section>
+  );
+}
+
+function SkeletonBlock({ className }: { className: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`animate-pulse rounded bg-[#e8e8e5] ${className}`}
+    />
+  );
+}
+
+function OwnerHomeSkeleton() {
+  return (
+    <main className="min-h-screen bg-[#f9f9f6] pb-12" aria-busy="true">
+      <section className="bg-[#eeeeeb]">
+        <div className="grid h-[614px] grid-cols-4 grid-rows-2 gap-2 p-2 max-lg:h-[520px] max-md:h-auto max-md:grid-cols-1 max-md:grid-rows-none">
+          <SkeletonBlock className="col-span-2 row-span-2 h-full min-h-[360px] max-md:col-span-1" />
+          <SkeletonBlock className="h-full min-h-56" />
+          <SkeletonBlock className="h-full min-h-56" />
+          <SkeletonBlock className="col-span-2 h-full min-h-56 max-md:col-span-1" />
+        </div>
+      </section>
+
+      <section className="relative z-20 mx-auto mt-[-10px] w-[calc(100%-64px)] max-w-[1280px] rounded-lg border border-[#e4beba1a] bg-white p-10 shadow-[0_20px_25px_-5px_rgba(26,28,27,0.05),0_8px_10px_-6px_rgba(26,28,27,0.05)] max-md:w-[calc(100%-32px)] max-md:p-6">
+        <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-3">
+              <SkeletonBlock className="h-4 w-44" />
+              <SkeletonBlock className="h-14 w-full max-w-xl" />
+              <SkeletonBlock className="h-6 w-72 max-w-full" />
+            </div>
+            <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
+              {[0, 1, 2, 3].map((item) => (
+                <div key={item} className="flex items-start">
+                  <SkeletonBlock className="size-5 shrink-0" />
+                  <div className="min-w-0 flex-1 pl-3">
+                    <SkeletonBlock className="h-4 w-28" />
+                    <SkeletonBlock className="mt-2 h-4 w-full" />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <SkeletonBlock className="h-11 w-40" />
+          </div>
+
+          <SkeletonBlock className="min-h-[280px] max-lg:min-h-[260px]" />
+        </div>
+
+        <div className="mt-12 border-t border-[#e4beba1a] pt-10">
+          <div className="grid gap-8 md:grid-cols-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="flex items-center">
+                <SkeletonBlock className="size-12 shrink-0" />
+                <div className="flex-1 pl-4">
+                  <SkeletonBlock className="h-3 w-28" />
+                  <SkeletonBlock className="mt-2 h-5 w-full" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto flex max-w-[1280px] flex-col gap-12 px-8 py-20 max-md:px-4">
+        <div className="flex items-center justify-between gap-6 max-lg:flex-col max-lg:items-start">
+          <SkeletonBlock className="h-9 w-96 max-w-full" />
+          <div className="flex flex-wrap gap-2">
+            {[0, 1, 2].map((item) => (
+              <SkeletonBlock key={item} className="h-9 w-28" />
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-8 lg:grid-cols-2">
+          {[0, 1, 2, 3].map((item) => (
+            <SkeletonBlock key={item} className="min-h-[216px]" />
+          ))}
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -953,7 +1041,7 @@ function CommunityReviewsSection({
         </div>
         <div className="grid gap-6 pb-4 lg:grid-cols-3">
           {filteredItems.map((review) => (
-            <ReviewCard key={review.name} review={review} />
+            <ReviewCard key={review.id} review={review} />
           ))}
           {filteredItems.length === 0 ? (
             <div className="rounded-lg border border-[#e4beba33] bg-white px-5 py-8 text-sm text-[#5a6053] font-jp lg:col-span-3">
@@ -1353,6 +1441,7 @@ export default function OwnerHomePage() {
     try {
       const response = await getOwnerHome();
       setHomeData(response);
+      writeSessionCache(ownerHomeCacheKey, response);
     } catch (error) {
       showErrorToast();
       throw error;
@@ -1367,20 +1456,31 @@ export default function OwnerHomePage() {
     let cancelled = false;
 
     async function loadHome() {
-      setIsLoadingHome(true);
+      const cachedHome = readSessionCache<OwnerHomeResponse>(
+        ownerHomeCacheKey,
+        SESSION_CACHE_TTL.ownerHome,
+      );
+
+      if (cachedHome) {
+        setHomeData(cachedHome);
+        setIsLoadingHome(false);
+      } else {
+        setIsLoadingHome(true);
+      }
 
       try {
         const response = await getOwnerHome();
 
         if (!cancelled) {
           setHomeData(response);
+          writeSessionCache(ownerHomeCacheKey, response);
         }
       } catch {
-        if (!cancelled) {
+        if (!cancelled && !cachedHome) {
           showErrorToast();
         }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !cachedHome) {
           setIsLoadingHome(false);
         }
       }
@@ -1420,6 +1520,27 @@ export default function OwnerHomePage() {
     [homeData]
   );
 
+  if (!homeData && isLoadingHome) {
+    return <OwnerHomeSkeleton />;
+  }
+
+  if (!homeData) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f9f9f6] px-6">
+        <div className="max-w-md rounded-lg border border-[#e4beba33] bg-white p-6 text-center shadow-sm">
+          <h1 className="text-xl font-bold text-[#1a1c1b] font-brand">
+            Unable to load restaurant data
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-[#5a6053] font-jp">
+            Please refresh the page or try again later.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  const restaurantName = restaurant?.nameVn || restaurant?.nameJp || "Restaurant";
+
   return (
     <main className="min-h-screen bg-[#f9f9f6] pb-12">
       <div className="relative z-0 mb-10">
@@ -1438,15 +1559,10 @@ export default function OwnerHomePage() {
                 伝統的なベトナム料理
               </p>
               <h1 className="text-5xl font-extrabold leading-none tracking-[-2.4px] text-[#1a1c1b] font-brand max-md:text-4xl">
-                {restaurant?.nameVn || "Hoang Yen Cuisine"}
+                {restaurantName}
               </h1>
-              {isLoadingHome ? (
-                <span className="w-fit rounded-full bg-[#eeeeeb] px-3 py-1 text-[11px] font-semibold text-[#5a6053]">
-                  Loading API data
-                </span>
-              ) : null}
               <p className="text-lg font-medium leading-7 text-[#5a6053] font-jp">
-                {restaurant?.nameJp || "ホアン・イェン・キュイジーヌ"}
+                {restaurant?.nameJp || restaurant?.nameVn || "Restaurant"}
               </p>
             </div>
 
@@ -1489,7 +1605,7 @@ export default function OwnerHomePage() {
 
           <div className="relative min-h-[280px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
             <div
-              aria-label="Map near Hoang Yen Cuisine"
+              aria-label={`Map near ${restaurantName}`}
               className="absolute inset-0 bg-cover bg-center opacity-90 saturate-50"
               role="img"
               style={{ backgroundImage: `url(${mapImage})` }}
@@ -1497,7 +1613,7 @@ export default function OwnerHomePage() {
             <div className="absolute inset-0 bg-black/5" />
             <div className="absolute left-1/2 top-[62px] flex -translate-x-1/2 flex-col items-center">
               <div className="rounded border-2 border-white bg-[#d32f2f] px-4 py-2 text-[11px] font-bold leading-none text-white shadow-[0_0_0_4px_rgba(211,47,47,0.2),0_20px_25px_-5px_rgba(0,0,0,0.1)]">
-                {restaurant?.nameVn || "Takumi Japanese Restaurant"}
+                {restaurantName}
               </div>
               <div className="mt-3 flex size-14 items-center justify-center rounded-xl border-4 border-white bg-[#d32f2f] text-white shadow-2xl">
                 <Utensils className="size-7" />

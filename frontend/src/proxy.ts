@@ -48,6 +48,7 @@ function getAuthenticatedRedirectPath(role?: string) {
 function clearAuthCookies(response: NextResponse) {
   response.cookies.delete("accessToken");
   response.cookies.delete("refreshToken");
+  response.cookies.delete("hasSession");
 
   return response;
 }

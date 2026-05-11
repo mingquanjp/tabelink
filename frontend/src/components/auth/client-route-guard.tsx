@@ -21,6 +21,12 @@ function isOwnerPath(pathname: string) {
   return pathname.startsWith("/owner");
 }
 
+function hasSessionMarker() {
+  return document.cookie
+    .split(";")
+    .some((cookie) => cookie.trim().startsWith("hasSession="));
+}
+
 export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -30,15 +36,21 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
       return;
     }
 
-    const session = await getAuthSession();
-
     if (isPublicAuthPath(pathname)) {
+      if (!hasSessionMarker()) {
+        return;
+      }
+
+      const session = await getAuthSession();
+
       if (session) {
         router.replace(getAuthenticatedRedirectPath(session.account.role));
       }
 
       return;
     }
+
+    const session = await getAuthSession();
 
     if (!session) {
       router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);

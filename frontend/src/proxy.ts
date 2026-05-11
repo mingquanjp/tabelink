@@ -42,7 +42,7 @@ function getAuthenticatedRedirectPath(role?: string) {
     return "/owner/home";
   }
 
-  return "/login";
+  return "/";
 }
 
 function clearAuthCookies(response: NextResponse) {

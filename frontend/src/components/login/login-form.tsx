@@ -12,6 +12,8 @@ import { getAuthenticatedRedirectPath } from "@/lib/api/auth/routes";
 import { cn } from "@/lib/utils";
 import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import { isValidEmail } from "@/lib/auth-form-validation";
+import { clearAuthSessionCache } from "@/lib/api/auth/session";
+import { removeSessionCacheByPrefix } from "@/lib/api/cache";
 
 export function LoginForm() {
   const router = useRouter();
@@ -38,6 +40,8 @@ export function LoginForm() {
       });
 
       showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
+      clearAuthSessionCache();
+      removeSessionCacheByPrefix("tabelink:owner:");
       router.replace(getAuthenticatedRedirectPath(response.account.role));
     } catch {
       showErrorToast();

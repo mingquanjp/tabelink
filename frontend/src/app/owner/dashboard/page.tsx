@@ -41,6 +41,18 @@ import type {
   TopMenuItem,
 } from "@/lib/api/dashboard/type";
 import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import {
+  readSessionCache,
+  SESSION_CACHE_TTL,
+  writeSessionCache,
+} from "@/lib/api/cache";
+
+const ownerDashboardCacheKey = "tabelink:owner:dashboard:v1";
+
+type OwnerDashboardCache = {
+  dashboard: OwnerDashboardResponse;
+  popularMenuItems: PopularMenuItem[];
+};
 
 type VisitorTrendItem = {
   name: string;
@@ -301,7 +313,18 @@ export default function OwnerDashboardPage() {
     let cancelled = false;
 
     async function loadDashboard() {
-      setIsLoading(true);
+      const cachedDashboard = readSessionCache<OwnerDashboardCache>(
+        ownerDashboardCacheKey,
+        SESSION_CACHE_TTL.dashboard,
+      );
+
+      if (cachedDashboard) {
+        setDashboard(cachedDashboard.dashboard);
+        setPopularMenuItems(cachedDashboard.popularMenuItems);
+        setIsLoading(false);
+      } else {
+        setIsLoading(true);
+      }
 
       try {
         const { restaurantId: currentRestaurantId, dashboard: dashboardResponse } =
@@ -314,29 +337,44 @@ export default function OwnerDashboardPage() {
         setDashboard(dashboardResponse);
 
         if (dashboardResponse.topMenus.length > 0) {
-          setPopularMenuItems(toPopularMenuItems(dashboardResponse.topMenus));
+          const nextPopularMenuItems = toPopularMenuItems(dashboardResponse.topMenus);
+          setPopularMenuItems(nextPopularMenuItems);
+          writeSessionCache(ownerDashboardCacheKey, {
+            dashboard: dashboardResponse,
+            popularMenuItems: nextPopularMenuItems,
+          });
           return;
         }
 
         try {
           const topMenuResponse = await getTopMenu(currentRestaurantId);
+          const nextPopularMenuItems =
+            topMenuResponse.items.length > 0
+              ? toPopularMenuItems(topMenuResponse.items)
+              : [];
 
           if (!cancelled) {
-            setPopularMenuItems(
-              topMenuResponse.items.length > 0
-                ? toPopularMenuItems(topMenuResponse.items)
-                : []
-            );
+            setPopularMenuItems(nextPopularMenuItems);
+            writeSessionCache(ownerDashboardCacheKey, {
+              dashboard: dashboardResponse,
+              popularMenuItems: nextPopularMenuItems,
+            });
           }
         } catch {
           if (!cancelled) {
             setPopularMenuItems([]);
+            writeSessionCache(ownerDashboardCacheKey, {
+              dashboard: dashboardResponse,
+              popularMenuItems: [],
+            });
           }
         }
       } catch {
-        showErrorToast();
+        if (!cachedDashboard) {
+          showErrorToast();
+        }
       } finally {
-        if (!cancelled) {
+        if (!cancelled && !cachedDashboard) {
           setIsLoading(false);
         }
       }
@@ -571,7 +609,7 @@ export default function OwnerDashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="relative h-[300px] w-full">
+            <div className="relative h-[300px] min-w-0 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={visitorTrends} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid vertical={false} horizontal={false} />
@@ -606,7 +644,7 @@ export default function OwnerDashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-white p-8 rounded-2xl border border-[#e4beba1a] shadow-sm flex flex-col gap-4">
               <h3 className="text-lg font-medium text-[#1a1c1b]">ユーザー属性</h3>
-              <div className="relative h-40 w-full flex items-center justify-center">
+              <div className="relative flex h-40 min-w-0 w-full items-center justify-center">
                 {demographicsData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -733,7 +771,7 @@ export default function OwnerDashboardPage() {
               <span className="text-[12px] font-bold text-[#5a6053]">LIVE</span>
             </div>
             <div className="flex flex-col gap-4">
-              <div className="h-44 w-full">
+              <div className="h-44 min-w-0 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={popularTimes} margin={{ top: 38, right: 0, left: 0, bottom: 0 }}>
                     <Tooltip

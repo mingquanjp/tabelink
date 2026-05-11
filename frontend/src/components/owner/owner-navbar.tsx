@@ -5,8 +5,13 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, LogOut, User } from "lucide-react";
 import { logoutAccount } from "@/lib/api/auth/API";
-import { getAuthSession } from "@/lib/api/auth/session";
+import {
+    clearAuthSessionCache,
+    getAuthSession,
+    readCachedAuthSession,
+} from "@/lib/api/auth/session";
 import type { AuthRestaurantContext } from "@/lib/api/auth/type";
+import { removeSessionCacheByPrefix } from "@/lib/api/cache";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -31,7 +36,9 @@ const navItems: NavItem[] = [
 export function OwnerNavbar() {
     const pathname = usePathname();
     const router = useRouter();
-    const [restaurant, setRestaurant] = useState<AuthRestaurantContext | null>(null);
+    const [restaurant, setRestaurant] = useState<AuthRestaurantContext | null>(
+        () => readCachedAuthSession()?.restaurant ?? null
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -68,6 +75,8 @@ export function OwnerNavbar() {
         } catch {
             // Logout still navigates to the login page even if the local session is already cleared.
         } finally {
+            clearAuthSessionCache();
+            removeSessionCacheByPrefix("tabelink:owner:");
             router.replace("/login");
             router.refresh();
         }

@@ -42,16 +42,40 @@ export class RestaurantTable {
   })
   status!: RestaurantTableStatus;
 
-  @Column({ name: 'positionx', type: 'decimal', precision: 8, scale: 2, nullable: true })
+  @Column({
+    name: 'positionx',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+  })
   positionX?: string | null;
 
-  @Column({ name: 'positiony', type: 'decimal', precision: 8, scale: 2, nullable: true })
+  @Column({
+    name: 'positiony',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+  })
   positionY?: string | null;
 
-  @Column({ name: 'width', type: 'decimal', precision: 8, scale: 2, nullable: true })
+  @Column({
+    name: 'width',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+  })
   width?: string | null;
 
-  @Column({ name: 'height', type: 'decimal', precision: 8, scale: 2, nullable: true })
+  @Column({
+    name: 'height',
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+  })
   height?: string | null;
 
   @Column({ name: 'zone', type: 'varchar', length: 100, nullable: true })

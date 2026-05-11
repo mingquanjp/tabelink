@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Restaurant } from './restaurant.entity';
 
 export enum RestaurantMediaType {
@@ -36,6 +42,10 @@ export class RestaurantMedia {
   @Column({ name: 'sortorder', default: 0 })
   sortOrder!: number;
 
-  @Column({ name: 'status', length: 50, default: RestaurantMediaStatus.Pending })
+  @Column({
+    name: 'status',
+    length: 50,
+    default: RestaurantMediaStatus.Pending,
+  })
   status!: RestaurantMediaStatus;
 }

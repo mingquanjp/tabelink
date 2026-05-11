@@ -7,7 +7,9 @@ import { TablesController } from './tables.controller';
 import { TablesService } from './tables.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Restaurant, RestaurantTable, Reservation])],
+  imports: [
+    TypeOrmModule.forFeature([Restaurant, RestaurantTable, Reservation]),
+  ],
   controllers: [TablesController],
   providers: [TablesService],
 })

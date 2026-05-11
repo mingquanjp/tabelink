@@ -37,10 +37,22 @@ export class Restaurant {
   @Column({ name: 'address', type: 'text' })
   address!: string;
 
-  @Column({ name: 'latitude', type: 'decimal', precision: 10, scale: 8, nullable: true })
+  @Column({
+    name: 'latitude',
+    type: 'decimal',
+    precision: 10,
+    scale: 8,
+    nullable: true,
+  })
   latitude?: string | null;
 
-  @Column({ name: 'longitude', type: 'decimal', precision: 11, scale: 8, nullable: true })
+  @Column({
+    name: 'longitude',
+    type: 'decimal',
+    precision: 11,
+    scale: 8,
+    nullable: true,
+  })
   longitude?: string | null;
 
   @Column({ name: 'descriptionvn', type: 'text', nullable: true })
@@ -52,7 +64,12 @@ export class Restaurant {
   @Column({ name: 'phone', type: 'varchar', length: 50, nullable: true })
   phone?: string | null;
 
-  @Column({ name: 'openinghours', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'openinghours',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   openingHours?: string | null;
 
   @Column({ name: 'issuesvat', default: false })

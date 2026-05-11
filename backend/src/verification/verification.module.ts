@@ -7,7 +7,9 @@ import { VerificationController } from './verification.controller';
 import { VerificationService } from './verification.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([BadgeApplication, BadgeMaster, Restaurant])],
+  imports: [
+    TypeOrmModule.forFeature([BadgeApplication, BadgeMaster, Restaurant]),
+  ],
   controllers: [VerificationController],
   providers: [VerificationService],
 })

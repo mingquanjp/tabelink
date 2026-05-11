@@ -7,7 +7,10 @@ export class RestaurantMediaDto {
   @IsUrl({ require_protocol: true })
   mediaUrl!: string;
 
-  @ApiProperty({ enum: RestaurantMediaType, example: RestaurantMediaType.Cover })
+  @ApiProperty({
+    enum: RestaurantMediaType,
+    example: RestaurantMediaType.Cover,
+  })
   @IsEnum(RestaurantMediaType)
   mediaType!: RestaurantMediaType;
 

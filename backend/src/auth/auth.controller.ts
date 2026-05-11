@@ -9,8 +9,15 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiCreatedResponse, ApiOkResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import type { Request, Response, CookieOptions } from 'express';
 import { AuthService } from './auth.service';
 import type { AuthTokens, JwtPayload } from './auth.types';
 import { LoginDto } from './dto/login.dto';
@@ -26,7 +33,7 @@ type AuthenticatedRequest = Request & {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Post('register')
   @ApiBody({ type: RegisterDto })
@@ -175,7 +182,6 @@ export class AuthController {
     return this.authService.requestPasswordReset(dto);
   }
 
-
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @Get('me')
@@ -226,11 +232,11 @@ export class AuthController {
     rememberMe?: boolean,
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
-    const sameSite = isProduction ? 'none' : 'lax';
-    const baseOptions = {
+    const sameSite: 'none' | 'lax' | 'strict' = isProduction ? 'none' : 'lax';
+    const baseOptions: CookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: sameSite as 'lax' | 'none',
+      sameSite: sameSite,
       path: '/',
     };
 
@@ -246,11 +252,11 @@ export class AuthController {
 
   private clearAuthCookies(response: Response) {
     const isProduction = process.env.NODE_ENV === 'production';
-    const sameSite = isProduction ? 'none' : 'lax';
-    const options = {
+    const sameSite: 'none' | 'lax' | 'strict' = isProduction ? 'none' : 'lax';
+    const options: CookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: sameSite as 'lax' | 'none',
+      sameSite: sameSite,
       path: '/',
     };
 
@@ -268,15 +274,18 @@ export class AuthController {
     const cookies = cookieHeader.split(';').map((cookie) => cookie.trim());
     const target = cookies.find((cookie) => cookie.startsWith(`${name}=`));
 
-    return target ? decodeURIComponent(target.slice(name.length + 1)) : undefined;
+    return target
+      ? decodeURIComponent(target.slice(name.length + 1))
+      : undefined;
   }
 
   private getParsedCookies(request: Request) {
     return (
-      request as Request & {
-        cookies?: Record<string, string>;
-      }
-    ).cookies ?? {};
+      (
+        request as Request & {
+          cookies?: Record<string, string>;
+        }
+      ).cookies ?? {}
+    );
   }
-
 }

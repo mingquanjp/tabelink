@@ -65,7 +65,11 @@ export class MenusService {
     await this.assertOwnerRestaurant(restaurantId, user);
 
     const saved = await this.dataSource.transaction(async (manager) => {
-      await this.assertCategoryBelongsToRestaurant(manager, restaurantId, dto.categoryId);
+      await this.assertCategoryBelongsToRestaurant(
+        manager,
+        restaurantId,
+        dto.categoryId,
+      );
 
       const item = manager.create(MenuItem, {
         restaurantId,
@@ -83,7 +87,11 @@ export class MenusService {
       });
 
       const savedItem = await manager.save(MenuItem, item);
-      await this.replaceCriteria(manager.getRepository(MenuItemCriterion), savedItem.itemId, dto.criteria);
+      await this.replaceCriteria(
+        manager.getRepository(MenuItemCriterion),
+        savedItem.itemId,
+        dto.criteria,
+      );
 
       return manager.findOneOrFail(MenuItem, {
         where: { itemId: savedItem.itemId },
@@ -110,7 +118,11 @@ export class MenusService {
     const item = await this.findOwnedMenuItem(restaurantId, itemId);
 
     const saved = await this.dataSource.transaction(async (manager) => {
-      await this.assertCategoryBelongsToRestaurant(manager, restaurantId, dto.categoryId);
+      await this.assertCategoryBelongsToRestaurant(
+        manager,
+        restaurantId,
+        dto.categoryId,
+      );
 
       if (dto.nameVn !== undefined) {
         item.nameVn = dto.nameVn.trim();
@@ -159,7 +171,11 @@ export class MenusService {
       await manager.save(MenuItem, item);
 
       if (dto.criteria !== undefined) {
-        await this.replaceCriteria(manager.getRepository(MenuItemCriterion), item.itemId, dto.criteria);
+        await this.replaceCriteria(
+          manager.getRepository(MenuItemCriterion),
+          item.itemId,
+          dto.criteria,
+        );
       }
 
       return manager.findOneOrFail(MenuItem, {
@@ -292,7 +308,9 @@ export class MenusService {
 
       return result.result === 'ok' || result.result === 'not found';
     } catch {
-      throw new InternalServerErrorException('Failed to delete Cloudinary image.');
+      throw new InternalServerErrorException(
+        'Failed to delete Cloudinary image.',
+      );
     }
   }
 
@@ -337,7 +355,9 @@ export class MenusService {
     });
 
     if (!category) {
-      throw new NotFoundException('Menu category not found for this restaurant.');
+      throw new NotFoundException(
+        'Menu category not found for this restaurant.',
+      );
     }
   }
 
@@ -354,13 +374,15 @@ export class MenusService {
       ingredients: item.ingredients ?? null,
       isRecommendedForJp: item.isRecommendedForJp,
       criteria: (item.criteria ?? [])
-        .sort((a, b) => a.sortOrder - b.sortOrder || a.criterionId - b.criterionId)
+        .sort(
+          (a, b) => a.sortOrder - b.sortOrder || a.criterionId - b.criterionId,
+        )
         .map((criterion) => ({
           criterionId: criterion.criterionId,
           criterionName: criterion.criterionName,
           ratingLevel: criterion.ratingLevel,
           sortOrder: criterion.sortOrder,
-      })),
+        })),
       imageUrl: item.imageUrl ?? null,
       imagePublicId: item.imagePublicId ?? null,
       isActive: item.isActive,

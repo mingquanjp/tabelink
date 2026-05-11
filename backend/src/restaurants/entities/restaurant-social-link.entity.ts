@@ -1,4 +1,10 @@
-import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { Restaurant } from './restaurant.entity';
 
 export enum RestaurantSocialProvider {
@@ -29,7 +35,12 @@ export class RestaurantSocialLink {
   @Column({ name: 'url', type: 'text' })
   url!: string;
 
-  @Column({ name: 'displaylabel', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'displaylabel',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   displayLabel?: string | null;
 
   @Column({ name: 'sortorder', default: 0 })

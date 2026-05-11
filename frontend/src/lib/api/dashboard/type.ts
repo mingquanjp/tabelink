@@ -25,6 +25,8 @@ export type OwnerDashboardResponse = {
       value: number;
       previousMonthValue: number;
       changeRate: number;
+      target: number;
+      progressRate: number;
     };
     japaneseAverageRating: {
       value: number | null;

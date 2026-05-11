@@ -9,7 +9,14 @@ import { MenusController } from './menus.controller';
 import { MenusService } from './menus.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([MenuItem, MenuItemCriterion, MenuCategory, Restaurant])],
+  imports: [
+    TypeOrmModule.forFeature([
+      MenuItem,
+      MenuItemCriterion,
+      MenuCategory,
+      Restaurant,
+    ]),
+  ],
   controllers: [MenusController],
   providers: [MenusService, MenuImagesService],
 })

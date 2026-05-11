@@ -100,6 +100,7 @@ interface VerificationRow {
 }
 
 const PUBLISHED_REVIEW_TARGET = 100;
+const MONTHLY_VIEWS_TARGET = 2000;
 
 @Injectable()
 export class AnalyticsService {
@@ -242,6 +243,8 @@ export class AnalyticsService {
       value,
       previousMonthValue,
       changeRate: this.calculateChangeRate(value, previousMonthValue),
+      target: MONTHLY_VIEWS_TARGET,
+      progressRate: this.calculateProgressRate(value, MONTHLY_VIEWS_TARGET),
     };
   }
 
@@ -498,7 +501,10 @@ export class AnalyticsService {
       hour: Number(row.hour),
       reservationCount: Number(row.reservationcount),
     }));
-    const peak = items.reduce<{ hour: number | null; reservationCount: number }>(
+    const peak = items.reduce<{
+      hour: number | null;
+      reservationCount: number;
+    }>(
       (currentPeak, item) =>
         item.reservationCount > currentPeak.reservationCount
           ? item
@@ -520,7 +526,10 @@ export class AnalyticsService {
     };
   }
 
-  private async getVerificationStatus(restaurantId: number, ownerAccountId: number) {
+  private async getVerificationStatus(
+    restaurantId: number,
+    ownerAccountId: number,
+  ) {
     const rows = await this.dataSource.query<VerificationRow[]>(
       `
         SELECT
@@ -574,7 +583,9 @@ export class AnalyticsService {
               badgeNameJp: application.badgenamejp,
             }
           : null,
-        submittedByOwnerAccountId: Number(application.submittedbyowneraccountid),
+        submittedByOwnerAccountId: Number(
+          application.submittedbyowneraccountid,
+        ),
         businessLicenseUrl: application.businesslicenseurl,
         businessLicensePublicId: application.businesslicensepublicid,
         foodSafetyCertUrl: application.foodsafetycerturl,

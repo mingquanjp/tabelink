@@ -41,7 +41,9 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('tables')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-@ApiForbiddenResponse({ description: 'Only restaurant owners can manage tables.' })
+@ApiForbiddenResponse({
+  description: 'Only restaurant owners can manage tables.',
+})
 @UseGuards(JwtAuthGuard)
 @Controller('owner/restaurants/:restaurantId')
 export class TablesController {
@@ -181,7 +183,11 @@ export class TablesController {
     @Query() query: ListReservationsQueryDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.tablesService.listReservations(restaurantId, query, request.user);
+    return this.tablesService.listReservations(
+      restaurantId,
+      query,
+      request.user,
+    );
   }
 
   @Get('reservations/:reservationId')
@@ -210,7 +216,9 @@ export class TablesController {
       'Approves, rejects, cancels, completes, marks no-show, edits note, or assigns a table. Assigning a table validates ownership, capacity, out-of-service state, and active time-slot conflicts.',
   })
   @ApiOkResponse({ description: 'Reservation updated.' })
-  @ApiConflictResponse({ description: 'Assigned table already has an active reservation.' })
+  @ApiConflictResponse({
+    description: 'Assigned table already has an active reservation.',
+  })
   updateReservation(
     @Param('restaurantId', ParseIntPipe) restaurantId: number,
     @Param('reservationId', ParseIntPipe) reservationId: number,

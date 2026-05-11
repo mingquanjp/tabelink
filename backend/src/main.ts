@@ -8,7 +8,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
 
-  const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+  const frontendUrl = configService.get<string>(
+    'FRONTEND_URL',
+    'http://localhost:3000',
+  );
   const port = configService.get<number>('APP_PORT') ?? 8080;
 
   app.enableCors({
@@ -77,30 +80,46 @@ async function bootstrap() {
         scheme: 'bearer',
         bearerFormat: 'JWT',
         name: 'Authorization',
-        description: 'Dán accessToken nhận được từ /auth/login hoặc /auth/refresh',
+        description:
+          'Dán accessToken nhận được từ /auth/login hoặc /auth/refresh',
         in: 'header',
       },
       'access-token',
     )
     .addTag('auth', 'Xác thực, đăng ký, quên mật khẩu, hồ sơ người dùng')
-    .addTag('restaurants', 'Feature ID 13 / ID11 - Owner restaurant information and attached services')
+    .addTag(
+      'restaurants',
+      'Feature ID 13 / ID11 - Owner restaurant information and attached services',
+    )
     .addTag('ads', 'ID9/ID10/ID14 - Ad impression and click tracking')
-    .addTag('analytics', 'ID13 - Owner dashboard analytics: Top 3 menu and insights')
-    .addTag('menus', 'ID11 - Owner menu management: thêm, xem, sửa, xóa thực đơn')
-    .addTag('tables', 'ID12 / Feature 15 - Owner table and reservation management')
-    .addTag('verification', 'ID13 - Owner verification application and document upload')
+    .addTag(
+      'analytics',
+      'ID13 - Owner dashboard analytics: Top 3 menu and insights',
+    )
+    .addTag(
+      'menus',
+      'ID11 - Owner menu management: thêm, xem, sửa, xóa thực đơn',
+    )
+    .addTag(
+      'tables',
+      'ID12 / Feature 15 - Owner table and reservation management',
+    )
+    .addTag(
+      'verification',
+      'ID13 - Owner verification application and document upload',
+    )
     .addTag('health', 'Kiểm tra trạng thái server')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, document, {
     swaggerOptions: {
-      persistAuthorization: true,         // Giữ token khi F5
+      persistAuthorization: true, // Giữ token khi F5
       tagsSorter: 'alpha',
       operationsSorter: 'method',
       docExpansion: 'list',
       filter: true,
-      tryItOutEnabled: true,             // Bật "Try it out" mặc định
+      tryItOutEnabled: true, // Bật "Try it out" mặc định
     },
     customSiteTitle: 'Tabelink API Docs',
   });
@@ -111,4 +130,3 @@ async function bootstrap() {
 }
 
 bootstrap();
-

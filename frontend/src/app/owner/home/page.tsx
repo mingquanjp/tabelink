@@ -38,8 +38,6 @@ const photos = {
     "https://www.figma.com/api/mcp/asset/3d6ca905-7308-4b84-8c12-7d033a31a036",
   staff:
     "https://www.figma.com/api/mcp/asset/2c16c86f-c883-466c-9d16-eb36b61d3241",
-  foodDisplay:
-    "https://www.figma.com/api/mcp/asset/17838e0d-44fe-43e9-85d7-699649f6cca3",
   interior:
     "https://www.figma.com/api/mcp/asset/d50c2de6-dcb9-4689-83b9-08022b8dc5c3",
   map:
@@ -59,6 +57,7 @@ const photos = {
 };
 
 const maxGalleryImages = 3;
+const fallbackGalleryImages = [photos.dish, photos.staff, photos.editGallery];
 
 const infoItems = [
   {
@@ -382,6 +381,71 @@ function buildEditFields(homeData: OwnerHomeResponse | null) {
   };
 }
 
+function isDisplayableRestaurantImageUrl(url: string | null | undefined) {
+  const normalizedUrl = url?.trim();
+
+  if (!normalizedUrl) {
+    return false;
+  }
+
+  if (normalizedUrl.startsWith("/") || normalizedUrl.startsWith("blob:")) {
+    return true;
+  }
+
+  try {
+    const hostname = new URL(normalizedUrl).hostname.toLowerCase();
+    return !(
+      hostname === "images.example.test" ||
+      hostname.endsWith(".example.test") ||
+      hostname === "example.com"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function uniqueImageUrls(urls: string[]) {
+  return Array.from(new Set(urls.filter(isDisplayableRestaurantImageUrl)));
+}
+
+function buildRestaurantImages(
+  restaurant: OwnerHomeResponse["restaurant"] | null | undefined,
+) {
+  const sortedMedia = [...(restaurant?.media ?? [])]
+    .filter((item) => isDisplayableRestaurantImageUrl(item.mediaUrl))
+    .sort(
+      (a, b) =>
+        a.sortOrder - b.sortOrder ||
+        a.mediaId - b.mediaId,
+    );
+  const coverMedia = sortedMedia.find(
+    (item) => item.mediaType.toLowerCase() === "cover",
+  );
+  const explicitCoverImage = isDisplayableRestaurantImageUrl(
+    restaurant?.coverImageUrl,
+  )
+    ? restaurant?.coverImageUrl
+    : null;
+  const coverImage =
+    coverMedia?.mediaUrl ||
+    explicitCoverImage ||
+    sortedMedia[0]?.mediaUrl ||
+    photos.interior;
+  const photoImages = sortedMedia
+    .filter((item) => item.mediaType.toLowerCase() === "photo")
+    .map((item) => item.mediaUrl);
+  const remainingImages = sortedMedia
+    .filter((item) => item.mediaUrl !== coverImage)
+    .map((item) => item.mediaUrl);
+
+  return {
+    coverImage,
+    galleryImages: uniqueImageUrls([...photoImages, ...remainingImages]).filter(
+      (url) => url !== coverImage,
+    ),
+  };
+}
+
 function PhotoTile({
   src,
   alt,
@@ -414,9 +478,9 @@ function RestaurantPhotoGrid({
 }) {
   const visibleGalleryImages = galleryImages.slice(0, 3);
   const displayImages = [
-    visibleGalleryImages[0] || photos.dish,
-    visibleGalleryImages[1] || photos.staff,
-    visibleGalleryImages[2] || photos.foodDisplay,
+    visibleGalleryImages[0] || fallbackGalleryImages[0],
+    visibleGalleryImages[1] || fallbackGalleryImages[1],
+    visibleGalleryImages[2] || fallbackGalleryImages[2],
   ];
   return (
     <section className="bg-[#eeeeeb]">
@@ -471,9 +535,9 @@ function EditablePhotoGrid({
 }) {
   const canAddGalleryImages = galleryImages.length < maxGalleryImages;
   const displayImages = [
-    galleryImages[0] || photos.dish,
-    galleryImages[1] || photos.staff,
-    galleryImages[2] || photos.foodDisplay,
+    galleryImages[0] || fallbackGalleryImages[0],
+    galleryImages[1] || fallbackGalleryImages[1],
+    galleryImages[2] || fallbackGalleryImages[2],
   ];
   const extraCount = Math.max(galleryImages.length - 3, 0);
 
@@ -1293,15 +1357,14 @@ export default function OwnerHomePage() {
   }, []);
 
   const restaurant = homeData?.restaurant;
-  const media = restaurant?.media ?? [];
-  const coverImage = restaurant?.coverImageUrl || photos.interior;
-  const galleryImages = media
-    .map((item) => item.mediaUrl)
-    .filter((url) => url !== coverImage);
+  const { coverImage, galleryImages } = useMemo(
+    () => buildRestaurantImages(restaurant),
+    [restaurant],
+  );
   const displayGalleryImages =
     galleryImages.length > 0
       ? galleryImages
-      : [photos.dish, photos.staff, photos.foodDisplay];
+      : fallbackGalleryImages;
   const mapImage = photos.map;
   const googleMapsUrl = buildGoogleMapsUrl(restaurant);
   const dynamicInfoItems = useMemo(() => buildInfoItems(homeData), [homeData]);
@@ -1353,7 +1416,6 @@ export default function OwnerHomePage() {
             <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
               {dynamicInfoItems.map((item) => {
                 const Icon = item.icon;
-                const Action = item.action;
 
                 return (
                   <div key={item.label} className="flex items-start">
@@ -1370,15 +1432,6 @@ export default function OwnerHomePage() {
                           <span className="rounded-full bg-[#dcfce7] px-2 py-0.5 text-[10px] font-bold leading-[15px] text-[#15803d]">
                             {item.badge}
                           </span>
-                        ) : null}
-                        {Action ? (
-                          <button
-                            type="button"
-                            aria-label="Open address externally"
-                            className="rounded-md p-1 text-[#5a6053] hover:bg-[#eeeeeb]"
-                          >
-                            <Action className="size-3" />
-                          </button>
                         ) : null}
                       </div>
                     </div>
@@ -1458,7 +1511,7 @@ export default function OwnerHomePage() {
         <EditRestaurantModal
           fields={editFields}
           galleryImages={displayGalleryImages}
-          heroImage={coverImage || photos.editHero}
+          heroImage={coverImage}
           onClose={() => setIsEditModalOpen(false)}
           onSaved={() => refreshOwnerHome(false)}
         />

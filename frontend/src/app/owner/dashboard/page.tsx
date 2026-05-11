@@ -7,7 +7,6 @@ import {
   Cell,
   Pie,
   PieChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -26,7 +25,8 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import type { ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CertificationBadgeModal } from "@/components/owner/dashboard/CertificationBadgeModal";
 import {
   findOwnerDashboard,
@@ -100,6 +100,65 @@ type KPIData = {
   target?: string;
   showTrendIcon?: boolean;
 };
+
+function MeasuredChartFrame({
+  children,
+  className,
+}: {
+  children:
+    | ((size: { width: number; height: number }) => ReactNode)
+    | ReactNode
+    | Array<ReactNode | ((size: { width: number; height: number }) => ReactNode)>;
+  className: string;
+}) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const element = frameRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    function updateSize(target: HTMLDivElement) {
+      const rect = target.getBoundingClientRect();
+      setSize({
+        width: Math.max(0, Math.floor(rect.width)),
+        height: Math.max(0, Math.floor(rect.height)),
+      });
+    }
+
+    updateSize(element);
+    const observer = new ResizeObserver(() => updateSize(element));
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  const canRenderChart = size.width > 0 && size.height > 0;
+  const renderChild = (
+    child: ReactNode | ((size: { width: number; height: number }) => ReactNode),
+    index: number
+  ) =>
+    typeof child === "function" ? (
+      <Fragment key={index}>{child(size)}</Fragment>
+    ) : (
+      child
+    );
+
+  return (
+    <div ref={frameRef} className={className}>
+      {canRenderChart
+        ? Array.isArray(children)
+          ? children.map(renderChild)
+          : renderChild(children, 0)
+        : null}
+    </div>
+  );
+}
 
 function formatNumber(value: number | null | undefined) {
   return (value ?? 0).toLocaleString();
@@ -609,9 +668,14 @@ export default function OwnerDashboardPage() {
                 </div>
               </div>
             </div>
-            <div className="relative h-[300px] min-w-0 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={visitorTrends} margin={{ top: 24, right: 0, left: 0, bottom: 0 }}>
+            <MeasuredChartFrame className="relative h-[300px] min-w-0 w-full">
+              {({ width, height }) => (
+                <BarChart
+                  data={visitorTrends}
+                  height={height}
+                  margin={{ top: 24, right: 0, left: 0, bottom: 0 }}
+                  width={width}
+                >
                   <CartesianGrid vertical={false} horizontal={false} />
                   <XAxis
                     dataKey="name"
@@ -632,22 +696,22 @@ export default function OwnerDashboardPage() {
                   <Bar dataKey="japanese" stackId="visitors" fill="#af111c" barSize={120} />
                   <Bar dataKey="others" stackId="visitors" fill="#f0d8daff" radius={[2, 2, 0, 0]} barSize={120} />
                 </BarChart>
-              </ResponsiveContainer>
+              )}
               {visitorTrends.length === 0 ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm font-medium text-[#8a8d85]">
                   訪問データはまだありません。
                 </div>
               ) : null}
-            </div>
+            </MeasuredChartFrame>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-white p-8 rounded-2xl border border-[#e4beba1a] shadow-sm flex flex-col gap-4">
               <h3 className="text-lg font-medium text-[#1a1c1b]">ユーザー属性</h3>
-              <div className="relative flex h-40 min-w-0 w-full items-center justify-center">
-                {demographicsData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+              <MeasuredChartFrame className="relative flex h-40 min-w-0 w-full items-center justify-center">
+                {({ width, height }) =>
+                  demographicsData.length > 0 ? (
+                    <PieChart height={height} width={width}>
                       <Pie
                         data={demographicsData}
                         cx="50%"
@@ -662,8 +726,8 @@ export default function OwnerDashboardPage() {
                         ))}
                       </Pie>
                     </PieChart>
-                  </ResponsiveContainer>
-                ) : null}
+                  ) : null
+                }
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
                   <span className="text-2xl font-bold text-[#1a1c1b]">
                     {demographicsData[0]?.value ?? 0}
@@ -672,7 +736,7 @@ export default function OwnerDashboardPage() {
                     日本人
                   </span>
                 </div>
-              </div>
+              </MeasuredChartFrame>
               <div className="flex flex-col gap-2 pt-2">
                 {demographicsData.map((entry) => {
                   const total = demographicsData.reduce((sum, item) => sum + item.value, 0);
@@ -771,9 +835,14 @@ export default function OwnerDashboardPage() {
               <span className="text-[12px] font-bold text-[#5a6053]">LIVE</span>
             </div>
             <div className="flex flex-col gap-4">
-              <div className="h-44 min-w-0 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={popularTimes} margin={{ top: 38, right: 0, left: 0, bottom: 0 }}>
+              <MeasuredChartFrame className="h-44 min-w-0 w-full">
+                {({ width, height }) => (
+                  <BarChart
+                    data={popularTimes}
+                    height={height}
+                    margin={{ top: 38, right: 0, left: 0, bottom: 0 }}
+                    width={width}
+                  >
                     <Tooltip
                       cursor={{ fill: "#af111c08" }}
                       contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "10px" }}
@@ -795,8 +864,8 @@ export default function OwnerDashboardPage() {
                       ticks={["11:00", "14:00", "18:00", "21:00"]}
                     />
                   </BarChart>
-                </ResponsiveContainer>
-              </div>
+                )}
+              </MeasuredChartFrame>
               <div className="pt-4 border-t border-[#eeeeeb]">
                 <p className="text-[12px] font-medium text-[#1a1c1b] mb-1">スタッフ配置のヒント:</p>
                 <p className="text-[12px] text-[#5a6053] leading-relaxed">

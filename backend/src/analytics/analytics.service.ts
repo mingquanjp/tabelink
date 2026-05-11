@@ -38,18 +38,18 @@ interface MonthlyViewsRow {
   previousmonthviews: number | string | null;
 }
 
-interface JapaneseAverageRatingRow {
+interface DashboardReviewMetricsRow {
   averagerating: number | string | null;
   reviewcount: number | string;
+  publishedreviewcount: number | string;
+  positive: number | string;
+  neutral: number | string;
+  negative: number | string;
 }
 
 interface CampaignWeeklyOrdersRow {
   activecampaigncount: number | string;
   weeklyordercount: number | string;
-}
-
-interface PublishedReviewsRow {
-  reviewcount: number | string;
 }
 
 interface VisitorTrendRow {
@@ -67,12 +67,6 @@ interface RevenueTrendRow {
 interface UserAttributeRow {
   label: string;
   count: number | string;
-}
-
-interface ReviewSentimentRow {
-  positive: number | string;
-  neutral: number | string;
-  negative: number | string;
 }
 
 interface BusyHourRow {
@@ -117,25 +111,21 @@ export class AnalyticsService {
 
     const [
       monthlyViews,
-      japaneseAverageRating,
+      reviewMetrics,
       campaignWeeklyOrders,
-      publishedReviews,
       visitorTrend,
       revenueTrend,
       userAttributes,
-      reviewSentiment,
       topMenu,
       busyHoursToday,
       verification,
     ] = await Promise.all([
       this.getMonthlyViews(restaurantId),
-      this.getJapaneseAverageRating(restaurantId),
+      this.getDashboardReviewMetrics(restaurantId),
       this.getCampaignWeeklyOrders(restaurantId),
-      this.getPublishedReviews(restaurantId),
       this.getVisitorTrend(restaurantId),
       this.getRevenueTrend(restaurantId),
       this.getUserAttributes(restaurantId),
-      this.getReviewSentiment(restaurantId),
       this.getTopMenuItems(restaurantId),
       this.getBusyHoursToday(restaurantId),
       this.getVerificationStatus(restaurantId, user.sub),
@@ -148,14 +138,14 @@ export class AnalyticsService {
       },
       summary: {
         monthlyViews,
-        japaneseAverageRating,
+        japaneseAverageRating: reviewMetrics.japaneseAverageRating,
         campaignWeeklyOrders,
-        publishedReviews,
+        publishedReviews: reviewMetrics.publishedReviews,
       },
       visitorTrend,
       revenueTrend,
       userAttributes,
-      reviewSentiment,
+      reviewSentiment: reviewMetrics.reviewSentiment,
       topMenus: topMenu.items,
       busyHoursToday,
       verification,
@@ -248,22 +238,56 @@ export class AnalyticsService {
     };
   }
 
-  private async getJapaneseAverageRating(restaurantId: number) {
-    const rows = await this.dataSource.query<JapaneseAverageRatingRow[]>(
+  private async getDashboardReviewMetrics(restaurantId: number) {
+    const rows = await this.dataSource.query<DashboardReviewMetricsRow[]>(
       `
         SELECT
-          AVG(r.Rating)::numeric(10, 2) AS AverageRating,
-          COUNT(*)::int AS ReviewCount
+          AVG(r.Rating) FILTER (
+            WHERE r.IsJapaneseTag = TRUE
+              OR LOWER(COALESCE(cp.Nationality, '')) IN ('japan', 'japanese')
+              OR cp.Nationality IN ('æ—¥æœ¬', 'æ—¥æœ¬äºº')
+          )::numeric(10, 2) AS AverageRating,
+          COUNT(*) FILTER (
+            WHERE r.IsJapaneseTag = TRUE
+              OR LOWER(COALESCE(cp.Nationality, '')) IN ('japan', 'japanese')
+              OR cp.Nationality IN ('æ—¥æœ¬', 'æ—¥æœ¬äºº')
+          )::int AS ReviewCount,
+          COUNT(*)::int AS PublishedReviewCount,
+          COUNT(*) FILTER (
+            WHERE COALESCE(
+              r.Sentiment,
+              CASE
+                WHEN r.Rating >= 4 THEN 'Positive'
+                WHEN r.Rating = 3 THEN 'Neutral'
+                ELSE 'Negative'
+              END
+            ) = 'Positive'
+          )::int AS Positive,
+          COUNT(*) FILTER (
+            WHERE COALESCE(
+              r.Sentiment,
+              CASE
+                WHEN r.Rating >= 4 THEN 'Positive'
+                WHEN r.Rating = 3 THEN 'Neutral'
+                ELSE 'Negative'
+              END
+            ) = 'Neutral'
+          )::int AS Neutral,
+          COUNT(*) FILTER (
+            WHERE COALESCE(
+              r.Sentiment,
+              CASE
+                WHEN r.Rating >= 4 THEN 'Positive'
+                WHEN r.Rating = 3 THEN 'Neutral'
+                ELSE 'Negative'
+              END
+            ) = 'Negative'
+          )::int AS Negative
         FROM REVIEW r
-        INNER JOIN CUSTOMER_PROFILE cp
+        LEFT JOIN CUSTOMER_PROFILE cp
           ON cp.AccountID = r.CustomerAccountID
         WHERE r.RestaurantID = $1
           AND r.Status = 'Visible'
-          AND (
-            r.IsJapaneseTag = TRUE
-            OR LOWER(COALESCE(cp.Nationality, '')) IN ('japan', 'japanese')
-            OR cp.Nationality IN ('日本', '日本人')
-          )
       `,
       [restaurantId],
     );
@@ -271,15 +295,45 @@ export class AnalyticsService {
     const row = rows[0] ?? {
       averagerating: null,
       reviewcount: 0,
+      publishedreviewcount: 0,
+      positive: 0,
+      neutral: 0,
+      negative: 0,
     };
-    const value =
+    const averageRating =
       row.averagerating === null
         ? null
         : Number(Number(row.averagerating).toFixed(1));
+    const reviewCount = Number(row.reviewcount);
+    const publishedReviewCount = Number(row.publishedreviewcount);
+    const sentimentCounts = {
+      positive: Number(row.positive),
+      neutral: Number(row.neutral),
+      negative: Number(row.negative),
+    };
+    const sentimentTotal =
+      sentimentCounts.positive +
+      sentimentCounts.neutral +
+      sentimentCounts.negative;
 
     return {
-      value,
-      reviewCount: Number(row.reviewcount),
+      japaneseAverageRating: {
+        value: averageRating,
+        reviewCount,
+      },
+      publishedReviews: {
+        value: publishedReviewCount,
+        target: PUBLISHED_REVIEW_TARGET,
+        progressRate: this.calculateProgressRate(
+          publishedReviewCount,
+          PUBLISHED_REVIEW_TARGET,
+        ),
+      },
+      reviewSentiment: {
+        positive: this.toPercentage(sentimentCounts.positive, sentimentTotal),
+        neutral: this.toPercentage(sentimentCounts.neutral, sentimentTotal),
+        negative: this.toPercentage(sentimentCounts.negative, sentimentTotal),
+      },
     };
   }
 
@@ -311,26 +365,6 @@ export class AnalyticsService {
       value: Number(rows[0]?.weeklyordercount ?? 0),
       activeCampaignCount: Number(rows[0]?.activecampaigncount ?? 0),
       isTracked: true,
-    };
-  }
-
-  private async getPublishedReviews(restaurantId: number) {
-    const rows = await this.dataSource.query<PublishedReviewsRow[]>(
-      `
-        SELECT COUNT(*)::int AS ReviewCount
-        FROM REVIEW
-        WHERE RestaurantID = $1
-          AND Status = 'Visible'
-      `,
-      [restaurantId],
-    );
-
-    const value = Number(rows[0]?.reviewcount ?? 0);
-
-    return {
-      value,
-      target: PUBLISHED_REVIEW_TARGET,
-      progressRate: this.calculateProgressRate(value, PUBLISHED_REVIEW_TARGET),
     };
   }
 
@@ -422,51 +456,6 @@ export class AnalyticsService {
         percentage: total > 0 ? Number(((count / total) * 100).toFixed(1)) : 0,
       };
     });
-  }
-
-  private async getReviewSentiment(restaurantId: number) {
-    const rows = await this.dataSource.query<ReviewSentimentRow[]>(
-      `
-        WITH visible_reviews AS (
-          SELECT
-            COALESCE(
-              Sentiment,
-              CASE
-                WHEN Rating >= 4 THEN 'Positive'
-                WHEN Rating = 3 THEN 'Neutral'
-                ELSE 'Negative'
-              END
-            ) AS EffectiveSentiment
-          FROM REVIEW
-          WHERE RestaurantID = $1
-            AND Status = 'Visible'
-        )
-        SELECT
-          COUNT(*) FILTER (WHERE EffectiveSentiment = 'Positive')::int AS Positive,
-          COUNT(*) FILTER (WHERE EffectiveSentiment = 'Neutral')::int AS Neutral,
-          COUNT(*) FILTER (WHERE EffectiveSentiment = 'Negative')::int AS Negative
-        FROM visible_reviews
-      `,
-      [restaurantId],
-    );
-
-    const row = rows[0] ?? {
-      positive: 0,
-      neutral: 0,
-      negative: 0,
-    };
-    const counts = {
-      positive: Number(row.positive),
-      neutral: Number(row.neutral),
-      negative: Number(row.negative),
-    };
-    const total = counts.positive + counts.neutral + counts.negative;
-
-    return {
-      positive: this.toPercentage(counts.positive, total),
-      neutral: this.toPercentage(counts.neutral, total),
-      negative: this.toPercentage(counts.negative, total),
-    };
   }
 
   private async getBusyHoursToday(restaurantId: number) {

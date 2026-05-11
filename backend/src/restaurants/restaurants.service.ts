@@ -5,7 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  FindOptionsWhere,
+  In,
+  Repository,
+} from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import { FeatureMaster } from './entities/feature-master.entity';
@@ -17,7 +23,10 @@ import {
   RestaurantMediaType,
 } from './entities/restaurant-media.entity';
 import { RestaurantPaymentMethod } from './entities/restaurant-payment-method.entity';
-import { RestaurantSocialLink } from './entities/restaurant-social-link.entity';
+import {
+  RestaurantSocialLink,
+  RestaurantSocialProvider,
+} from './entities/restaurant-social-link.entity';
 import { Restaurant } from './entities/restaurant.entity';
 import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
@@ -190,17 +199,16 @@ export class RestaurantsService {
     const restaurant = await this.findOwnedRestaurantWithRelations(user);
     const restaurantId = restaurant.restaurantId;
 
-    const [menu, promotions, reviews, badges, socialLinks] = await Promise.all([
+    const [menu, promotions, reviews, badges] = await Promise.all([
       this.getOwnerHomeMenu(restaurantId),
       this.getOwnerHomePromotions(restaurantId),
       this.getOwnerHomeReviews(restaurantId),
       this.getOwnerHomeBadges(restaurantId),
-      this.getOwnerHomeSocialLinks(restaurantId),
     ]);
 
     return {
       restaurantId,
-      restaurant: this.toHomeRestaurantResponse(restaurant, socialLinks.items),
+      restaurant: this.toHomeRestaurantResponse(restaurant),
       menu,
       promotions,
       reviews,
@@ -1052,8 +1060,11 @@ export class RestaurantsService {
       return;
     }
 
+    const where = {
+      [property]: In(ids),
+    } as FindOptionsWhere<Entity>;
     const rows = await repository.find({
-      where: { [property]: In(ids) } as any,
+      where,
     });
 
     if (rows.length !== ids.length) {
@@ -1151,17 +1162,20 @@ export class RestaurantsService {
     };
   }
 
-  private toHomeRestaurantResponse(
-    restaurant: Restaurant,
-    socialLinks: Array<{
-      socialLinkId: number;
-      restaurantId: number;
-      provider: string;
-      url: string;
-      displayLabel: string | null;
-      sortOrder: number;
-    }>,
-  ) {
+  private toHomeRestaurantResponse(restaurant: Restaurant) {
+    const socialLinks = (restaurant.socialLinks ?? [])
+      .filter((link) => link.isActive)
+      .sort(
+        (a, b) => a.sortOrder - b.sortOrder || a.socialLinkId - b.socialLinkId,
+      )
+      .map((link) => ({
+        socialLinkId: link.socialLinkId,
+        restaurantId: link.restaurantId,
+        provider: link.provider,
+        url: link.url,
+        displayLabel: link.displayLabel,
+        sortOrder: link.sortOrder,
+      }));
     const media = (restaurant.media ?? []).sort(
       (a, b) => a.sortOrder - b.sortOrder || a.mediaId - b.mediaId,
     );
@@ -1192,10 +1206,13 @@ export class RestaurantsService {
       socialLinks,
       sns: {
         facebook:
-          socialLinks.find((link) => link.provider === 'Facebook')?.url ?? null,
+          socialLinks.find(
+            (link) => link.provider === RestaurantSocialProvider.Facebook,
+          )?.url ?? null,
         instagram:
-          socialLinks.find((link) => link.provider === 'Instagram')?.url ??
-          null,
+          socialLinks.find(
+            (link) => link.provider === RestaurantSocialProvider.Instagram,
+          )?.url ?? null,
       },
       map: {
         latitude:

@@ -136,17 +136,16 @@ describe('AnalyticsService', () => {
         {
           averagerating: '4.56',
           reviewcount: '9',
+          publishedreviewcount: '40',
+          positive: '7',
+          neutral: '2',
+          negative: '1',
         },
       ])
       .mockResolvedValueOnce([
         {
           activecampaigncount: '2',
           weeklyordercount: '6',
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          reviewcount: '40',
         },
       ])
       .mockResolvedValueOnce([
@@ -171,13 +170,6 @@ describe('AnalyticsService', () => {
         {
           label: 'Others',
           count: '1',
-        },
-      ])
-      .mockResolvedValueOnce([
-        {
-          positive: '7',
-          neutral: '2',
-          negative: '1',
         },
       ])
       .mockResolvedValueOnce([
@@ -306,13 +298,13 @@ describe('AnalyticsService', () => {
         ownerAccountId: 5,
       },
     });
-    expect(dataSource.query).toHaveBeenCalledTimes(11);
+    expect(dataSource.query).toHaveBeenCalledTimes(9);
     expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining('PROMOTION_REDEMPTION'),
       [1],
     );
     expect(dataSource.query).toHaveBeenCalledWith(
-      expect.stringContaining('EffectiveSentiment'),
+      expect.stringContaining('PublishedReviewCount'),
       [1],
     );
     const busyHoursQuery = dataSource.query.mock.calls.find(([sql]) =>

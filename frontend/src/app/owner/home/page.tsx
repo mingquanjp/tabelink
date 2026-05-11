@@ -279,7 +279,7 @@ function toMenuCategories(
 }
 
 function toReviewDisplayItems(items: OwnerHomeReviewItem[]): ReviewDisplayItem[] {
-  return items.slice(0, 3).map((item) => {
+  return items.map((item) => {
     const name = item.customerName || `User #${item.customerAccountId}`;
     const initial = name.trim().charAt(0).toUpperCase() || "U";
 

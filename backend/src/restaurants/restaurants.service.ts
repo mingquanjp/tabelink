@@ -921,7 +921,6 @@ export class RestaurantsService {
             r.IsJapaneseTag,
             r.CreatedAt
           ORDER BY r.CreatedAt DESC, r.ReviewID DESC
-          LIMIT 5
         `,
         [restaurantId],
       ),

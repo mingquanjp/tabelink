@@ -77,7 +77,7 @@ export class RestaurantsController {
   @ApiOperation({
     summary: 'Get owner home screen data',
     description:
-      'Returns restaurant profile, menu preview, active/recent campaigns, and latest reviews for Backend Feature ID 6 / screen ID5 owner home.',
+      'Returns restaurant profile, menu preview, active/recent campaigns, and visible reviews for Backend Feature ID 6 / screen ID5 owner home.',
   })
   @ApiOkResponse({
     description: 'Owner home screen aggregate data.',

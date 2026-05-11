@@ -493,9 +493,8 @@ export default function OwnerDashboardPage() {
 
     try {
       await recordMenuItemView(item.itemId);
-      showSuccessToast();
     } catch {
-      showErrorToast();
+      // Tracking must not interrupt dashboard usage.
     }
   };
 

@@ -31,7 +31,11 @@ import type {
   OwnerHomeResponse,
   OwnerHomeReviewItem,
 } from "@/lib/api/owner-home/type";
-import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import {
+  OWNER_TOAST_MESSAGES,
+  showErrorToast,
+  showSuccessToast,
+} from "@/lib/app-toast";
 
 const photos = {
   dish:
@@ -975,6 +979,30 @@ function normalizeSocialUrl(value: string) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
+const phonePattern = /^\d{4}-\d{3}-\d{3}$/;
+
+function isValidPhone(value: string) {
+  return phonePattern.test(value.trim());
+}
+
+function isValidOptionalUrl(value: string) {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return true;
+  }
+
+  try {
+    const url = new URL(normalizeSocialUrl(trimmed));
+    return (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      url.hostname.includes(".")
+    );
+  } catch {
+    return false;
+  }
+}
+
 function EditRestaurantModal({
   fields,
   galleryImages,
@@ -1070,6 +1098,15 @@ function EditRestaurantModal({
     event.preventDefault();
 
     if (isSaving) {
+      return;
+    }
+
+    if (
+      !isValidPhone(formValues.phone) ||
+      !isValidOptionalUrl(formValues.instagram) ||
+      !isValidOptionalUrl(formValues.facebook)
+    ) {
+      showErrorToast(OWNER_TOAST_MESSAGES.validationError);
       return;
     }
 

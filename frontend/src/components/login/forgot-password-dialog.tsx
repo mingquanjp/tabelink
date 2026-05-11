@@ -15,7 +15,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { requestPasswordReset } from "@/lib/api/auth/API";
 import { cn } from "@/lib/utils";
-import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { isValidEmail } from "@/lib/auth-form-validation";
 
 export function ForgotPasswordDialog() {
   const [email, setEmail] = useState("");
@@ -30,6 +31,12 @@ export function ForgotPasswordDialog() {
     }
 
     toast.dismiss();
+
+    if (!isValidEmail(email)) {
+      showErrorToast(AUTH_TOAST_MESSAGES.validationError);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -37,7 +44,7 @@ export function ForgotPasswordDialog() {
         email: email.trim(),
         lang: "ja",
       });
-      showSuccessToast("パスワード再設定メールを送信しました");
+      showSuccessToast(AUTH_TOAST_MESSAGES.passwordResetSuccess);
     } catch {
       showErrorToast();
     } finally {
@@ -63,7 +70,7 @@ export function ForgotPasswordDialog() {
               <X className="size-6" />
             </button>
           </DialogClose>
-          <form className="space-y-10" onSubmit={handleSubmit}>
+          <form className="space-y-10" noValidate onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div className="flex size-16 items-center justify-center rounded-xl bg-(--primary)/10">
                 <KeyRound className="size-6 text-primary" />

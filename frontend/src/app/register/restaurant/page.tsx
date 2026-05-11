@@ -10,7 +10,8 @@ import {
   readRegisterDraft,
   type RegisterDraft,
 } from "@/lib/api/auth/register";
-import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { isValidShortText } from "@/lib/auth-form-validation";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
@@ -46,8 +47,13 @@ export default function RestaurantRegisterPage() {
       return;
     }
 
-    if (!phonePattern.test(phone.trim())) {
-      showErrorToast("入力形式が正しくありません。再度入力してください");
+    if (
+      !isValidShortText(storeName) ||
+      !isValidShortText(address) ||
+      !isValidShortText(representativeName) ||
+      !phonePattern.test(phone.trim())
+    ) {
+      showErrorToast(AUTH_TOAST_MESSAGES.validationError);
       return;
     }
 
@@ -66,7 +72,7 @@ export default function RestaurantRegisterPage() {
       await logoutAccount().catch(() => undefined);
 
       clearRegisterDraft();
-      showSuccessToast("登録が完了しました");
+      showSuccessToast(AUTH_TOAST_MESSAGES.registerSuccess);
       router.push("/login");
     } catch {
       showErrorToast();
@@ -122,7 +128,7 @@ export default function RestaurantRegisterPage() {
           </div>
         </div>
 
-        <form className="space-y-[32px] pt-[8px]" onSubmit={handleSubmit}>
+        <form className="space-y-[32px] pt-[8px]" noValidate onSubmit={handleSubmit}>
           <div className="space-y-[12px]">
             <div className="flex gap-[8px] items-baseline leading-none">
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">

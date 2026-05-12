@@ -216,14 +216,16 @@ function buildGoogleMapsUrl(restaurant: OwnerHomeResponse["restaurant"] | undefi
     return "https://www.google.com/maps";
   }
 
+  const address = restaurant.address.trim();
+  if (address) {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+  }
+
   if (restaurant.latitude !== null && restaurant.longitude !== null) {
     return `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
   }
 
-  const address = restaurant.address.trim();
-  return address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
-    : "https://www.google.com/maps";
+  return "https://www.google.com/maps";
 }
 
 function toMenuDisplayItems(items: OwnerHomeMenuItem[]): MenuDisplayItem[] {

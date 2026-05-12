@@ -1,10 +1,12 @@
 "use client";
 
-import { CloudUpload, Plus, Trash2, Utensils } from "lucide-react";
+import { CloudUpload, Plus, Trash2, Utensils, X } from "lucide-react";
+import type { MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createOwnerMenuCategory,
   createOwnerMenuItem,
+  deleteOwnerMenuCategory,
   deleteOwnerMenuItem,
   listOwnerMenuItems,
   updateOwnerMenuItem,
@@ -141,6 +143,9 @@ export default function OwnerMenuPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isAddingCriterion, setIsAddingCriterion] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [categoryPendingDelete, setCategoryPendingDelete] =
+    useState<OwnerMenuCategory | null>(null);
+  const [isDeletingCategory, setIsDeletingCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCriterionName, setNewCriterionName] = useState("");
 
@@ -530,9 +535,127 @@ export default function OwnerMenuPage() {
     }
   }
 
+  async function deleteCategory(
+    category: OwnerMenuCategory,
+    event: MouseEvent<HTMLButtonElement>
+  ) {
+    event.stopPropagation();
+    setCategoryPendingDelete(category);
+  }
+
+  async function confirmDeleteCategory() {
+    if (!restaurantId || !categoryPendingDelete || isDeletingCategory) {
+      return;
+    }
+
+    const category = categoryPendingDelete;
+    setIsDeletingCategory(true);
+
+    try {
+      await deleteOwnerMenuCategory(restaurantId, category.categoryId);
+
+      const nextCategories = categories.filter(
+        (entry) => entry.categoryId !== category.categoryId
+      );
+      const nextItems = menuItems.filter(
+        (item) => item.categoryId !== category.categoryId
+      );
+      const nextCategoryId =
+        activeCategoryId === category.categoryId
+          ? nextCategories[0]?.categoryId ?? null
+          : activeCategoryId;
+      const nextSelectedItem =
+        nextCategoryId === null
+          ? nextItems[0] ?? null
+          : nextItems.find((item) => item.categoryId === nextCategoryId) ?? null;
+
+      setCategories(nextCategories);
+      setMenuItems(nextItems);
+      setActiveCategoryId(nextCategoryId);
+      setSelectedItemId(nextSelectedItem?.itemId ?? "new");
+      setForm(
+        nextSelectedItem
+          ? toFormState(nextSelectedItem)
+          : { ...emptyForm, categoryId: nextCategoryId }
+      );
+      writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
+        restaurantId,
+        categories: nextCategories,
+        items: nextItems,
+      });
+      setCategoryPendingDelete(null);
+      showSuccessToast();
+    } catch {
+      showErrorToast();
+    } finally {
+      setIsDeletingCategory(false);
+    }
+  }
+
+  function cancelDeleteCategory() {
+    if (!isDeletingCategory) {
+      setCategoryPendingDelete(null);
+    }
+  }
+
+  const pendingDeleteItemCount = categoryPendingDelete
+    ? menuItems.filter((item) => item.categoryId === categoryPendingDelete.categoryId)
+        .length
+    : 0;
+
+  /*
+    const categoryItemCount = menuItems.filter(
+      (item) => item.categoryId === category.categoryId
+    ).length;
+    const confirmed = window.confirm(
+      `カテゴリ「${category.categoryNameJp}」と、このカテゴリ内の${categoryItemCount}件のメニューを削除しますか？`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteOwnerMenuCategory(restaurantId, category.categoryId);
+
+      const nextCategories = categories.filter(
+        (entry) => entry.categoryId !== category.categoryId
+      );
+      const nextItems = menuItems.filter(
+        (item) => item.categoryId !== category.categoryId
+      );
+      const nextCategoryId =
+        activeCategoryId === category.categoryId
+          ? nextCategories[0]?.categoryId ?? null
+          : activeCategoryId;
+      const nextSelectedItem =
+        nextCategoryId === null
+          ? nextItems[0] ?? null
+          : nextItems.find((item) => item.categoryId === nextCategoryId) ?? null;
+
+      setCategories(nextCategories);
+      setMenuItems(nextItems);
+      setActiveCategoryId(nextCategoryId);
+      setSelectedItemId(nextSelectedItem?.itemId ?? "new");
+      setForm(
+        nextSelectedItem
+          ? toFormState(nextSelectedItem)
+          : { ...emptyForm, categoryId: nextCategoryId }
+      );
+      writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
+        restaurantId,
+        categories: nextCategories,
+        items: nextItems,
+      });
+      showSuccessToast();
+    } catch {
+      showErrorToast();
+    }
+  */
+
   return (
     <main className="mx-auto max-w-[1280px] px-10 py-6">
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[426px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[446px_minmax(0,1fr)]">
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -549,17 +672,32 @@ export default function OwnerMenuPage() {
               const isActive = category.categoryId === activeCategoryId;
 
               return (
-                <button
+                <div
                   key={category.categoryId}
-                  type="button"
-                  onClick={() => selectCategory(category.categoryId)}
-                  className={`h-10 rounded-[12px] px-5 text-[13px] font-medium transition-colors ${isActive
+                  className={`group/category relative h-10 rounded-[12px] text-[13px] font-medium transition-colors ${isActive
                     ? "bg-[#af111c] text-white"
                     : "bg-[#e8e8e5] text-[#5a6053] hover:bg-[#dededb]"
                     }`}
                 >
-                  {category.categoryNameJp}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => selectCategory(category.categoryId)}
+                    className="h-full rounded-[12px] px-5 pr-7"
+                  >
+                    {category.categoryNameJp}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => deleteCategory(category, event)}
+                    className={`absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full transition-colors ${isActive
+                      ? "text-white/80 hover:bg-white/20 hover:text-white"
+                      : "text-[#5a6053]/60 hover:bg-[#d7d7d2] hover:text-[#af111c]"
+                      }`}
+                    aria-label="カテゴリを削除"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
               );
             })}
             {isAddingCategory ? (
@@ -615,7 +753,7 @@ export default function OwnerMenuPage() {
             ) : null}
           </div>
 
-          <div className="max-h-[666px] space-y-3 overflow-y-auto pr-2">
+          <div className="-mx-2 max-h-[666px] space-y-3 overflow-y-auto px-2 pb-1 pt-2">
             {filteredMenuItems.map((item) => {
               const isSelected = item.itemId === selectedItemId;
               const isSoldOut = !item.isActive;
@@ -632,7 +770,7 @@ export default function OwnerMenuPage() {
                       selectItem(item);
                     }
                   }}
-                  className={`relative flex min-h-[132px] w-full cursor-pointer gap-4 rounded-lg bg-white p-4 text-left transition-all ${isSelected ? "ring-2 ring-[#af111c]" : "hover:bg-white/50"
+                  className={`relative flex min-h-[132px] w-full cursor-pointer gap-4 rounded-lg bg-white px-4 py-4 text-left transition-all ${isSelected ? "ring-2 ring-[#af111c]" : "hover:bg-white/50"
                     } ${isSoldOut ? "opacity-70" : ""}`}
                 >
                   {isSoldOut ? (
@@ -996,6 +1134,58 @@ export default function OwnerMenuPage() {
           </div>
         </div>
       </div>
+
+      {categoryPendingDelete ? (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#2f312f80] px-4 backdrop-blur-[3px]">
+          <div className="w-full max-w-[420px] rounded-[8px] border border-[#e4beba33] bg-[#f9f9f6] shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
+            <div className="border-b border-[#e2e3e0] px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-[20px] font-semibold text-[#1a1c1b]">
+                    カテゴリを削除しますか？
+                  </h3>
+                  <p className="mt-2 text-[13px] font-medium leading-5 text-[#5a6053]">
+                    この操作は取り消せません。
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelDeleteCategory}
+                  disabled={isDeletingCategory}
+                  className="rounded-full p-1 text-[#5a6053] transition-colors hover:bg-[#eeeeeb]"
+                  aria-label="閉じる"
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-[14px] font-medium leading-6 text-[#1a1c1b]">
+                「{categoryPendingDelete.categoryNameJp}」と、このカテゴリ内の
+                {pendingDeleteItemCount}件のメニューを削除します。
+              </p>
+            </div>
+            <div className="flex justify-end gap-3 bg-[#f4f4f1] px-6 py-5">
+              <button
+                type="button"
+                onClick={cancelDeleteCategory}
+                disabled={isDeletingCategory}
+                className="rounded-[6px] border border-[#af111c] px-6 py-2 text-[14px] font-medium text-[#af111c] transition-colors hover:bg-[#af111c]/5 disabled:opacity-60"
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteCategory}
+                disabled={isDeletingCategory}
+                className="rounded-[6px] bg-[#af111c] px-6 py-2 text-[14px] font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2)] transition-colors hover:bg-[#960e18] disabled:opacity-60"
+              >
+                {isDeletingCategory ? "削除中..." : "削除する"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

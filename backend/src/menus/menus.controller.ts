@@ -135,6 +135,26 @@ export class MenusController {
     return this.menusService.createCategory(restaurantId, dto, request.user);
   }
 
+  @Delete('categories/:categoryId')
+  @ApiOperation({
+    summary: 'Delete owner menu category',
+    description:
+      'Soft deletes an active menu category and all menu items inside it.',
+  })
+  @ApiOkResponse({ description: 'Deleted menu category.' })
+  @ApiNotFoundResponse({ description: 'Restaurant or category not found.' })
+  removeCategory(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Param('categoryId', ParseIntPipe) categoryId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.menusService.removeCategory(
+      restaurantId,
+      categoryId,
+      request.user,
+    );
+  }
+
   @Get(':itemId')
   @ApiOperation({
     summary: 'Get one menu item',

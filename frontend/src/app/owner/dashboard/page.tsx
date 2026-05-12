@@ -89,6 +89,7 @@ type PopularMenuItem = {
 type PopularTimeItem = {
   time: string;
   value: number;
+  count: number;
   isPeak?: boolean;
 };
 
@@ -209,26 +210,26 @@ function buildPopularTimes(
   dashboard: OwnerDashboardResponse | null
 ): PopularTimeItem[] {
   const apiItems = dashboard?.busyHoursToday.items ?? [];
-
-  if (apiItems.length === 0) {
-    return Array.from({ length: 11 }, (_, index) => ({
-      time: `${String(index + 11).padStart(2, "0")}:00`,
-      value: 0,
-    }));
-  }
-
-  const maxValue = Math.max(...apiItems.map((item) => item.reservationCount), 1);
   const byHour = new Map(
     apiItems.map((item) => [item.hour, item.reservationCount])
   );
 
-  return Array.from({ length: 11 }, (_, index) => {
-    const hour = index + 11;
+  if (apiItems.length === 0) {
+    return Array.from({ length: 24 }, (_, hour) => ({
+      time: `${String(hour).padStart(2, "0")}:00`,
+      value: 0,
+      count: 0,
+      isPeak: dashboard?.busyHoursToday.peakHour === hour,
+    }));
+  }
+
+  return Array.from({ length: 24 }, (_, hour) => {
     const reservationCount = byHour.get(hour) ?? 0;
 
     return {
       time: `${String(hour).padStart(2, "0")}:00`,
-      value: Math.round((reservationCount / maxValue) * 100),
+      value: reservationCount,
+      count: reservationCount,
       isPeak: dashboard?.busyHoursToday.peakHour === hour,
     };
   });
@@ -495,6 +496,7 @@ export default function OwnerDashboardPage() {
     dismissedApprovedRestaurantIds,
     setDismissedApprovedRestaurantIds,
   ] = useState<Set<number>>(() => new Set());
+  const popularTimeScrollRef = useRef<HTMLDivElement | null>(null);
 
   const isClient = useSyncExternalStore(
     () => () => {},
@@ -700,6 +702,14 @@ export default function OwnerDashboardPage() {
   }, [dashboard]);
 
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
+  const popularTimePeakIndex = useMemo(
+    () => popularTimes.findIndex((item) => item.isPeak),
+    [popularTimes],
+  );
+  const popularTimeMaxCount = useMemo(
+    () => Math.max(...popularTimes.map((item) => item.count), 0),
+    [popularTimes],
+  );
   const isApprovedVerificationBannerDismissed = Boolean(
     isClient &&
       dashboard?.restaurantId &&
@@ -709,6 +719,23 @@ export default function OwnerDashboardPage() {
           approvedVerificationDismissedKey(dashboard.restaurantId),
         ) === "true"),
   );
+
+  useEffect(() => {
+    const scrollElement = popularTimeScrollRef.current;
+
+    if (!scrollElement || popularTimePeakIndex < 0 || popularTimes.length === 0) {
+      return;
+    }
+
+    const itemWidth = scrollElement.scrollWidth / popularTimes.length;
+    const targetLeft =
+      itemWidth * (popularTimePeakIndex + 0.5) - scrollElement.clientWidth / 2;
+
+    scrollElement.scrollTo({
+      left: Math.max(0, targetLeft),
+      behavior: "auto",
+    });
+  }, [popularTimePeakIndex, popularTimes.length]);
 
   const handleApplySuccess = (application: VerificationApplication) => {
     setDashboard((current) => {
@@ -1041,35 +1068,65 @@ export default function OwnerDashboardPage() {
             </div>
             <div className="flex flex-col gap-4">
               <MeasuredChartFrame className="h-44 min-w-0 w-full">
-                {({ width, height }) => (
-                  <BarChart
-                    data={popularTimes}
-                    height={height}
-                    margin={{ top: 38, right: 0, left: 0, bottom: 0 }}
-                    width={width}
-                  >
-                    <Tooltip
-                      cursor={{ fill: "#af111c08" }}
-                      contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "10px" }}
-                    />
-                    <Bar dataKey="value" radius={[2, 2, 0, 0]} barSize={42} shape={<PopularTimeBar />}>
-                      {popularTimes.map((entry) => (
-                        <Cell
-                          key={entry.time}
-                          fill={entry.isPeak ? "#af111c" : entry.value >= 55 ? "#dfa0a7" : "#eeeeeb"}
-                          className="hover:fill-[#af111c4d] transition-all cursor-pointer"
-                        />
-                      ))}
-                    </Bar>
-                    <XAxis
-                      dataKey="time"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 9, fill: "#5a6053" }}
-                      ticks={["11:00", "14:00", "18:00", "21:00"]}
-                    />
-                  </BarChart>
-                )}
+                {({ width, height }) => {
+                  const chartWidth = Math.max(width, popularTimes.length * 36);
+
+                  return (
+                    <div
+                      ref={popularTimeScrollRef}
+                      className="h-full w-full overflow-x-auto overflow-y-hidden pb-1 [scrollbar-width:thin]"
+                    >
+                      <div style={{ width: chartWidth }}>
+                        <BarChart
+                          data={popularTimes}
+                          height={height}
+                          margin={{ top: 38, right: 8, left: 8, bottom: 0 }}
+                          width={chartWidth}
+                        >
+                          <Tooltip
+                            cursor={{ fill: "#af111c08" }}
+                            formatter={(value) => [`${value}件`, "予約数"]}
+                            contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", fontSize: "10px" }}
+                          />
+                          <Bar dataKey="count" radius={[2, 2, 0, 0]} barSize={24} shape={<PopularTimeBar />}>
+                            {popularTimes.map((entry) => (
+                              <Cell
+                                key={entry.time}
+                                fill={
+                                  entry.isPeak
+                                    ? "#af111c"
+                                    : popularTimeMaxCount > 0 &&
+                                        entry.count >= popularTimeMaxCount * 0.55
+                                      ? "#dfa0a7"
+                                      : "#eeeeeb"
+                                }
+                                className="hover:fill-[#af111c4d] transition-all cursor-pointer"
+                              />
+                            ))}
+                          </Bar>
+                          <XAxis
+                            dataKey="time"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fontSize: 9, fill: "#5a6053" }}
+                            ticks={[
+                              "00:00",
+                              "03:00",
+                              "06:00",
+                              "09:00",
+                              "12:00",
+                              "15:00",
+                              "18:00",
+                              "21:00",
+                              "23:00",
+                            ]}
+                          />
+                          <YAxis hide domain={[0, "dataMax"]} />
+                        </BarChart>
+                      </div>
+                    </div>
+                  );
+                }}
               </MeasuredChartFrame>
               <div className="pt-4 border-t border-[#eeeeeb]">
                 <p className="text-[12px] font-medium text-[#1a1c1b] mb-1">スタッフ配置のヒント:</p>

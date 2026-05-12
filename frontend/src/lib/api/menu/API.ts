@@ -40,6 +40,21 @@ export function createOwnerMenuCategory(
   );
 }
 
+export function deleteOwnerMenuCategory(
+  restaurantId: number,
+  categoryId: number
+) {
+  return apiRequest<{
+    deleted: boolean;
+    categoryId: number;
+    restaurantId: number;
+    deletedItemIds: number[];
+  }>(`/owner/restaurants/${restaurantId}/menus/categories/${categoryId}`, {
+    method: "DELETE",
+    auth: true,
+  });
+}
+
 export function updateOwnerMenuItem(
   restaurantId: number,
   itemId: number,

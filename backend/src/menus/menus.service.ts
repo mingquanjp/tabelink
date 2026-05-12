@@ -129,6 +129,63 @@ export class MenusService {
     return categories.map((category) => this.toCategoryResponse(category));
   }
 
+  async removeCategory(
+    restaurantId: number,
+    categoryId: number,
+    user: JwtPayload,
+  ) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+
+    const result = await this.dataSource.transaction(async (manager) => {
+      const categoryRepo = manager.getRepository(MenuCategory);
+      const category = await categoryRepo.findOne({
+        where: { restaurantId, categoryId, isActive: true },
+      });
+
+      if (!category) {
+        throw new NotFoundException(
+          'Menu category not found for this restaurant.',
+        );
+      }
+
+      const itemRepo = manager.getRepository(MenuItem);
+      const items = await itemRepo.find({
+        where: {
+          restaurantId,
+          categoryId,
+          deletedAt: IsNull(),
+        },
+      });
+
+      const deletedAt = new Date();
+      const deletedItemIds = items.map((item) => item.itemId);
+
+      if (items.length > 0) {
+        await itemRepo.save(
+          items.map((item) => ({
+            ...item,
+            isActive: false,
+            deletedAt,
+          })),
+        );
+      }
+
+      category.isActive = false;
+      await categoryRepo.save(category);
+
+      return {
+        deletedItemIds,
+      };
+    });
+
+    return {
+      deleted: true,
+      categoryId,
+      restaurantId,
+      deletedItemIds: result.deletedItemIds,
+    };
+  }
+
   async findOne(restaurantId: number, itemId: number, user: JwtPayload) {
     await this.assertOwnerRestaurant(restaurantId, user);
     const item = await this.findOwnedMenuItem(restaurantId, itemId);

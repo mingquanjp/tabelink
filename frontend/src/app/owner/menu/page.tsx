@@ -1,10 +1,12 @@
 "use client";
 
-import { CloudUpload, Plus, Trash2, Utensils } from "lucide-react";
+import { CloudUpload, Plus, Trash2, Utensils, X } from "lucide-react";
+import type { MouseEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   createOwnerMenuCategory,
   createOwnerMenuItem,
+  deleteOwnerMenuCategory,
   deleteOwnerMenuItem,
   listOwnerMenuItems,
   updateOwnerMenuItem,
@@ -530,6 +532,65 @@ export default function OwnerMenuPage() {
     }
   }
 
+  async function deleteCategory(
+    category: OwnerMenuCategory,
+    event: MouseEvent<HTMLButtonElement>
+  ) {
+    event.stopPropagation();
+
+    if (!restaurantId) {
+      return;
+    }
+
+    const categoryItemCount = menuItems.filter(
+      (item) => item.categoryId === category.categoryId
+    ).length;
+    const confirmed = window.confirm(
+      `カテゴリ「${category.categoryNameJp}」と、このカテゴリ内の${categoryItemCount}件のメニューを削除しますか？`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteOwnerMenuCategory(restaurantId, category.categoryId);
+
+      const nextCategories = categories.filter(
+        (entry) => entry.categoryId !== category.categoryId
+      );
+      const nextItems = menuItems.filter(
+        (item) => item.categoryId !== category.categoryId
+      );
+      const nextCategoryId =
+        activeCategoryId === category.categoryId
+          ? nextCategories[0]?.categoryId ?? null
+          : activeCategoryId;
+      const nextSelectedItem =
+        nextCategoryId === null
+          ? nextItems[0] ?? null
+          : nextItems.find((item) => item.categoryId === nextCategoryId) ?? null;
+
+      setCategories(nextCategories);
+      setMenuItems(nextItems);
+      setActiveCategoryId(nextCategoryId);
+      setSelectedItemId(nextSelectedItem?.itemId ?? "new");
+      setForm(
+        nextSelectedItem
+          ? toFormState(nextSelectedItem)
+          : { ...emptyForm, categoryId: nextCategoryId }
+      );
+      writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
+        restaurantId,
+        categories: nextCategories,
+        items: nextItems,
+      });
+      showSuccessToast();
+    } catch {
+      showErrorToast();
+    }
+  }
+
   return (
     <main className="mx-auto max-w-[1280px] px-10 py-6">
       <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[426px_minmax(0,1fr)]">
@@ -549,17 +610,32 @@ export default function OwnerMenuPage() {
               const isActive = category.categoryId === activeCategoryId;
 
               return (
-                <button
+                <div
                   key={category.categoryId}
-                  type="button"
-                  onClick={() => selectCategory(category.categoryId)}
-                  className={`h-10 rounded-[12px] px-5 text-[13px] font-medium transition-colors ${isActive
+                  className={`group/category relative h-10 rounded-[12px] text-[13px] font-medium transition-colors ${isActive
                     ? "bg-[#af111c] text-white"
                     : "bg-[#e8e8e5] text-[#5a6053] hover:bg-[#dededb]"
                     }`}
                 >
-                  {category.categoryNameJp}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => selectCategory(category.categoryId)}
+                    className="h-full rounded-[12px] px-5 pr-7"
+                  >
+                    {category.categoryNameJp}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => deleteCategory(category, event)}
+                    className={`absolute right-1.5 top-1.5 flex size-4 items-center justify-center rounded-full transition-colors ${isActive
+                      ? "text-white/80 hover:bg-white/20 hover:text-white"
+                      : "text-[#5a6053]/60 hover:bg-[#d7d7d2] hover:text-[#af111c]"
+                      }`}
+                    aria-label="カテゴリを削除"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
               );
             })}
             {isAddingCategory ? (

@@ -51,6 +51,8 @@ import {
 } from "@/lib/api/cache";
 
 const ownerDashboardCacheKey = "tabelink:owner:dashboard:v1";
+const approvedVerificationDismissedKey = (restaurantId: number) =>
+  `tabelink:owner:dashboard:verification-approved-dismissed:${restaurantId}`;
 
 type OwnerDashboardCache = {
   dashboard: OwnerDashboardResponse;
@@ -489,6 +491,10 @@ export default function OwnerDashboardPage() {
     useState<PopularMenuItem[]>([]);
   const [adCounters, setAdCounters] = useState<AdCounterResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [
+    dismissedApprovedRestaurantIds,
+    setDismissedApprovedRestaurantIds,
+  ] = useState<Set<number>>(() => new Set());
 
   const isClient = useSyncExternalStore(
     () => () => {},
@@ -694,6 +700,15 @@ export default function OwnerDashboardPage() {
   }, [dashboard]);
 
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
+  const isApprovedVerificationBannerDismissed = Boolean(
+    isClient &&
+      dashboard?.restaurantId &&
+      dashboard.verification.status === "Approved" &&
+      (dismissedApprovedRestaurantIds.has(dashboard.restaurantId) ||
+        localStorage.getItem(
+          approvedVerificationDismissedKey(dashboard.restaurantId),
+        ) === "true"),
+  );
 
   const handleApplySuccess = (application: VerificationApplication) => {
     setDashboard((current) => {
@@ -740,6 +755,28 @@ export default function OwnerDashboardPage() {
     }
   };
 
+  const handleCertificationModalClose = () => {
+    setIsModalOpen(false);
+
+    if (
+      certificationModalMode !== "approved" ||
+      dashboard?.verification.status !== "Approved" ||
+      !dashboard.restaurantId
+    ) {
+      return;
+    }
+
+    localStorage.setItem(
+      approvedVerificationDismissedKey(dashboard.restaurantId),
+      "true",
+    );
+    setDismissedApprovedRestaurantIds((current) => {
+      const next = new Set(current);
+      next.add(dashboard.restaurantId);
+      return next;
+    });
+  };
+
   const handlePopularMenuClick = async (item: PopularMenuItem) => {
     if (!item.itemId) {
       return;
@@ -775,10 +812,15 @@ export default function OwnerDashboardPage() {
         ))}
       </section>
 
-      <VerificationStatusBanner
-        status={dashboard?.verification.status ?? "NotSubmitted"}
-        onApply={handleCertificationClick}
-      />
+      {!(
+        dashboard?.verification.status === "Approved" &&
+        isApprovedVerificationBannerDismissed
+      ) && (
+        <VerificationStatusBanner
+          status={dashboard?.verification.status ?? "NotSubmitted"}
+          onApply={handleCertificationClick}
+        />
+      )}
       <section className="hidden">
         <div className="flex items-center gap-6">
           <div className="size-16 bg-[#af111c1a] rounded-xl flex items-center justify-center">
@@ -811,7 +853,7 @@ export default function OwnerDashboardPage() {
         isOpen={isModalOpen}
         restaurantId={dashboard?.restaurantId ?? null}
         mode={certificationModalMode}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCertificationModalClose}
         onSuccess={handleApplySuccess}
       />
 

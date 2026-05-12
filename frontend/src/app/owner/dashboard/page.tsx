@@ -443,7 +443,7 @@ function VerificationStatusBanner({
             </div>
           </div>
           <button
-            onClick={onApply}
+            onClick={() => onApply()}
             className="rounded-md bg-[#af111c] px-8 py-3 text-sm font-medium text-white shadow-lg shadow-[#af111c20] hover:bg-[#960e18]"
           >
             了解
@@ -469,7 +469,7 @@ function VerificationStatusBanner({
         </div>
       </div>
       <button
-        onClick={onApply}
+        onClick={() => onApply()}
         className="bg-[#af111c] text-white px-8 py-4 rounded-lg font-medium shadow-lg shadow-[#af111c20] hover:bg-[#960e18] transition-all flex items-center gap-2"
       >
         <Zap className="size-5" />

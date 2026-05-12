@@ -360,7 +360,7 @@ function VerificationStatusBanner({
   onApply,
 }: {
   status: VerificationStatus;
-  onApply: () => void;
+  onApply: (mode?: "apply" | "approved") => void;
 }) {
   if (status === "Pending") {
     return (
@@ -409,7 +409,10 @@ function VerificationStatusBanner({
               </p>
             </div>
           </div>
-          <button className="rounded-md bg-[#d9f9df] px-8 py-3 text-sm font-medium text-[#4f7f5e]">
+          <button
+            onClick={() => onApply("approved")}
+            className="rounded-md bg-[#d9f9df] px-8 py-3 text-sm font-medium text-[#4f7f5e]"
+          >
             了解
           </button>
         </div>
@@ -478,6 +481,9 @@ function VerificationStatusBanner({
 
 export default function OwnerDashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [certificationModalMode, setCertificationModalMode] = useState<
+    "apply" | "approved"
+  >("apply");
   const [dashboard, setDashboard] = useState<OwnerDashboardResponse | null>(null);
   const [popularMenuItems, setPopularMenuItems] =
     useState<PopularMenuItem[]>([]);
@@ -713,8 +719,13 @@ export default function OwnerDashboardPage() {
     showSuccessToast();
   };
 
-  const handleCertificationClick = async () => {
+  const handleCertificationClick = async (mode: "apply" | "approved" = "apply") => {
+    setCertificationModalMode(mode);
     setIsModalOpen(true);
+
+    if (mode === "approved") {
+      return;
+    }
 
     const adId = Number(process.env.NEXT_PUBLIC_DASHBOARD_AD_ID);
     if (!Number.isFinite(adId) || adId <= 0) {
@@ -788,7 +799,7 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
         <button
-          onClick={handleCertificationClick}
+          onClick={() => handleCertificationClick()}
           className="bg-[#af111c] text-white px-8 py-4 rounded-lg font-medium shadow-lg shadow-[#af111c20] hover:bg-[#960e18] transition-all flex items-center gap-2"
         >
           <Zap className="size-5" />
@@ -799,6 +810,7 @@ export default function OwnerDashboardPage() {
       <CertificationBadgeModal
         isOpen={isModalOpen}
         restaurantId={dashboard?.restaurantId ?? null}
+        mode={certificationModalMode}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleApplySuccess}
       />

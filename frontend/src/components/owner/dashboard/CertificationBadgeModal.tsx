@@ -15,6 +15,7 @@ import type { VerificationApplication } from "@/lib/api/verification/type";
 interface CertificationBadgeModalProps {
   isOpen: boolean;
   restaurantId: number | null;
+  mode?: "apply" | "approved";
   onClose: () => void;
   onSuccess: (application: VerificationApplication) => void;
 }
@@ -22,6 +23,7 @@ interface CertificationBadgeModalProps {
 export function CertificationBadgeModal({
   isOpen,
   restaurantId,
+  mode = "apply",
   onClose,
   onSuccess,
 }: CertificationBadgeModalProps) {
@@ -34,6 +36,8 @@ export function CertificationBadgeModal({
   const fileInputRef2 = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const isApprovedMode = mode === "approved";
 
   const readCertificationFile = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -135,6 +139,21 @@ export function CertificationBadgeModal({
         </div>
 
         {/* Modal Content */}
+        {isApprovedMode ? (
+          <div className="p-8">
+            <div className="rounded-[8px] border border-[#3d5f4633] bg-[#3d5f460f] px-6 py-8 text-center">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#d9f9df] text-[#3d5f46]">
+                <CheckCircle2 className="size-8" />
+              </div>
+              <h3 className="mt-5 text-[20px] font-semibold leading-7 text-[#1a1c1b]">
+                承認が完了しました
+              </h3>
+              <p className="mx-auto mt-3 max-w-[420px] text-[14px] font-medium leading-6 text-[#5a6053]">
+                あなたのレストランはTABELINK公式認証バッジの審査に通過しました。検索結果で優先的に表示されます。
+              </p>
+            </div>
+          </div>
+        ) : (
         <div className="p-8 flex flex-col gap-8">
           {/* File Upload Field 1 */}
           <div className="flex flex-col gap-3">
@@ -237,9 +256,19 @@ export function CertificationBadgeModal({
             </label>
           </div>
         </div>
+        )}
 
         {/* Modal Footer */}
         <div className="bg-[#f4f4f1] px-8 py-8 flex justify-end gap-4">
+          {isApprovedMode ? (
+            <button
+              onClick={onClose}
+              className="rounded-[6px] bg-[#af111c] px-8 py-[10px] text-[14px] font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2)] transition-all hover:bg-[#960e18]"
+            >
+              閉じる
+            </button>
+          ) : (
+          <>
           <button 
             onClick={onClose}
             className="px-6 py-[10px] text-[14px] font-medium text-[#5a6053] hover:text-[#1a1c1b] transition-colors"
@@ -259,6 +288,8 @@ export function CertificationBadgeModal({
             申請する
             <ArrowRight className="size-4" />
           </button>
+          </>
+          )}
         </div>
       </div>
     </div>

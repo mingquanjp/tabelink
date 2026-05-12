@@ -4,26 +4,40 @@ import React, { useState, useRef } from "react";
 import { X, Upload, FileText, CheckCircle2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OWNER_TOAST_MESSAGES, showErrorToast } from "@/lib/app-toast";
+import {
+  listVerificationBadges,
+  submitVerificationApplication,
+  uploadBusinessLicense,
+  uploadFoodSafetyCertificate,
+} from "@/lib/api/verification/API";
+import type { VerificationApplication } from "@/lib/api/verification/type";
 
 interface CertificationBadgeModalProps {
   isOpen: boolean;
+  restaurantId: number | null;
+  mode?: "apply" | "approved";
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (application: VerificationApplication) => void;
 }
 
 export function CertificationBadgeModal({
   isOpen,
+  restaurantId,
+  mode = "apply",
   onClose,
   onSuccess,
 }: CertificationBadgeModalProps) {
   const [file1, setFile1] = useState<File | null>(null);
   const [file2, setFile2] = useState<File | null>(null);
   const [isAgreed, setIsAgreed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fileInputRef1 = useRef<HTMLInputElement>(null);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
 
   if (!isOpen) return null;
+
+  const isApprovedMode = mode === "approved";
 
   const readCertificationFile = (
     e: React.ChangeEvent<HTMLInputElement>,
@@ -49,12 +63,42 @@ export function CertificationBadgeModal({
     readCertificationFile(e, setFile2);
   };
 
-  const isFormValid = file1 && file2 && isAgreed;
+  const isFormValid = Boolean(file1 && file2 && isAgreed && restaurantId);
 
-  const handleSubmit = () => {
-    if (isFormValid) {
-      onSuccess();
+  const handleSubmit = async () => {
+    if (!isFormValid || !restaurantId || !file1 || !file2 || isSubmitting) {
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const [badges, businessLicense, foodSafetyCert] = await Promise.all([
+        listVerificationBadges(),
+        uploadBusinessLicense(restaurantId, file1),
+        uploadFoodSafetyCertificate(restaurantId, file2),
+      ]);
+      const badgeId = badges.badges[0]?.badgeId;
+
+      if (!badgeId) {
+        throw new Error("Verification badge master is not configured.");
+      }
+
+      const application = await submitVerificationApplication(restaurantId, {
+        badgeId,
+        businessLicenseUrl: businessLicense.fileUrl,
+        businessLicensePublicId: businessLicense.publicId,
+        foodSafetyCertUrl: foodSafetyCert.fileUrl,
+        foodSafetyCertPublicId: foodSafetyCert.publicId,
+        agreedToTerms: true,
+      });
+
+      onSuccess(application);
       onClose();
+    } catch {
+      showErrorToast();
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -95,6 +139,21 @@ export function CertificationBadgeModal({
         </div>
 
         {/* Modal Content */}
+        {isApprovedMode ? (
+          <div className="p-8">
+            <div className="rounded-[8px] border border-[#3d5f4633] bg-[#3d5f460f] px-6 py-8 text-center">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-[#d9f9df] text-[#3d5f46]">
+                <CheckCircle2 className="size-8" />
+              </div>
+              <h3 className="mt-5 text-[20px] font-semibold leading-7 text-[#1a1c1b]">
+                承認が完了しました
+              </h3>
+              <p className="mx-auto mt-3 max-w-[420px] text-[14px] font-medium leading-6 text-[#5a6053]">
+                あなたのレストランはTABELINK公式認証バッジの審査に通過しました。検索結果で優先的に表示されます。
+              </p>
+            </div>
+          </div>
+        ) : (
         <div className="p-8 flex flex-col gap-8">
           {/* File Upload Field 1 */}
           <div className="flex flex-col gap-3">
@@ -197,9 +256,19 @@ export function CertificationBadgeModal({
             </label>
           </div>
         </div>
+        )}
 
         {/* Modal Footer */}
         <div className="bg-[#f4f4f1] px-8 py-8 flex justify-end gap-4">
+          {isApprovedMode ? (
+            <button
+              onClick={onClose}
+              className="rounded-[6px] bg-[#af111c] px-8 py-[10px] text-[14px] font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2)] transition-all hover:bg-[#960e18]"
+            >
+              閉じる
+            </button>
+          ) : (
+          <>
           <button 
             onClick={onClose}
             className="px-6 py-[10px] text-[14px] font-medium text-[#5a6053] hover:text-[#1a1c1b] transition-colors"
@@ -208,10 +277,10 @@ export function CertificationBadgeModal({
           </button>
           <button 
             onClick={handleSubmit}
-            disabled={!isFormValid}
+            disabled={!isFormValid || isSubmitting}
             className={cn(
               "px-8 py-[10px] text-[14px] font-medium rounded-[6px] transition-all flex items-center gap-2",
-              isFormValid 
+              isFormValid && !isSubmitting
                 ? "bg-[#af111c] text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2)] hover:bg-[#960e18]" 
                 : "bg-[#e2e3e0] text-[#5a6053] cursor-not-allowed"
             )}
@@ -219,6 +288,8 @@ export function CertificationBadgeModal({
             申請する
             <ArrowRight className="size-4" />
           </button>
+          </>
+          )}
         </div>
       </div>
     </div>

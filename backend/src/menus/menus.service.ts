@@ -31,27 +31,102 @@ export class MenusService {
   async list(restaurantId: number, user: JwtPayload) {
     await this.assertOwnerRestaurant(restaurantId, user);
 
-    const items = await this.menuRepo.find({
-      where: { restaurantId, deletedAt: IsNull() },
-      relations: {
-        criteria: true,
-      },
-      order: {
-        isActive: 'DESC',
-        isRecommendedForJp: 'DESC',
-        itemId: 'ASC',
-        criteria: {
+    const [categories, items] = await Promise.all([
+      this.dataSource.getRepository(MenuCategory).find({
+        where: { restaurantId, isActive: true },
+        order: {
           sortOrder: 'ASC',
-          criterionId: 'ASC',
+          categoryId: 'ASC',
         },
-      },
-    });
+      }),
+      this.menuRepo.find({
+        where: { restaurantId, deletedAt: IsNull() },
+        relations: {
+          criteria: true,
+        },
+        order: {
+          categoryId: 'ASC',
+          isActive: 'DESC',
+          isRecommendedForJp: 'DESC',
+          itemId: 'ASC',
+          criteria: {
+            sortOrder: 'ASC',
+            criterionId: 'ASC',
+          },
+        },
+      }),
+    ]);
 
     return {
       restaurantId,
       count: items.length,
+      categories: categories.map((category) =>
+        this.toCategoryResponse(category),
+      ),
       items: items.map((item) => this.toResponse(item)),
     };
+  }
+
+  async createCategory(
+    restaurantId: number,
+    dto: {
+      categoryNameJp: string;
+      categoryNameVn?: string;
+      categoryCode?: string;
+    },
+    user: JwtPayload,
+  ) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+
+    const saved = await this.dataSource.transaction(async (manager) => {
+      const categoryRepo = manager.getRepository(MenuCategory);
+      const maxSort = await categoryRepo
+        .createQueryBuilder('category')
+        .select('MAX(category.sortOrder)', 'max')
+        .where('category.restaurantId = :restaurantId', { restaurantId })
+        .getRawOne<{ max: number | string | null }>();
+
+      const sortOrder =
+        maxSort?.max === null || maxSort?.max === undefined
+          ? 0
+          : Number(maxSort.max) + 1;
+      const categoryNameJp = dto.categoryNameJp.trim();
+      const categoryNameVn = dto.categoryNameVn?.trim() || categoryNameJp;
+      const baseCode =
+        this.toCategoryCode(dto.categoryCode || categoryNameJp) || 'category';
+      const categoryCode = await this.resolveUniqueCategoryCode(
+        manager,
+        restaurantId,
+        baseCode,
+      );
+
+      const category = categoryRepo.create({
+        restaurantId,
+        categoryCode,
+        categoryNameJp,
+        categoryNameVn,
+        sortOrder,
+        isActive: true,
+      });
+
+      return categoryRepo.save(category);
+    });
+
+    return this.toCategoryResponse(saved);
+  }
+
+  async listCategories(restaurantId: number, user: JwtPayload) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+
+    const categories = await this.dataSource.getRepository(MenuCategory).find({
+      where: { restaurantId, isActive: true },
+      order: {
+        sortOrder: 'ASC',
+        categoryId: 'ASC',
+      },
+    });
+
+    return categories.map((category) => this.toCategoryResponse(category));
   }
 
   async findOne(restaurantId: number, itemId: number, user: JwtPayload) {
@@ -302,9 +377,9 @@ export class MenusService {
     });
 
     try {
-      const result = await cloudinary.uploader.destroy(item.imagePublicId, {
+      const result = (await cloudinary.uploader.destroy(item.imagePublicId, {
         resource_type: 'image',
-      });
+      })) as { result?: string };
 
       return result.result === 'ok' || result.result === 'not found';
     } catch {
@@ -359,6 +434,53 @@ export class MenusService {
         'Menu category not found for this restaurant.',
       );
     }
+  }
+
+  private toCategoryCode(value: string) {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 90);
+  }
+
+  private async resolveUniqueCategoryCode(
+    manager: EntityManager,
+    restaurantId: number,
+    baseCode: string,
+  ) {
+    const categoryRepo = manager.getRepository(MenuCategory);
+    let code = baseCode;
+    let suffix = 2;
+
+    while (
+      await categoryRepo.findOne({
+        where: {
+          restaurantId,
+          categoryCode: code,
+        },
+      })
+    ) {
+      code = `${baseCode}-${suffix}`;
+      suffix += 1;
+    }
+
+    return code;
+  }
+
+  private toCategoryResponse(category: MenuCategory) {
+    return {
+      categoryId: category.categoryId,
+      restaurantId: category.restaurantId,
+      categoryCode: category.categoryCode,
+      categoryNameVn: category.categoryNameVn,
+      categoryNameJp: category.categoryNameJp,
+      sortOrder: category.sortOrder,
+      isActive: category.isActive,
+    };
   }
 
   private toResponse(item: MenuItem) {

@@ -565,8 +565,7 @@ export class RestaurantsService {
             COUNT(*)::int AS "totalCount",
             COUNT(*) FILTER (WHERE IsActive = TRUE)::int AS "activeCount",
             COUNT(*) FILTER (
-              WHERE IsActive = TRUE
-                AND IsRecommendedForJP = TRUE
+              WHERE IsRecommendedForJP = TRUE
             )::int AS "recommendedForJpCount"
           FROM MENU_ITEM
           WHERE RestaurantID = $1
@@ -626,7 +625,7 @@ export class RestaurantsService {
               mi.UpdatedAt AS "updatedAt",
               ROW_NUMBER() OVER(
                 PARTITION BY mi.CategoryID 
-                ORDER BY mi.IsActive DESC, mi.IsRecommendedForJP DESC, mi.UpdatedAt DESC, mi.ItemID ASC
+                ORDER BY mi.UpdatedAt DESC, mi.ItemID ASC
               ) as rn
             FROM MENU_ITEM mi
             LEFT JOIN MENU_CATEGORY mc
@@ -634,6 +633,7 @@ export class RestaurantsService {
               AND mc.RestaurantID = mi.RestaurantID
             WHERE mi.RestaurantID = $1
               AND mi.DeletedAt IS NULL
+              AND mi.IsRecommendedForJP = TRUE
           )
           SELECT
             ri."itemId",
@@ -921,7 +921,6 @@ export class RestaurantsService {
             r.IsJapaneseTag,
             r.CreatedAt
           ORDER BY r.CreatedAt DESC, r.ReviewID DESC
-          LIMIT 5
         `,
         [restaurantId],
       ),

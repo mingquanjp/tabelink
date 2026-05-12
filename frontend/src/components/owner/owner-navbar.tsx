@@ -142,14 +142,14 @@ export function OwnerNavbar() {
                                 </p>
                             </div>
                             <DropdownMenuItem
-                                className="mb-1 flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm font-semibold text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
+                                className="mb-1 flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
                                 onSelect={() => router.push("/owner/home")}
                             >
                                 <User className="size-4" />
                                 レストラン詳細を表示
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                                className="flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm font-semibold text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
+                                className="flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm  text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
                                 onSelect={handleLogout}
                             >
                                 <LogOut className="size-4" />

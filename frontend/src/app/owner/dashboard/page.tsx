@@ -14,6 +14,8 @@ import {
 import {
   BadgeCheck,
   ChevronsUp,
+  CircleX,
+  ClipboardCheck,
   Frown,
   Meh,
   MessageSquare,
@@ -40,6 +42,7 @@ import type {
   OwnerDashboardResponse,
   TopMenuItem,
 } from "@/lib/api/dashboard/type";
+import type { VerificationApplication } from "@/lib/api/verification/type";
 import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import {
   readSessionCache,
@@ -350,8 +353,137 @@ function KPICard({ data }: { data: KPIData }) {
   );
 }
 
+type VerificationStatus = "NotSubmitted" | "Pending" | "Approved" | "Rejected" | string;
+
+function VerificationStatusBanner({
+  status,
+  onApply,
+}: {
+  status: VerificationStatus;
+  onApply: (mode?: "apply" | "approved") => void;
+}) {
+  if (status === "Pending") {
+    return (
+      <section className="rounded-none border border-[#f4d88b] bg-[#fff3c7] px-8 py-8 text-[#9a4f0b]">
+        <div className="flex items-center gap-6">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-white text-[#d97706] shadow-sm">
+            <ClipboardCheck className="size-7" />
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-[#8b4513] px-3 py-1 text-[11px] font-bold uppercase tracking-[1.2px] text-white">
+                STATUS : PENDING
+              </span>
+              <h2 className="text-2xl font-bold text-[#9a4f0b]">
+                TABELINK 認証バッジ申請
+              </h2>
+            </div>
+            <p className="text-sm font-medium">
+              認証バッジの申請は現在確認中です。完了まで数日かかる場合があります。
+            </p>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (status === "Approved") {
+    return (
+      <section className="rounded-none bg-[#4f7f5e] px-8 py-8 text-[#d9f9df]">
+        <div className="flex items-center justify-between gap-8">
+          <div className="flex items-center gap-6">
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-[#d9f9df]">
+              <BadgeCheck className="size-9" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full bg-[#d9f9df] px-3 py-1 text-[11px] font-bold uppercase tracking-[1.2px] text-[#4f7f5e]">
+                  STATUS : APPROVED
+                </span>
+                <h2 className="text-2xl font-bold text-white">
+                  TABELINK 認証バッジ申請
+                </h2>
+              </div>
+              <p className="max-w-[720px] text-sm font-medium leading-6">
+                おめでとうございます！TABELINK公式認証バッジが発行されました。検索結果で優先的に表示されます。
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => onApply("approved")}
+            className="rounded-md bg-[#d9f9df] px-8 py-3 text-sm font-medium text-[#4f7f5e]"
+          >
+            了解
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (status === "Rejected") {
+    return (
+      <section className="rounded-none bg-[#ffd9d9] px-8 py-8 text-[#af111c]">
+        <div className="flex items-center justify-between gap-8">
+          <div className="flex items-center gap-6">
+            <div className="flex size-14 shrink-0 items-center justify-center rounded-lg bg-white text-[#d32f2f] shadow-sm">
+              <CircleX className="size-7" />
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full bg-[#af111c] px-3 py-1 text-[11px] font-bold uppercase tracking-[1.2px] text-white">
+                  STATUS : REJECTED
+                </span>
+                <h2 className="text-2xl font-bold text-[#af111c]">
+                  TABELINK 認証バッジ申請
+                </h2>
+              </div>
+              <p className="max-w-[760px] text-sm font-medium leading-6 text-[#7f1d1d]">
+                申請却下 - 提出された書類に不備がありました。詳細を確認し、再申請してください。
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onApply}
+            className="rounded-md bg-[#af111c] px-8 py-3 text-sm font-medium text-white shadow-lg shadow-[#af111c20] hover:bg-[#960e18]"
+          >
+            了解
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bg-[#d32f311a] border border-[#af111c33] rounded-2xl p-8 flex items-center justify-between gap-8">
+      <div className="flex items-center gap-6">
+        <div className="size-16 bg-[#af111c1a] rounded-xl flex items-center justify-center">
+          <BadgeCheck className="size-8 text-[#af111c]" />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <h2 className="text-xl font-medium text-[#1a1c1b]">
+            TABELINK 公式認証バッジを取得しませんか？
+          </h2>
+          <p className="text-[14px] text-[#5a6053] font-medium max-w-[670px] leading-relaxed">
+            認証バッジを取得することで、日本人顧客からの信頼度が向上します。
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={onApply}
+        className="bg-[#af111c] text-white px-8 py-4 rounded-lg font-medium shadow-lg shadow-[#af111c20] hover:bg-[#960e18] transition-all flex items-center gap-2"
+      >
+        <Zap className="size-5" />
+        認証バッジを申請する
+      </button>
+    </section>
+  );
+}
+
 export default function OwnerDashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [certificationModalMode, setCertificationModalMode] = useState<
+    "apply" | "approved"
+  >("apply");
   const [dashboard, setDashboard] = useState<OwnerDashboardResponse | null>(null);
   const [popularMenuItems, setPopularMenuItems] =
     useState<PopularMenuItem[]>([]);
@@ -563,12 +695,37 @@ export default function OwnerDashboardPage() {
 
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
 
-  const handleApplySuccess = () => {
+  const handleApplySuccess = (application: VerificationApplication) => {
+    setDashboard((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextDashboard = {
+        ...current,
+        verification: {
+          status: application.status,
+          application,
+        },
+      };
+
+      writeSessionCache(ownerDashboardCacheKey, {
+        dashboard: nextDashboard,
+        popularMenuItems,
+      });
+
+      return nextDashboard;
+    });
     showSuccessToast();
   };
 
-  const handleCertificationClick = async () => {
+  const handleCertificationClick = async (mode: "apply" | "approved" = "apply") => {
+    setCertificationModalMode(mode);
     setIsModalOpen(true);
+
+    if (mode === "approved") {
+      return;
+    }
 
     const adId = Number(process.env.NEXT_PUBLIC_DASHBOARD_AD_ID);
     if (!Number.isFinite(adId) || adId <= 0) {
@@ -618,7 +775,11 @@ export default function OwnerDashboardPage() {
         ))}
       </section>
 
-      <section className="bg-[#d32f311a] border border-[#af111c33] rounded-2xl p-8 flex items-center justify-between gap-8">
+      <VerificationStatusBanner
+        status={dashboard?.verification.status ?? "NotSubmitted"}
+        onApply={handleCertificationClick}
+      />
+      <section className="hidden">
         <div className="flex items-center gap-6">
           <div className="size-16 bg-[#af111c1a] rounded-xl flex items-center justify-center">
             <BadgeCheck className="size-8 text-[#af111c]" />
@@ -638,7 +799,7 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
         <button
-          onClick={handleCertificationClick}
+          onClick={() => handleCertificationClick()}
           className="bg-[#af111c] text-white px-8 py-4 rounded-lg font-medium shadow-lg shadow-[#af111c20] hover:bg-[#960e18] transition-all flex items-center gap-2"
         >
           <Zap className="size-5" />
@@ -648,6 +809,8 @@ export default function OwnerDashboardPage() {
 
       <CertificationBadgeModal
         isOpen={isModalOpen}
+        restaurantId={dashboard?.restaurantId ?? null}
+        mode={certificationModalMode}
         onClose={() => setIsModalOpen(false)}
         onSuccess={handleApplySuccess}
       />

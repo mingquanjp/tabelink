@@ -3,12 +3,18 @@
 import { CloudUpload, Plus, Trash2, Utensils } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
+  createOwnerMenuCategory,
   createOwnerMenuItem,
+  deleteOwnerMenuItem,
   listOwnerMenuItems,
   updateOwnerMenuItem,
   uploadOwnerMenuImage,
 } from "@/lib/api/menu/API";
-import type { OwnerMenuItem, OwnerMenuPayload } from "@/lib/api/menu/type";
+import type {
+  OwnerMenuCategory,
+  OwnerMenuItem,
+  OwnerMenuPayload,
+} from "@/lib/api/menu/type";
 import { getAuthSession, requireOwnerRestaurant } from "@/lib/api/auth/session";
 import {
   OWNER_TOAST_MESSAGES,
@@ -22,6 +28,7 @@ import {
 } from "@/lib/api/cache";
 
 type MenuFormState = {
+  categoryId: number | null;
   nameJp: string;
   nameVn: string;
   descriptionJp: string;
@@ -40,6 +47,7 @@ type MenuCriterionForm = {
 };
 
 const emptyForm: MenuFormState = {
+  categoryId: null,
   nameJp: "",
   nameVn: "",
   descriptionJp: "",
@@ -56,6 +64,7 @@ const fallbackImage = "/menu/nemran.png";
 
 type OwnerMenuCache = {
   restaurantId: number;
+  categories: OwnerMenuCategory[];
   items: OwnerMenuItem[];
 };
 
@@ -79,6 +88,7 @@ function toFormState(item: OwnerMenuItem | null): MenuFormState {
   }
 
   return {
+    categoryId: item.categoryId ?? null,
     nameJp: item.nameJp,
     nameVn: item.nameVn,
     descriptionJp: item.descriptionJp ?? "",
@@ -97,6 +107,7 @@ function toFormState(item: OwnerMenuItem | null): MenuFormState {
 
 function toPayload(form: MenuFormState): OwnerMenuPayload {
   return {
+    categoryId: form.categoryId,
     nameJp: form.nameJp.trim(),
     nameVn: form.nameVn.trim(),
     descriptionJp: form.descriptionJp.trim(),
@@ -117,6 +128,8 @@ function toPayload(form: MenuFormState): OwnerMenuPayload {
 
 export default function OwnerMenuPage() {
   const [restaurantId, setRestaurantId] = useState<number | null>(null);
+  const [categories, setCategories] = useState<OwnerMenuCategory[]>([]);
+  const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [menuItems, setMenuItems] = useState<OwnerMenuItem[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<number | "new" | null>(
     null
@@ -124,8 +137,11 @@ export default function OwnerMenuPage() {
   const [form, setForm] = useState<MenuFormState>(emptyForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isAddingCriterion, setIsAddingCriterion] = useState(false);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [newCriterionName, setNewCriterionName] = useState("");
 
   const selectedItem = useMemo(
@@ -137,6 +153,14 @@ export default function OwnerMenuPage() {
   );
 
   const isCreating = selectedItemId === "new";
+
+  const filteredMenuItems = useMemo(() => {
+    if (activeCategoryId === null) {
+      return menuItems;
+    }
+
+    return menuItems.filter((item) => item.categoryId === activeCategoryId);
+  }, [activeCategoryId, menuItems]);
 
   useEffect(() => {
     let cancelled = false;
@@ -158,11 +182,25 @@ export default function OwnerMenuPage() {
           setRestaurantId(restaurant.restaurantId);
 
           if (cachedMenu) {
-            setMenuItems(cachedMenu.items);
+            const cachedCategories = cachedMenu.categories ?? [];
+            const firstCategoryId = cachedCategories[0]?.categoryId ?? null;
+            const firstCachedItem =
+              cachedMenu.items.find(
+                (item) =>
+                  firstCategoryId === null || item.categoryId === firstCategoryId,
+              ) ??
+              cachedMenu.items[0] ??
+              null;
 
-            const firstCachedItem = cachedMenu.items[0] ?? null;
+            setCategories(cachedCategories);
+            setActiveCategoryId(firstCategoryId);
+            setMenuItems(cachedMenu.items);
             setSelectedItemId(firstCachedItem?.itemId ?? "new");
-            setForm(toFormState(firstCachedItem));
+            setForm(
+              firstCachedItem
+                ? toFormState(firstCachedItem)
+                : { ...emptyForm, categoryId: firstCategoryId },
+            );
             setIsLoading(false);
           } else {
             setIsLoading(true);
@@ -176,15 +214,29 @@ export default function OwnerMenuPage() {
         }
 
         setRestaurantId(restaurant.restaurantId);
+        setCategories(response.categories);
         setMenuItems(response.items);
+        const firstCategoryId = response.categories[0]?.categoryId ?? null;
         writeSessionCache(cacheKey, {
           restaurantId: restaurant.restaurantId,
+          categories: response.categories,
           items: response.items,
         });
 
-        const firstItem = response.items[0] ?? null;
+        const firstItem =
+          response.items.find(
+            (item) =>
+              firstCategoryId === null || item.categoryId === firstCategoryId,
+          ) ??
+          response.items[0] ??
+          null;
+        setActiveCategoryId(firstCategoryId);
         setSelectedItemId(firstItem?.itemId ?? "new");
-        setForm(toFormState(firstItem));
+        setForm(
+          firstItem
+            ? toFormState(firstItem)
+            : { ...emptyForm, categoryId: firstCategoryId },
+        );
       } catch {
         if (!cancelled && !hasCachedMenu) {
           showErrorToast();
@@ -210,7 +262,20 @@ export default function OwnerMenuPage() {
 
   function startCreate() {
     setSelectedItemId("new");
-    setForm(emptyForm);
+    setForm({ ...emptyForm, categoryId: activeCategoryId });
+  }
+
+  function selectCategory(categoryId: number) {
+    setActiveCategoryId(categoryId);
+    const firstItem = menuItems.find((item) => item.categoryId === categoryId);
+
+    if (firstItem) {
+      selectItem(firstItem);
+      return;
+    }
+
+    setSelectedItemId("new");
+    setForm({ ...emptyForm, categoryId });
   }
 
   function updateForm<K extends keyof MenuFormState>(
@@ -226,6 +291,55 @@ export default function OwnerMenuPage() {
   function addCriterion() {
     setIsAddingCriterion(true);
     setNewCriterionName("");
+  }
+
+  async function saveNewCategory() {
+    if (isSavingCategory) {
+      return;
+    }
+
+    if (!restaurantId) {
+      showErrorToast();
+      return;
+    }
+
+    const categoryName = newCategoryName.trim();
+
+    if (!categoryName) {
+      showErrorToast(OWNER_TOAST_MESSAGES.validationError);
+      return;
+    }
+
+    setIsSavingCategory(true);
+
+    try {
+      const category = await createOwnerMenuCategory(restaurantId, {
+        categoryNameJp: categoryName,
+        categoryNameVn: categoryName,
+      });
+
+      setCategories((current) => {
+        const nextCategories = [...current, category];
+
+        writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
+          restaurantId,
+          categories: nextCategories,
+          items: menuItems,
+        });
+
+        return nextCategories;
+      });
+      setActiveCategoryId(category.categoryId);
+      setSelectedItemId("new");
+      setForm({ ...emptyForm, categoryId: category.categoryId });
+      setIsAddingCategory(false);
+      setNewCategoryName("");
+      showSuccessToast();
+    } catch {
+      showErrorToast();
+    } finally {
+      setIsSavingCategory(false);
+    }
   }
 
   function saveNewCriterion() {
@@ -254,9 +368,9 @@ export default function OwnerMenuPage() {
       criteria: current.criteria.map((criterion, criterionIndex) =>
         criterionIndex === index
           ? {
-              ...criterion,
-              [key]: key === "ratingLevel" ? Number(value) : value,
-            }
+            ...criterion,
+            [key]: key === "ratingLevel" ? Number(value) : value,
+          }
           : criterion
       ),
     }));
@@ -315,9 +429,9 @@ export default function OwnerMenuPage() {
       const saved =
         isCreating || !selectedItem
           ? await createOwnerMenuItem(restaurantId, {
-              ...payload,
-              isActive: true,
-            })
+            ...payload,
+            isActive: true,
+          })
           : await updateOwnerMenuItem(restaurantId, selectedItem.itemId, payload);
 
       setMenuItems((current) => {
@@ -328,6 +442,7 @@ export default function OwnerMenuPage() {
 
         writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
           restaurantId,
+          categories,
           items: nextItems,
         });
 
@@ -360,6 +475,7 @@ export default function OwnerMenuPage() {
 
         writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
           restaurantId,
+          categories,
           items: nextItems,
         });
 
@@ -376,9 +492,47 @@ export default function OwnerMenuPage() {
     }
   }
 
+  async function deleteMenuItem(item: OwnerMenuItem) {
+    if (!restaurantId) {
+      return;
+    }
+
+    try {
+      await deleteOwnerMenuItem(restaurantId, item.itemId);
+
+      setMenuItems((current) => {
+        const nextItems = current.filter((entry) => entry.itemId !== item.itemId);
+        const nextSelectedItem =
+          activeCategoryId === null
+            ? (nextItems[0] ?? null)
+            : (nextItems.find((entry) => entry.categoryId === activeCategoryId) ??
+              null);
+
+        writeSessionCache(getOwnerMenuCacheKey(restaurantId), {
+          restaurantId,
+          categories,
+          items: nextItems,
+        });
+
+        setSelectedItemId(nextSelectedItem?.itemId ?? "new");
+        setForm(
+          nextSelectedItem
+            ? toFormState(nextSelectedItem)
+            : { ...emptyForm, categoryId: activeCategoryId },
+        );
+
+        return nextItems;
+      });
+
+      showSuccessToast();
+    } catch {
+      showErrorToast();
+    }
+  }
+
   return (
     <main className="mx-auto max-w-[1280px] px-10 py-6">
-      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[413px_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[426px_minmax(0,1fr)]">
         <div className="space-y-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -390,19 +544,96 @@ export default function OwnerMenuPage() {
             </span>
           </div>
 
+          <div className="flex flex-wrap items-center gap-3">
+            {categories.map((category) => {
+              const isActive = category.categoryId === activeCategoryId;
+
+              return (
+                <button
+                  key={category.categoryId}
+                  type="button"
+                  onClick={() => selectCategory(category.categoryId)}
+                  className={`h-10 rounded-[12px] px-5 text-[13px] font-medium transition-colors ${isActive
+                    ? "bg-[#af111c] text-white"
+                    : "bg-[#e8e8e5] text-[#5a6053] hover:bg-[#dededb]"
+                    }`}
+                >
+                  {category.categoryNameJp}
+                </button>
+              );
+            })}
+            {isAddingCategory ? (
+              <div className="inline-flex h-10 items-center rounded-[12px] border border-[#af111c] bg-white px-5">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(event) => setNewCategoryName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      saveNewCategory();
+                    } else if (event.key === "Escape") {
+                      setIsAddingCategory(false);
+                      setNewCategoryName("");
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!newCategoryName.trim()) {
+                      setIsAddingCategory(false);
+                    }
+                  }}
+                  placeholder="カテゴリ名を入力"
+                  className="h-8 w-[82px] bg-transparent text-center text-[13px] font-medium text-[#af111c] outline-none placeholder:text-[#af111c]/70"
+                  autoFocus
+                />
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingCategory(true);
+                  setNewCategoryName("");
+                }}
+                className="inline-flex h-10 items-center gap-1 rounded-[12px] bg-[#e8e8e5] px-4 text-[13px] font-medium text-[#af111c] transition-colors hover:bg-[#dededb]"
+              >
+                <Plus className="size-4" />
+                カテゴリを追加
+              </button>
+            )}
+            {isAddingCategory ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddingCategory(true);
+                  setNewCategoryName("");
+                }}
+                className="inline-flex h-10 items-center gap-1 rounded-[12px] bg-[#e8e8e5] px-4 text-[13px] font-medium text-[#af111c] transition-colors hover:bg-[#dededb]"
+              >
+                <Plus className="size-4" />
+                {"カテゴリを追加"}
+              </button>
+            ) : null}
+          </div>
+
           <div className="max-h-[666px] space-y-3 overflow-y-auto pr-2">
-            {menuItems.map((item) => {
+            {filteredMenuItems.map((item) => {
               const isSelected = item.itemId === selectedItemId;
               const isSoldOut = !item.isActive;
 
               return (
-                <button
+                <div
                   key={item.itemId}
-                  type="button"
                   onClick={() => selectItem(item)}
-                  className={`relative flex min-h-[107px] w-full cursor-pointer gap-4 rounded-lg bg-white p-4 text-left transition-all ${
-                    isSelected ? "ring-2 ring-[#af111c]" : "hover:bg-white/50"
-                  } ${isSoldOut ? "opacity-70" : ""}`}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      selectItem(item);
+                    }
+                  }}
+                  className={`relative flex min-h-[132px] w-full cursor-pointer gap-4 rounded-lg bg-white p-4 text-left transition-all ${isSelected ? "ring-2 ring-[#af111c]" : "hover:bg-white/50"
+                    } ${isSoldOut ? "opacity-70" : ""}`}
                 >
                   {isSoldOut ? (
                     <div className="pointer-events-none absolute inset-0 z-10 rounded-lg bg-white/40 mix-blend-saturation" />
@@ -423,19 +654,19 @@ export default function OwnerMenuPage() {
                     ) : null}
                   </div>
 
-                  <div className="flex flex-1 flex-col justify-between py-0.5">
-                    <div className="space-y-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <h3 className="text-[16px] font-semibold leading-tight">
+                  <div className="flex min-w-0 flex-1 flex-col py-0.5">
+                    <div className="space-y-1 pr-[74px]">
+                      <div>
+                        <h3 className="min-w-0 text-[16px] font-semibold leading-tight">
                           {item.nameJp}
                         </h3>
                         {item.isRecommendedForJp ? (
-                          <span className="rounded-[2px] bg-[#af111c] px-2 py-0.5 text-[10px] font-medium tracking-[0.5px] text-[#fff2f0]">
+                          <span className="absolute right-4 top-4 z-20 shrink-0 whitespace-nowrap rounded-[2px] bg-[#af111c] px-2 py-0.5 text-[10px] font-medium tracking-[0.5px] text-[#fff2f0]">
                             おすすめ
                           </span>
                         ) : null}
                         {isSoldOut && !item.isRecommendedForJp ? (
-                          <span className="rounded-[2px] bg-[#a1a1aa] px-2 py-0.5 text-[10px] font-medium tracking-[0.5px] text-white">
+                          <span className="absolute right-4 top-4 z-20 shrink-0 whitespace-nowrap rounded-[2px] bg-[#a1a1aa] px-2 py-0.5 text-[10px] font-medium tracking-[0.5px] text-white">
                             品切れ
                           </span>
                         ) : null}
@@ -443,8 +674,8 @@ export default function OwnerMenuPage() {
                       <p className="text-[13px] text-[#5a6053]">{item.nameVn}</p>
                     </div>
 
-                    <div className="flex items-center justify-between pt-2">
-                      <div className="flex items-baseline gap-1">
+                    <div className="mt-auto flex min-w-0 items-end justify-between gap-3 pr-[154px] pt-2">
+                      <div className="flex min-w-[112px] max-w-[130px] items-baseline gap-1 whitespace-nowrap">
                         <span className="text-[12px] font-bold text-[#af111c]">
                           VND
                         </span>
@@ -452,28 +683,41 @@ export default function OwnerMenuPage() {
                           {toPriceInput(item.price)}
                         </span>
                       </div>
-                      <span
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          toggleSoldOut(item);
-                        }}
-                        className={`rounded border px-3 py-1.5 text-[10px] font-medium uppercase tracking-[-0.5px] transition-colors ${
-                          isSoldOut
+                      <div className="absolute bottom-4 right-4 z-20 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            toggleSoldOut(item);
+                          }}
+                          className={`min-w-[76px] shrink-0 whitespace-nowrap rounded border px-3 py-1.5 text-[10px] font-medium uppercase tracking-[-0.5px] transition-colors ${isSoldOut
                             ? "border-[#af111c] bg-[#af111c] text-white hover:bg-[#910e17]"
                             : "border-[#af111c] text-[#af111c] hover:bg-[#af111c]/5"
-                        }`}
-                      >
-                        {isSoldOut ? "販売再開する" : "品切れにする"}
-                      </span>
+                            }`}
+                        >
+                          {isSoldOut ? "販売再開する" : "品切れにする"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            deleteMenuItem(item);
+                          }}
+                          className="inline-flex min-w-[64px] shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded border border-[#af111c] px-3 py-1.5 text-[10px] font-medium text-[#af111c] transition-colors hover:bg-[#af111c]/5"
+                        >
+                          削除
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </button>
+                </div>
               );
             })}
 
-            {!isLoading && menuItems.length === 0 ? (
+            {!isLoading && filteredMenuItems.length === 0 ? (
               <div className="rounded-lg border border-dashed border-[#e4beba] bg-white p-8 text-center text-sm text-[#5a6053]">
-                No menu items yet.
+                このカテゴリのメニューはまだありません。
               </div>
             ) : null}
           </div>
@@ -527,11 +771,10 @@ export default function OwnerMenuPage() {
                   <div className="absolute inset-0 bg-white/65 backdrop-blur-[1px]" />
                 ) : null}
                 <label
-                  className={`z-10 flex cursor-pointer items-center justify-center text-center text-[#5a6053] shadow-sm backdrop-blur-[1px] ${
-                    form.imageUrl
-                      ? "absolute right-3 top-3 size-9 rounded-full bg-white/90 transition-colors hover:bg-white"
-                      : "relative flex-col gap-2 rounded-[8px] bg-white/85 px-5 py-3"
-                  }`}
+                  className={`z-10 flex cursor-pointer items-center justify-center text-center text-[#5a6053] shadow-sm backdrop-blur-[1px] ${form.imageUrl
+                    ? "absolute right-3 top-3 size-9 rounded-full bg-white/90 transition-colors hover:bg-white"
+                    : "relative flex-col gap-2 rounded-[8px] bg-white/85 px-5 py-3"
+                    }`}
                 >
                   <CloudUpload className="size-6" />
                   {form.imageUrl ? (
@@ -712,11 +955,10 @@ export default function OwnerMenuPage() {
                             key={level}
                             type="button"
                             onClick={() => updateCriterion(index, "ratingLevel", level)}
-                            className={`size-2 rounded-full transition-colors ${
-                              level <= criterion.ratingLevel
-                                ? "bg-[#af111c]"
-                                : "bg-[#d8d8d4] hover:bg-[#bdbdb8]"
-                            }`}
+                            className={`size-2 rounded-full transition-colors ${level <= criterion.ratingLevel
+                              ? "bg-[#af111c]"
+                              : "bg-[#d8d8d4] hover:bg-[#bdbdb8]"
+                              }`}
                             aria-label={`${level} / 5`}
                             aria-pressed={level === criterion.ratingLevel}
                           />
@@ -741,15 +983,13 @@ export default function OwnerMenuPage() {
                 onClick={() =>
                   updateForm("isRecommendedForJp", !form.isRecommendedForJp)
                 }
-                className={`relative h-5 w-10 rounded-full transition-colors ${
-                  form.isRecommendedForJp ? "bg-[#af111c]" : "bg-[#c9c9c5]"
-                }`}
+                className={`relative h-5 w-10 rounded-full transition-colors ${form.isRecommendedForJp ? "bg-[#af111c]" : "bg-[#c9c9c5]"
+                  }`}
                 aria-pressed={form.isRecommendedForJp}
               >
                 <span
-                  className={`absolute top-1 size-3 rounded-full bg-white transition-all ${
-                    form.isRecommendedForJp ? "right-1" : "left-1"
-                  }`}
+                  className={`absolute top-1 size-3 rounded-full bg-white transition-all ${form.isRecommendedForJp ? "right-1" : "left-1"
+                    }`}
                 />
               </button>
             </div>

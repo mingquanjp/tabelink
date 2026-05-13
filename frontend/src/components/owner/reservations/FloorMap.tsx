@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MoreVertical } from "lucide-react";
+import { MoreVertical, Plus, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { RestaurantTableDto, RestaurantTableStatus } from "@/lib/api/owner/reservation/api";
 import {
@@ -102,10 +102,13 @@ function toFloorTable(table: RestaurantTableDto): FloorTable {
 type FloorMapProps = {
     tables: RestaurantTableDto[];
     onStatusChange: (tableId: number, status: RestaurantTableStatus) => Promise<void>;
+    onAddTable: () => Promise<void>;
+    onDeleteTable: (tableId: number) => Promise<void>;
 };
 
-export function FloorMap({ tables, onStatusChange }: FloorMapProps) {
+export function FloorMap({ tables, onStatusChange, onAddTable, onDeleteTable }: FloorMapProps) {
     const [updatingTableId, setUpdatingTableId] = useState<number | null>(null);
+    const [isAddingTable, setIsAddingTable] = useState(false);
     const floorTables = tables.map(toFloorTable);
 
     async function handleStatusChange(tableId: number, status: RestaurantTableStatus) {
@@ -113,6 +116,26 @@ export function FloorMap({ tables, onStatusChange }: FloorMapProps) {
 
         try {
             await onStatusChange(tableId, status);
+        } finally {
+            setUpdatingTableId(null);
+        }
+    }
+
+    async function handleAddTable() {
+        setIsAddingTable(true);
+
+        try {
+            await onAddTable();
+        } finally {
+            setIsAddingTable(false);
+        }
+    }
+
+    async function handleDeleteTable(tableId: number) {
+        setUpdatingTableId(tableId);
+
+        try {
+            await onDeleteTable(tableId);
         } finally {
             setUpdatingTableId(null);
         }
@@ -148,6 +171,16 @@ export function FloorMap({ tables, onStatusChange }: FloorMapProps) {
                         {table.capacity} 名
                     </span>
                 </div>
+
+                <button
+                    type="button"
+                    aria-label={`${table.name} delete`}
+                    disabled={isUpdating}
+                    className="absolute left-[8px] top-[8px] inline-flex h-7 w-7 items-center justify-center rounded text-stone-500 hover:bg-white/70"
+                    onClick={() => void handleDeleteTable(table.id)}
+                >
+                    <Trash2 className="h-4 w-4" />
+                </button>
 
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -195,6 +228,16 @@ export function FloorMap({ tables, onStatusChange }: FloorMapProps) {
                                 </span>
                             </div>
                         ))}
+
+                        <button
+                            type="button"
+                            disabled={isAddingTable}
+                            className="inline-flex h-9 items-center gap-2 rounded border border-stone-200 bg-white px-3 font-jp text-xs font-medium text-[#1a1c1b] shadow-[0px_1px_2px_#0000000d] hover:bg-stone-50"
+                            onClick={() => void handleAddTable()}
+                        >
+                            <Plus className="h-4 w-4" />
+                            テーブル追加
+                        </button>
                     </div>
                 </div>
 

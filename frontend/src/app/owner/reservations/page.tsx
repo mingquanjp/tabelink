@@ -7,6 +7,8 @@ import { ReservationsHeader } from "@/components/owner/reservations/Reservations
 import { ReservationsTable } from "@/components/owner/reservations/ReservationsTable";
 import { StatsCards } from "@/components/owner/reservations/StatsCards";
 import {
+    createOwnerTable,
+    deleteOwnerTable,
     getOwnerReservations,
     getOwnerTables,
     updateOwnerReservation,
@@ -24,12 +26,28 @@ import {
 import { getAuthSession, requireOwnerRestaurant } from "@/lib/api/auth/session";
 
 const ownerReservationsCacheKey = "tabelink:owner:reservations:v1";
+const DEFAULT_NEW_TABLE_CAPACITY = 4;
+const DEFAULT_NEW_TABLE_WIDTH = 171;
+const DEFAULT_NEW_TABLE_HEIGHT = 96;
 
 type OwnerReservationsCache = {
     restaurantId: number;
     tables: RestaurantTableDto[];
     reservations: ReservationDto[];
 };
+
+function getNextTableName(tables: RestaurantTableDto[]) {
+    const existingNames = new Set(
+        tables.map((table) => table.tableName.trim().toLowerCase())
+    );
+    let tableNumber = tables.length + 1;
+
+    while (existingNames.has(`table ${tableNumber}`.toLowerCase())) {
+        tableNumber += 1;
+    }
+
+    return `Table ${tableNumber}`;
+}
 
 export default function OwnerReservationsPage() {
     const [cachedInitialData] = useState(() =>
@@ -122,6 +140,54 @@ export default function OwnerReservationsPage() {
         }
     }
 
+    async function handleAddTable() {
+        if (restaurantId === null) {
+            return;
+        }
+
+        try {
+            setErrorMessage(null);
+            const newTable = await createOwnerTable(restaurantId, {
+                tableName: getNextTableName(tables),
+                capacity: DEFAULT_NEW_TABLE_CAPACITY,
+                status: "Empty",
+                width: DEFAULT_NEW_TABLE_WIDTH,
+                height: DEFAULT_NEW_TABLE_HEIGHT,
+            });
+            const nextTables = [...tables, newTable];
+
+            setTables(nextTables);
+            writeSessionCache(ownerReservationsCacheKey, {
+                restaurantId,
+                tables: nextTables,
+                reservations,
+            });
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : "テーブルを追加できませんでした");
+        }
+    }
+
+    async function handleDeleteTable(tableId: number) {
+        if (restaurantId === null) {
+            return;
+        }
+
+        try {
+            setErrorMessage(null);
+            await deleteOwnerTable(restaurantId, tableId);
+            const nextTables = tables.filter((table) => table.tableId !== tableId);
+
+            setTables(nextTables);
+            writeSessionCache(ownerReservationsCacheKey, {
+                restaurantId,
+                tables: nextTables,
+                reservations,
+            });
+        } catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : "テーブルを削除できませんでした");
+        }
+    }
+
     async function handleReservationStatusChange(reservationId: number, status: ReservationStatus) {
         if (restaurantId === null) {
             return;
@@ -173,7 +239,12 @@ export default function OwnerReservationsPage() {
                 onStatusChange={handleReservationStatusChange}
             />
             <section className="grid grid-cols-3 gap-8">
-                <FloorMap tables={tables} onStatusChange={handleTableStatusChange} />
+                <FloorMap
+                    tables={tables}
+                    onStatusChange={handleTableStatusChange}
+                    onAddTable={handleAddTable}
+                    onDeleteTable={handleDeleteTable}
+                />
                 <AnnouncementsPanel />
             </section>
         </main>

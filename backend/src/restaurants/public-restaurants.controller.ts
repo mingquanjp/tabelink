@@ -122,7 +122,6 @@ export class PublicRestaurantsController {
         dishCleanliness: 5,
         spaceCleanliness: 4,
         content: 'Clean and easy to reserve.',
-        sentiment: 'Positive',
         isJapaneseTag: true,
         status: 'Visible',
       },

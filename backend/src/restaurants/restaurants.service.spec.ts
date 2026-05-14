@@ -201,11 +201,8 @@ describe('RestaurantsService', () => {
           dishCleanliness: '5',
           spaceCleanliness: null,
           content: 'Good',
-          sentiment: 'Positive',
           isJapaneseTag: true,
           createdAt: '2026-05-03T00:00:00.000Z',
-          mediaUrls: ['https://example.com/review.jpg'],
-          tags: ['在住日本人'],
         },
       ])
       .mockResolvedValueOnce([
@@ -281,8 +278,7 @@ describe('RestaurantsService', () => {
           {
             reviewId: 30,
             rating: 5,
-            mediaUrls: ['https://example.com/review.jpg'],
-            tags: ['在住日本人'],
+            isJapaneseTag: true,
           },
         ],
       },
@@ -375,11 +371,8 @@ describe('RestaurantsService', () => {
           dishCleanliness: '5',
           spaceCleanliness: null,
           content: 'Good',
-          sentiment: 'Positive',
           isJapaneseTag: true,
           createdAt: '2026-05-03T00:00:00.000Z',
-          mediaUrls: [],
-          tags: [],
         },
       ])
       .mockResolvedValueOnce([

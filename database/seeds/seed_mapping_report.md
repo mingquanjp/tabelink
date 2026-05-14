@@ -71,8 +71,12 @@ The password value is not stored as plain text. The generator stores a bcrypt ha
 | `RESERVATION_ITEM` | 1,599 | 8/8 | None |
 | `RESERVATION_SPECIAL_REQUEST` | 480 | 4/4 | None |
 | `REVIEW` | 400 | 13/13 | None |
-| `REVIEW_MEDIA` | 200 | 5/5 | None |
-| `REVIEW_TAG` | 800 | 2/2 | None |
+| `BLOG_POST` | 120 | 8/8 | None |
+| `BLOG_MEDIA` | 60 | 5/5 | None |
+| `BLOG_TAG` | 240 | 2/2 | None |
+| `BLOG_LIKE` | 120 | 3/3 | None |
+| `BLOG_COMMENT` | 120 | 8/8 | None |
+| `BLOG_SHARE` | 120 | 4/4 | None |
 | `PROMOTION` | 15 | 19/19 | None |
 | `BADGE_APPLICATION` | 15 | 13/13 | None |
 | `RESTAURANT_BADGE` | 15 | 5/5 | None |
@@ -131,7 +135,7 @@ Notes:
 | Owner restaurant management | `RESTAURANT`, `RESTAURANT_MEDIA`, `RESTAURANT_FEATURE`, `RESTAURANT_PAYMENT_METHOD` | 15 restaurants, media, features, and payment methods. |
 | Menu management | `MENU_ITEM`, `MENU_ITEM_CRITERION`, `MENU_ITEM_ANALYTICS_DAILY` | 270 menu items, 540 criteria, 90 days of item analytics. |
 | Feature ID 15 / Screen ID12 table management | `RESTAURANT_TABLE`, `RESERVATION`, `RESERVATION_ITEM`, `RESERVATION_SPECIAL_REQUEST` | 90 tables, 800 reservations, 1,599 pre-order items, 480 special requests. |
-| Review and social | `REVIEW`, `REVIEW_MEDIA`, `REVIEW_TAG`, `HASHTAG`, `USER_FOLLOW` | 400 reviews, 200 media rows, 800 tags, 75 follows. |
+| Review, blog, and social | `REVIEW`, `BLOG_POST`, `BLOG_MEDIA`, `BLOG_TAG`, `BLOG_LIKE`, `BLOG_COMMENT`, `BLOG_SHARE`, `HASHTAG`, `USER_FOLLOW` | 400 reviews, 120 blog posts with media/tags/likes/comments/shares, 75 follows. |
 | Promotion | `PROMOTION` | 15 promotions with valid approval rules. |
 | Verification and badges | `BADGE_MASTER`, `BADGE_APPLICATION`, `RESTAURANT_BADGE` | 2 badge types, 15 applications, 15 granted badges. |
 | Admin moderation/audit | `MODERATION_LOG` | 150 audit log rows. |

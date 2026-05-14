@@ -36,12 +36,12 @@ type TableStatusOption = {
 
 const statusOptions: TableStatusOption[] = [
     { label: "空席", backendStatus: "Empty", type: "available", dotClass: "bg-emerald-500", textClass: "text-emerald-600" },
-    { label: "使用中", backendStatus: "Using", type: "occupied", dotClass: "bg-[#3d5f46]", textClass: "text-[#3d5f46]" },
+    { label: "使用中", backendStatus: "Using", type: "occupied", dotClass: "bg-[#38bdf8]", textClass: "text-[#036579]" },
     { label: "予約済", backendStatus: "Reserved", type: "reserved", dotClass: "bg-[#af111c66]", textClass: "text-[#af111c]" },
 ];
 
 const floorLegend: FloorLegendItem[] = [
-    { label: "使用中", dotClass: "bg-[#3d5f46] border-[#3d5f46]" },
+    { label: "使用中", dotClass: "bg-[#d8f4fb] border-[#86d8e8]" },
     { label: "空席", dotClass: "bg-white border-stone-200" },
     { label: "予約済", dotClass: "bg-[#af111c33] border-[#af111c33]" },
 ];
@@ -53,10 +53,10 @@ const TABLE_TILE_GAP = 32;
 function getTableClasses(type: FloorTableType) {
     if (type === "occupied") {
         return {
-            card: "bg-[#3d5f46] border-[#3d5f46] text-white",
-            sub: "text-white/60",
-            main: "text-white",
-            menuDot: "bg-[#3d5f46]",
+            card: "bg-[#d8f4fb] border-[#86d8e8] text-[#064e5f]",
+            sub: "text-[#167386]/70",
+            main: "text-[#064e5f]",
+            menuDot: "bg-[#38bdf8]",
         };
     }
 
@@ -176,7 +176,7 @@ export function FloorMap({ tables, onStatusChange, onAddTable, onDeleteTable }: 
                     type="button"
                     aria-label={`${table.name} delete`}
                     disabled={isUpdating}
-                    className="absolute left-[8px] top-[8px] inline-flex h-7 w-7 items-center justify-center rounded text-stone-500 hover:bg-white/70"
+                    className="absolute left-[8px] top-[8px] z-10 inline-flex h-7 w-7 items-center justify-center rounded bg-white/75 text-stone-600 shadow-sm ring-1 ring-black/5 hover:bg-white disabled:cursor-wait disabled:opacity-60"
                     onClick={() => void handleDeleteTable(table.id)}
                 >
                     <Trash2 className="h-4 w-4" />
@@ -188,7 +188,7 @@ export function FloorMap({ tables, onStatusChange, onAddTable, onDeleteTable }: 
                             type="button"
                             aria-label={`${table.name} status`}
                             disabled={isUpdating}
-                            className="absolute right-[8px] top-[8px] inline-flex h-7 w-7 items-center justify-center rounded text-stone-500 hover:bg-white/60 disabled:cursor-wait disabled:opacity-60"
+                            className="absolute right-[8px] top-[8px] z-10 inline-flex h-7 w-7 items-center justify-center rounded bg-white/75 text-stone-600 shadow-sm ring-1 ring-black/5 hover:bg-white disabled:cursor-wait disabled:opacity-60"
                         >
                             <MoreVertical className="h-4 w-4" />
                             <span className="sr-only">{statusLabel}</span>

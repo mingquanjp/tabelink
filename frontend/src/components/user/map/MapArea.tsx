@@ -344,7 +344,7 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
           {restaurant.mapName}
         </div>
         <div className="flex size-12 items-center justify-center rounded-xl border-4 border-white bg-[#d32f2f] font-jp text-xl font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,0.18)]">
-          49
+          <img src="/image.png" alt="icon" className="size-6 object-contain" />
         </div>
       </div>
 

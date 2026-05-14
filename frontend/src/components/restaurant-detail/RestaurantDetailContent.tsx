@@ -1,16 +1,25 @@
 "use client";
 
+import Link from "next/link";
 import {
   BadgeCheck,
+  CalendarCheck,
   CheckCircle2,
   ChevronDown,
   ExternalLink,
   PencilLine,
+  Send,
   Star,
+  Ticket,
   Utensils,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { OwnerHomeResponse } from "@/lib/api/owner-home/type";
+import {
+  getAuthSession,
+  readCachedAuthSession,
+} from "@/lib/api/auth/session";
+import type { MeResponse } from "@/lib/api/auth/type";
 import { fallbackGalleryImages, restaurantDetailPhotos } from "./restaurant-detail-assets";
 import {
   buildFeatures,
@@ -30,6 +39,10 @@ type RestaurantDetailContentProps = {
   canEdit?: boolean;
   onEdit?: () => void;
 };
+
+function canSessionComment(session: MeResponse | null) {
+  return session?.account.role === "User";
+}
 
 function PhotoTile({
   src,
@@ -412,6 +425,158 @@ function CommunityReviewsSection({
   );
 }
 
+function OffersSection() {
+  const [isApplied, setIsApplied] = useState(false);
+
+  return (
+    <section className="mx-auto w-[calc(100%-64px)] max-w-[1280px] pt-12 max-md:w-[calc(100%-32px)]">
+      <div className="flex items-center justify-between gap-6 rounded-2xl border-2 border-dashed border-[#ffb3ad] bg-[#fff9f9] p-6 max-md:flex-col max-md:items-start">
+        <div className="flex min-w-0 items-center">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-[#af111c] text-white">
+            <Ticket className="size-6" strokeWidth={2.2} />
+          </div>
+          <div className="min-w-0 pl-4">
+            <h2 className="text-lg font-bold leading-7 text-[#af111c] font-manrope">
+              限定特典 / Offers
+            </h2>
+            <p className="text-sm font-medium leading-[22.75px] text-[#5a6053] font-jp">
+              TABELINK経由の予約で、お会計から{" "}
+              <span className="font-bold text-[#af111c] font-manrope">10% OFF</span>
+              {" "}または{" "}
+              <span className="text-[#af111c]">ワンドリンクサービス</span>.
+            </p>
+            <p className="text-[10px] font-medium uppercase leading-4 tracking-[0.5px] text-[#5a6053] font-jp">
+              対象: 全ユーザー, 期間: 2024年12月末まで
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsApplied(true)}
+          className={`min-w-[164px] rounded px-6 py-3 text-base font-medium leading-6 text-white transition-colors font-jp max-md:w-full ${
+            isApplied ? "bg-[#3d5f46]" : "bg-[#af111c] hover:bg-[#980f19]"
+          }`}
+        >
+          {isApplied ? "適用済み" : "利用する"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function CommentComposer() {
+  const [session, setSession] = useState<MeResponse | null>(
+    () => readCachedAuthSession() ?? null,
+  );
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submittedComments, setSubmittedComments] = useState<
+    Array<{ id: number; rating: number; text: string }>
+  >([]);
+  const canComment = canSessionComment(session);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSession() {
+      const nextSession = await getAuthSession();
+
+      if (!cancelled) {
+        setSession(nextSession);
+      }
+    }
+
+    loadSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function handleSubmit() {
+    const trimmed = comment.trim();
+
+    if (!canComment || !trimmed) {
+      return;
+    }
+
+    setSubmittedComments((current) => [
+      { id: Date.now(), rating, text: trimmed },
+      ...current,
+    ]);
+    setRating(5);
+    setComment("");
+  }
+
+  return (
+    <section className="bg-[#f4f4f1] pb-20">
+      <div className="mx-auto max-w-[1280px] px-8 max-md:px-4">
+        <div className="rounded-lg border border-[#e4beba1a] bg-white p-5 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
+          <div className="flex items-center gap-3">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#f4f4f1] text-[#5a6053] font-manrope">
+              {session?.account.email?.charAt(0).toUpperCase() ?? "G"}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold leading-5 text-[#1a1c1b] font-jp">
+                {canComment ? session?.account.email : "Guest"}
+              </p>
+              <div className="mt-1 flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((score) => (
+                  <button
+                    key={score}
+                    type="button"
+                    disabled={!canComment}
+                    onClick={() => setRating(score)}
+                    aria-label={`${score} stars`}
+                    className="text-[#f5a400] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Star
+                      className={`size-4 ${score <= rating ? "fill-current" : ""}`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex items-end gap-3 max-md:flex-col">
+            <textarea
+              value={comment}
+              disabled={!canComment}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder={
+                canComment
+                  ? "コメントを追加..."
+                  : "ログイン済みのユーザーのみコメントできます。"
+              }
+              className="min-h-20 flex-1 resize-none rounded-md border border-[#e4beba33] bg-[#f9f9f6] px-4 py-3 text-sm leading-6 text-[#1a1c1b] outline-none transition-shadow placeholder:text-[#8a8d85] focus:ring-1 focus:ring-[#af111c] disabled:cursor-not-allowed disabled:text-[#8a8d85] font-jp max-md:w-full"
+            />
+            <button
+              type="button"
+              disabled={!canComment || !comment.trim()}
+              onClick={handleSubmit}
+              className="inline-flex h-11 min-w-11 items-center justify-center rounded-md bg-[#af111c] px-4 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:w-full"
+            >
+              <Send className="size-4" />
+            </button>
+          </div>
+          {submittedComments.length > 0 ? (
+            <div className="mt-5 flex flex-col gap-3 border-t border-[#e4beba1a] pt-4">
+              {submittedComments.map((item) => (
+                <div key={item.id} className="rounded-md bg-[#f9f9f6] px-4 py-3">
+                  <StarRating rating={item.rating} />
+                  <p className="mt-2 text-sm leading-6 text-[#5b403d] font-jp">
+                    {item.text}
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function RestaurantDetailContent({
   homeData,
   canEdit = false,
@@ -504,7 +669,15 @@ export function RestaurantDetailContent({
                 <PencilLine className="size-3.5" />
                 店舗情報を編集
               </button>
-            ) : null}
+            ) : (
+              <Link
+                href={`/user/reservations?restaurantId=${homeData.restaurantId}`}
+                className="inline-flex min-h-14 w-fit items-center gap-3 rounded-md bg-[#af111c] px-8 py-4 text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(175,17,28,0.2),0px_10px_15px_-3px_rgba(175,17,28,0.2)] transition-colors hover:bg-[#980f19] font-jp max-sm:w-full max-sm:justify-center"
+              >
+                <CalendarCheck className="size-5" />
+                定型文で日本語予約 (Booking)
+              </Link>
+            )}
           </div>
 
           <div className="relative min-h-[280px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
@@ -561,11 +734,13 @@ export function RestaurantDetailContent({
         </div>
       </section>
 
+      {!canEdit ? <OffersSection /> : null}
       <MenuSection categories={dynamicMenuCategories} items={dynamicMenuItems} />
       <CommunityReviewsSection
         items={dynamicReviews}
         summary={homeData.reviews.summary}
       />
+      {!canEdit ? <CommentComposer /> : null}
     </main>
   );
 }

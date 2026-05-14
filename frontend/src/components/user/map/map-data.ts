@@ -4,6 +4,12 @@ export type AmenityKey = "vat" | "parking" | "privateRoom";
 export type MapRestaurant = {
   id: number;
   name: string;
+  mapName: string;
+  address: string;
+  position: {
+    lat: number;
+    lng: number;
+  };
   distance: string;
   distanceValue: DistanceOption;
   rating: string;
@@ -16,6 +22,11 @@ export type MapRestaurant = {
   amenities: AmenityKey[];
   badges: string[];
   features: string[];
+};
+
+export const currentLocation = {
+  lat: 21.0166,
+  lng: 105.8412,
 };
 
 export const cuisineTags = [
@@ -32,6 +43,12 @@ export const restaurants: MapRestaurant[] = [
   {
     id: 1,
     name: "寿司 匠 - Takumi",
+    mapName: "Takumi Japanese Restaurant",
+    address: "95 Ly Thuong Kiet, Hoan Kiem, Hanoi",
+    position: {
+      lat: 21.02686,
+      lng: 105.84647,
+    },
     distance: "92 KM MA",
     distanceValue: "1.0km",
     rating: "4.9",
@@ -49,6 +66,12 @@ export const restaurants: MapRestaurant[] = [
   {
     id: 2,
     name: "炉端焼き 炭火",
+    mapName: "Robatayaki Sumibi",
+    address: "18 Hang Than, Ba Dinh, Hanoi",
+    position: {
+      lat: 21.03985,
+      lng: 105.846,
+    },
     distance: "92 KM MA",
     distanceValue: "1.0km",
     rating: "4.7",
@@ -63,6 +86,12 @@ export const restaurants: MapRestaurant[] = [
   {
     id: 3,
     name: "焼肉 雅 - Miyabi",
+    mapName: "Yakiniku Miyabi",
+    address: "28 Tran Phu, Ba Dinh, Hanoi",
+    position: {
+      lat: 21.03061,
+      lng: 105.84117,
+    },
     distance: "92 KM MA",
     distanceValue: "1.0km",
     rating: "4.8",
@@ -79,6 +108,12 @@ export const restaurants: MapRestaurant[] = [
   {
     id: 4,
     name: "麺処 龍 - Ryu",
+    mapName: "Hanoi Ramen Ichiban",
+    address: "42 Hang Bac, Hoan Kiem, Hanoi",
+    position: {
+      lat: 21.03418,
+      lng: 105.85255,
+    },
     distance: "92 KM MA",
     distanceValue: "500m",
     rating: "4.5",
@@ -95,6 +130,12 @@ export const restaurants: MapRestaurant[] = [
   {
     id: 5,
     name: "天ぷら 花",
+    mapName: "Tempura Hana",
+    address: "17 Tong Dan, Hoan Kiem, Hanoi",
+    position: {
+      lat: 21.02502,
+      lng: 105.85622,
+    },
     distance: "92 KM MA",
     distanceValue: "5km",
     rating: "4.6",
@@ -110,6 +151,12 @@ export const restaurants: MapRestaurant[] = [
   {
     id: 6,
     name: "懐石 響 - Hibiki",
+    mapName: "Kaiseki Hibiki",
+    address: "54 Lieu Giai, Ba Dinh, Hanoi",
+    position: {
+      lat: 21.03591,
+      lng: 105.81263,
+    },
     distance: "92 KM MA",
     distanceValue: "1.0km",
     rating: "4.9",

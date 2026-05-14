@@ -8,6 +8,7 @@ import {
   restaurants as mockRestaurants,
   type AmenityKey,
   type DistanceOption,
+  type MapRestaurant,
 } from "./map-data";
 import type { AppliedFilter, SortOption } from "./SearchResultsHeader";
 
@@ -58,6 +59,9 @@ function distanceRank(value: DistanceOption) {
 export function UserMapView() {
   const [filters, setFilters] = useState<MapFilterState>(initialFilters);
   const [sort, setSort] = useState<SortOption>("recommended");
+  const [selectedRestaurant, setSelectedRestaurant] =
+    useState<MapRestaurant | null>(null);
+  const isMapOpen = selectedRestaurant !== null;
 
   const appliedFilters = useMemo<AppliedFilter[]>(() => {
     const items: AppliedFilter[] = [
@@ -190,48 +194,75 @@ export function UserMapView() {
     }
   }
 
+  const filterSidebar = (
+    <MapFilterSidebar
+      filters={filters}
+      onAmenityToggle={(key) =>
+        setFilters((current) => ({
+          ...current,
+          amenities: {
+            ...current.amenities,
+            [key]: !current.amenities[key],
+          },
+        }))
+      }
+      onCuisineToggle={(value) =>
+        setFilters((current) => ({
+          ...current,
+          cuisines: current.cuisines.includes(value)
+            ? current.cuisines.filter((cuisine) => cuisine !== value)
+            : [...current.cuisines, value],
+        }))
+      }
+      onDistanceChange={(value) =>
+        setFilters((current) => ({ ...current, distance: value }))
+      }
+      onKeywordBlur={handleKeywordBlur}
+      onKeywordChange={(value) =>
+        setFilters((current) => ({ ...current, keyword: value }))
+      }
+      onQualityToggle={(key) =>
+        setFilters((current) => ({
+          ...current,
+          quality: {
+            ...current.quality,
+            [key]: !current.quality[key],
+          },
+        }))
+      }
+    />
+  );
+
+  if (isMapOpen) {
+    return (
+      <div className="mx-auto flex h-[calc(100vh-80px)] min-h-0 w-full max-w-[1280px] flex-col overflow-hidden bg-[#f4f4f1] lg:flex-row lg:items-start">
+        {filterSidebar}
+        <MapSearchResults
+          appliedFilters={appliedFilters}
+          isMapOpen={isMapOpen}
+          restaurants={filteredRestaurants}
+          selectedRestaurant={selectedRestaurant}
+          sort={sort}
+          onCloseMap={() => setSelectedRestaurant(null)}
+          onOpenMap={setSelectedRestaurant}
+          onRemoveFilter={handleRemoveFilter}
+          onSortChange={setSort}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-8">
-      <MapFilterSidebar
-        filters={filters}
-        onAmenityToggle={(key) =>
-          setFilters((current) => ({
-            ...current,
-            amenities: {
-              ...current.amenities,
-              [key]: !current.amenities[key],
-            },
-          }))
-        }
-        onCuisineToggle={(value) =>
-          setFilters((current) => ({
-            ...current,
-            cuisines: current.cuisines.includes(value)
-              ? current.cuisines.filter((cuisine) => cuisine !== value)
-              : [...current.cuisines, value],
-          }))
-        }
-        onDistanceChange={(value) =>
-          setFilters((current) => ({ ...current, distance: value }))
-        }
-        onKeywordBlur={handleKeywordBlur}
-        onKeywordChange={(value) =>
-          setFilters((current) => ({ ...current, keyword: value }))
-        }
-        onQualityToggle={(key) =>
-          setFilters((current) => ({
-            ...current,
-            quality: {
-              ...current.quality,
-              [key]: !current.quality[key],
-            },
-          }))
-        }
-      />
+      {filterSidebar}
       <MapSearchResults
         appliedFilters={appliedFilters}
+        isMapOpen={isMapOpen}
         restaurants={filteredRestaurants}
+        selectedRestaurant={selectedRestaurant}
         sort={sort}
+        onCloseMap={() => setSelectedRestaurant(null)}
+        onOpenMap={setSelectedRestaurant}
         onRemoveFilter={handleRemoveFilter}
         onSortChange={setSort}
       />

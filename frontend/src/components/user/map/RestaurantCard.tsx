@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BadgeCheck, Map, ShieldCheck, Star } from "lucide-react";
 import type { MapRestaurant } from "./map-data";
 
@@ -63,12 +64,12 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
         </div>
 
         <div className="mt-6 flex items-center gap-3 border-t border-[rgba(228,190,186,0.1)] pt-[17px]">
-          <button
-            type="button"
+          <Link
+            href={`/user/restaurants/${restaurant.id}`}
             className="flex min-w-0 flex-1 items-center justify-center rounded-md bg-[#af111c] px-4 py-3 font-jp text-[14px] font-medium leading-5 text-white"
           >
             詳細を見る
-          </button>
+          </Link>
           <button
             type="button"
             aria-label="Open map"

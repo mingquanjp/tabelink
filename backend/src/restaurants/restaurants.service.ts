@@ -93,6 +93,23 @@ interface OwnerHomePromotionRow {
   totalCost: number | string;
 }
 
+interface PublicRestaurantPromotionRow {
+  promotionId: number | string;
+  restaurantId: number | string;
+  promotionType: string;
+  targetAudience: string | null;
+  titleVn: string;
+  titleJp: string;
+  contentVn: string | null;
+  contentJp: string | null;
+  mediaUrl: string | null;
+  termsVn: string | null;
+  termsJp: string | null;
+  startDate: Date | string;
+  endDate: Date | string;
+  status: string;
+}
+
 interface OwnerHomeReviewSummaryRow {
   visibleCount: number | string;
   averageRating: number | string | null;
@@ -215,6 +232,32 @@ export class RestaurantsService {
       badges,
       reviewSubmission: {
         enabled: true,
+        method: 'POST',
+        endpoint: `/restaurants/${restaurantId}/reviews`,
+      },
+    };
+  }
+
+  async getPublicRestaurantDetail(restaurantId: number, user: JwtPayload) {
+    this.assertCustomerViewer(user);
+
+    const restaurant =
+      await this.findActiveRestaurantWithRelations(restaurantId);
+
+    const [promotions, reviews, badges] = await Promise.all([
+      this.getPublicRestaurantPromotions(restaurantId),
+      this.getOwnerHomeReviews(restaurantId),
+      this.getOwnerHomeBadges(restaurantId),
+    ]);
+
+    return {
+      restaurantId,
+      restaurant: this.toHomeRestaurantResponse(restaurant),
+      promotions,
+      reviews,
+      badges,
+      reviewSubmission: {
+        enabled: user.role === AuthRole.User,
         method: 'POST',
         endpoint: `/restaurants/${restaurantId}/reviews`,
       },
@@ -466,6 +509,14 @@ export class RestaurantsService {
     }
   }
 
+  private assertCustomerViewer(user: JwtPayload) {
+    if (![AuthRole.User, AuthRole.Guest].includes(user.role)) {
+      throw new ForbiddenException(
+        'Only customer or guest users can view restaurant detail.',
+      );
+    }
+  }
+
   private async assertOwnerRestaurant(user: JwtPayload) {
     this.assertOwner(user);
 
@@ -501,6 +552,30 @@ export class RestaurantsService {
 
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found for this owner.');
+    }
+
+    return restaurant;
+  }
+
+  private async findActiveRestaurantWithRelations(restaurantId: number) {
+    const restaurant = await this.restaurantRepo.findOne({
+      where: { restaurantId, status: 'Active' },
+      relations: {
+        media: true,
+        socialLinks: true,
+        featureLinks: { feature: true },
+        paymentMethodLinks: { paymentMethod: true },
+      },
+      order: {
+        media: { sortOrder: 'ASC', mediaId: 'ASC' },
+        socialLinks: { sortOrder: 'ASC', socialLinkId: 'ASC' },
+        featureLinks: { featureId: 'ASC' },
+        paymentMethodLinks: { paymentMethodId: 'ASC' },
+      },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Active restaurant was not found.');
     }
 
     return restaurant;
@@ -820,6 +895,56 @@ export class RestaurantsService {
           Number(row.impressions) > 0
             ? Number((Number(row.clicks) / Number(row.impressions)).toFixed(4))
             : 0,
+      })),
+    };
+  }
+
+  private async getPublicRestaurantPromotions(restaurantId: number) {
+    const rows = await this.dataSource.query<PublicRestaurantPromotionRow[]>(
+      `
+        SELECT
+          PromotionID AS "promotionId",
+          RestaurantID AS "restaurantId",
+          PromotionType AS "promotionType",
+          TargetAudience AS "targetAudience",
+          TitleVN AS "titleVn",
+          TitleJP AS "titleJp",
+          ContentVN AS "contentVn",
+          ContentJP AS "contentJp",
+          MediaURL AS "mediaUrl",
+          TermsVN AS "termsVn",
+          TermsJP AS "termsJp",
+          StartDate AS "startDate",
+          EndDate AS "endDate",
+          Status AS "status"
+        FROM PROMOTION
+        WHERE RestaurantID = $1
+          AND PromotionType = 'Campaign'
+          AND Status = 'Active'
+          AND StartDate <= CURRENT_TIMESTAMP
+          AND EndDate >= CURRENT_TIMESTAMP
+        ORDER BY EndDate ASC, StartDate DESC, PromotionID DESC
+      `,
+      [restaurantId],
+    );
+
+    return {
+      count: rows.length,
+      items: rows.map((row) => ({
+        promotionId: Number(row.promotionId),
+        restaurantId: Number(row.restaurantId),
+        promotionType: row.promotionType,
+        targetAudience: row.targetAudience,
+        titleVn: row.titleVn,
+        titleJp: row.titleJp,
+        contentVn: row.contentVn,
+        contentJp: row.contentJp,
+        mediaUrl: row.mediaUrl,
+        termsVn: row.termsVn,
+        termsJp: row.termsJp,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        status: row.status,
       })),
     };
   }

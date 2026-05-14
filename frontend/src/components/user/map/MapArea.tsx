@@ -3,36 +3,27 @@
 /* eslint-disable @next/next/no-img-element */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LocateFixed, Minus, Navigation, Plus, X } from "lucide-react";
-import { currentLocation, type MapRestaurant } from "./map-data";
-
-type LatLngLiteral = {
-  lat: number;
-  lng: number;
-};
+import { getRestaurantRoute } from "@/lib/api/maps/API";
+import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
+import type { MapRestaurant } from "./map-data";
+import type { LatLngLiteral } from "./map-routing";
 
 type Point = {
   x: number;
   y: number;
 };
 
-type OsrmRouteResponse = {
-  routes?: Array<{
-    distance?: number;
-    duration?: number;
-    geometry?: {
-      coordinates?: Array<[number, number]>;
-    };
-  }>;
-};
-
 type MapAreaProps = {
   restaurant: MapRestaurant;
+  origin: LatLngLiteral | null;
+  route?: RestaurantRouteResponse;
   onClose: () => void;
 };
 
 const TILE_SIZE = 256;
 const MIN_ZOOM = 11;
 const MAX_ZOOM = 16;
+const EMPTY_ROUTE_COORDINATES: LatLngLiteral[] = [];
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -54,7 +45,7 @@ function getWrappedTileX(x: number, zoom: number) {
 }
 
 function formatRouteInfo(distanceMeters?: number, durationSeconds?: number) {
-  if (!distanceMeters || !durationSeconds) {
+  if (distanceMeters === undefined || durationSeconds === undefined) {
     return "ルート情報を取得できません";
   }
 
@@ -65,6 +56,10 @@ function formatRouteInfo(distanceMeters?: number, durationSeconds?: number) {
   const minutes = Math.max(1, Math.round(durationSeconds / 60));
 
   return `${distance} / 約${minutes}分`;
+}
+
+function isSamePoint(first: LatLngLiteral, second: LatLngLiteral) {
+  return first.lat === second.lat && first.lng === second.lng;
 }
 
 function getFitZoom(
@@ -91,80 +86,16 @@ function getFitZoom(
   return MIN_ZOOM;
 }
 
-function getBrowserCurrentLocation() {
-  return new Promise<LatLngLiteral>((resolve) => {
-    if (!navigator.geolocation) {
-      resolve(currentLocation);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-      },
-      () => resolve(currentLocation),
-      {
-        enableHighAccuracy: true,
-        maximumAge: 60_000,
-        timeout: 5_000,
-      },
-    );
-  });
-}
-
-async function fetchRoute(origin: LatLngLiteral, destination: LatLngLiteral) {
-  const params = new URLSearchParams({
-    geometries: "geojson",
-    overview: "full",
-  });
-  const response = await fetch(
-    `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?${params.toString()}`,
-  );
-
-  if (!response.ok) {
-    throw new Error("OSRM route request failed.");
-  }
-
-  const data = (await response.json()) as OsrmRouteResponse;
-  const route = data.routes?.[0];
-
-  if (!route?.geometry?.coordinates?.length) {
-    throw new Error("OSRM route is empty.");
-  }
-
-  return {
-    coordinates: route.geometry.coordinates.map(([lng, lat]) => ({ lat, lng })),
-    info: formatRouteInfo(route.distance, route.duration),
-  };
-}
-
-export function MapArea({ restaurant, onClose }: MapAreaProps) {
+export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
   const containerRef = useRef<HTMLElement | null>(null);
-  const [origin, setOrigin] = useState<LatLngLiteral>(currentLocation);
   const [routeResult, setRouteResult] = useState<{
     key: string;
     coordinates: LatLngLiteral[];
+    destination: LatLngLiteral;
     info: string;
   } | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [zoomDelta, setZoomDelta] = useState(0);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    getBrowserCurrentLocation().then((location) => {
-      if (!cancelled) {
-        setOrigin(location);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -183,23 +114,58 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
     return () => resizeObserver.disconnect();
   }, []);
 
+  const mapOrigin = origin ?? restaurant.position;
+  const routeKey = origin
+    ? `${restaurant.id}-${origin.lat},${origin.lng}-${restaurant.position.lat},${restaurant.position.lng}`
+    : `${restaurant.id}-pending-location`;
+  const cachedRouteResult =
+    origin &&
+    route &&
+    isSamePoint(route.origin, origin) &&
+    isSamePoint(route.destination, restaurant.position)
+      ? {
+          key: routeKey,
+          coordinates: route.geometry,
+          destination: route.destination,
+          info: formatRouteInfo(route.distanceMeters, route.durationSeconds),
+        }
+      : null;
+  const activeRouteResult =
+    cachedRouteResult ?? (routeResult?.key === routeKey ? routeResult : null);
+  const activeDestination =
+    activeRouteResult?.destination ?? restaurant.position;
+  const activeRouteCoordinates =
+    activeRouteResult?.coordinates ?? EMPTY_ROUTE_COORDINATES;
+  const routeInfo = activeRouteResult?.info ?? "ルートを計算中";
+  const displayRouteInfo =
+    origin === null ? "現在地を取得中" : routeInfo;
+
   const fitZoom = useMemo(
-    () => getFitZoom(origin, restaurant.position, size.width, size.height),
-    [origin, restaurant.position, size],
+    () => getFitZoom(mapOrigin, activeDestination, size.width, size.height),
+    [mapOrigin, activeDestination, size],
   );
   const zoom = clamp(fitZoom + zoomDelta, MIN_ZOOM, MAX_ZOOM);
-  const routeKey = `${origin.lat},${origin.lng}-${restaurant.position.lat},${restaurant.position.lng}`;
-  const activeRouteCoordinates = useMemo(
-    () => (routeResult?.key === routeKey ? routeResult.coordinates : []),
-    [routeResult, routeKey],
-  );
-  const routeInfo =
-    routeResult?.key === routeKey ? routeResult.info : "ルートを計算中";
 
   useEffect(() => {
     let cancelled = false;
 
-    fetchRoute(origin, restaurant.position)
+    if (!origin) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (
+      route &&
+      isSamePoint(route.origin, origin) &&
+      isSamePoint(route.destination, restaurant.position)
+    ) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    getRestaurantRoute(restaurant.id, origin)
       .then((route) => {
         if (cancelled) {
           return;
@@ -207,8 +173,9 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
 
         setRouteResult({
           key: routeKey,
-          coordinates: route.coordinates,
-          info: route.info,
+          coordinates: route.geometry,
+          destination: route.destination,
+          info: formatRouteInfo(route.distanceMeters, route.durationSeconds),
         });
       })
       .catch(() => {
@@ -218,7 +185,8 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
 
         setRouteResult({
           key: routeKey,
-          coordinates: [origin, restaurant.position],
+          coordinates: [],
+          destination: restaurant.position,
           info: "ルート情報を取得できません",
         });
       });
@@ -226,11 +194,17 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
     return () => {
       cancelled = true;
     };
-  }, [origin, restaurant.position, routeKey]);
+  }, [
+    origin,
+    restaurant.id,
+    restaurant.position,
+    route,
+    routeKey,
+  ]);
 
   const projected = useMemo(() => {
-    const originPoint = latLngToWorld(origin, zoom);
-    const destinationPoint = latLngToWorld(restaurant.position, zoom);
+    const originPoint = latLngToWorld(mapOrigin, zoom);
+    const destinationPoint = latLngToWorld(activeDestination, zoom);
     const center = {
       x: (originPoint.x + destinationPoint.x) / 2,
       y: (originPoint.y + destinationPoint.y) / 2,
@@ -258,7 +232,7 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
       }),
       topLeft,
     };
-  }, [origin, restaurant.position, activeRouteCoordinates, size, zoom]);
+  }, [mapOrigin, activeDestination, activeRouteCoordinates, size, zoom]);
 
   const tiles = useMemo(() => {
     if (size.width === 0 || size.height === 0) {
@@ -348,6 +322,7 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
         </div>
       </div>
 
+      {origin ? (
       <div
         className="absolute z-10 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
         style={{ left: projected.origin.x, top: projected.origin.y }}
@@ -357,6 +332,7 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
         </div>
         <div className="size-7 rounded-full border-4 border-white bg-[#2563eb] shadow-[0_8px_18px_rgba(0,0,0,0.18)]" />
       </div>
+      ) : null}
 
       <button
         type="button"
@@ -405,7 +381,7 @@ export function MapArea({ restaurant, onClose }: MapAreaProps) {
       <div className="absolute bottom-8 left-8 z-20 rounded-xl bg-white/90 px-4 py-3 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1)] backdrop-blur">
         <div className="flex items-center gap-2 font-jp text-[12px] font-medium text-[#5a6053]">
           <Navigation className="size-4 text-[#d32f2f]" />
-          {routeInfo}
+          {displayRouteInfo}
         </div>
       </div>
     </section>

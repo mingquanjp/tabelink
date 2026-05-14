@@ -12,6 +12,8 @@ export type MapRestaurant = {
   };
   distance: string;
   distanceValue: DistanceOption;
+  routeDistanceMeters?: number;
+  routeDurationSeconds?: number;
   rating: string;
   ratingValue: number;
   imageUrl: string;

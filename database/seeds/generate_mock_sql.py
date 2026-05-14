@@ -584,14 +584,48 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         }
     ]
 
-    review_media = [
-        {"mediaid": 1, "reviewid": 3001, "mediaurl": "https://images.example.test/reviews/3001/pho.jpg", "mediatype": "Photo", "sortorder": 0}
+    blog_posts = [
+        {
+            "blogid": 4001,
+            "customeraccountid": 201,
+            "restaurantid": 1001,
+            "title": "Lunch near Hoan Kiem",
+            "content": "Clean space, easy booking, and a clear Japanese menu.",
+            "status": "Published",
+            "createdat": datetime(2026, 5, 5, 15, 0, tzinfo=utc),
+            "updatedat": datetime(2026, 5, 5, 15, 0, tzinfo=utc),
+        }
     ]
 
-    review_tags = [
-        {"reviewid": 3001, "tagid": 1},
-        {"reviewid": 3001, "tagid": 3},
-        {"reviewid": 3001, "tagid": 4},
+    blog_media = [
+        {"mediaid": 1, "blogid": 4001, "mediaurl": "https://images.example.test/blogs/4001/pho.jpg", "mediatype": "Photo", "sortorder": 0}
+    ]
+
+    blog_tags = [
+        {"blogid": 4001, "tagid": 1},
+        {"blogid": 4001, "tagid": 3},
+        {"blogid": 4001, "tagid": 4},
+    ]
+
+    blog_likes = [
+        {"blogid": 4001, "customeraccountid": 202, "createdat": datetime(2026, 5, 5, 16, 0, tzinfo=utc)}
+    ]
+
+    blog_comments = [
+        {
+            "commentid": 1,
+            "blogid": 4001,
+            "customeraccountid": 202,
+            "parentcommentid": None,
+            "content": "Useful note for lunch.",
+            "status": "Visible",
+            "createdat": datetime(2026, 5, 5, 16, 5, tzinfo=utc),
+            "updatedat": datetime(2026, 5, 5, 16, 5, tzinfo=utc),
+        }
+    ]
+
+    blog_shares = [
+        {"shareid": 1, "blogid": 4001, "customeraccountid": 202, "createdat": datetime(2026, 5, 5, 16, 10, tzinfo=utc)}
     ]
 
     promotions = [
@@ -1084,8 +1118,12 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         row for row in reservations if row["status"] in {"Completed", "Confirmed", "Arrived"}
     ][:400]
     reviews = []
-    review_media = []
-    review_tags = []
+    blog_posts = []
+    blog_media = []
+    blog_tags = []
+    blog_likes = []
+    blog_comments = []
+    blog_shares = []
     for index, reservation_row in enumerate(reviewable_reservations, start=1):
         review_id = 3000 + index
         rating = 3 + ((index * 7) % 3)
@@ -1106,20 +1144,63 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 "updatedat": base_created,
             }
         )
-        if index % 2 == 0:
-            review_media.append(
+        if index <= 120:
+            blog_id = 4000 + index
+            blog_posts.append(
                 {
-                    "mediaid": len(review_media) + 1,
-                    "reviewid": review_id,
-                    "mediaurl": f"https://images.example.test/reviews/{review_id}/photo.jpg",
-                    "mediatype": "Photo",
-                    "sortorder": 0,
+                    "blogid": blog_id,
+                    "customeraccountid": reservation_row["customeraccountid"],
+                    "restaurantid": reservation_row["restaurantid"],
+                    "title": f"Mock restaurant note {index}",
+                    "content": f"Mock blog {index}: useful dining note with photos and social interactions.",
+                    "status": ["Published", "Published", "Published", "Hidden"][index % 4],
+                    "createdat": base_created,
+                    "updatedat": base_created,
                 }
             )
-        for tag_id in [1 + (index % 5), 1 + ((index + 2) % 5)]:
-            tag_row = {"reviewid": review_id, "tagid": tag_id}
-            if tag_row not in review_tags:
-                review_tags.append(tag_row)
+            if index % 2 == 0:
+                blog_media.append(
+                    {
+                        "mediaid": len(blog_media) + 1,
+                        "blogid": blog_id,
+                        "mediaurl": f"https://images.example.test/blogs/{blog_id}/photo.jpg",
+                        "mediatype": "Photo",
+                        "sortorder": 0,
+                    }
+                )
+            for tag_id in [1 + (index % 5), 1 + ((index + 2) % 5)]:
+                tag_row = {"blogid": blog_id, "tagid": tag_id}
+                if tag_row not in blog_tags:
+                    blog_tags.append(tag_row)
+            liker_id = customer_profiles[index % len(customer_profiles)]["accountid"]
+            if liker_id != reservation_row["customeraccountid"]:
+                blog_likes.append(
+                    {
+                        "blogid": blog_id,
+                        "customeraccountid": liker_id,
+                        "createdat": base_created,
+                    }
+                )
+            blog_comments.append(
+                {
+                    "commentid": len(blog_comments) + 1,
+                    "blogid": blog_id,
+                    "customeraccountid": liker_id,
+                    "parentcommentid": None,
+                    "content": f"Mock comment for blog {index}.",
+                    "status": "Visible",
+                    "createdat": base_created,
+                    "updatedat": base_created,
+                }
+            )
+            blog_shares.append(
+                {
+                    "shareid": len(blog_shares) + 1,
+                    "blogid": blog_id,
+                    "customeraccountid": liker_id,
+                    "createdat": base_created,
+                }
+            )
 
     promotions = []
     for index, restaurant_row in enumerate(restaurants, start=1):
@@ -1271,8 +1352,12 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         ("reservation_item", reservation_items, ["reservationitemid"], None),
         ("reservation_special_request", reservation_special_requests, ["requestid"], None),
         ("review", reviews, ["reviewid"], None),
-        ("review_media", review_media, ["mediaid"], None),
-        ("review_tag", review_tags, ["reviewid", "tagid"], None),
+        ("blog_post", blog_posts, ["blogid"], None),
+        ("blog_media", blog_media, ["mediaid"], None),
+        ("blog_tag", blog_tags, ["blogid", "tagid"], None),
+        ("blog_like", blog_likes, ["blogid", "customeraccountid"], None),
+        ("blog_comment", blog_comments, ["commentid"], None),
+        ("blog_share", blog_shares, ["shareid"], None),
         ("promotion", promotions, ["promotionid"], None),
         ("badge_application", badge_applications, ["appid"], None),
         ("restaurant_badge", restaurant_badges, ["restaurantid", "badgeid"], None),
@@ -1296,7 +1381,8 @@ def build_sql(include_truncate: bool) -> str:
                 "-- Optional destructive reset requested by --truncate.",
                 "TRUNCATE TABLE "
                 "menu_item_analytics_daily, restaurant_analytics_daily, restaurant_badge, "
-                "badge_application, promotion, review_tag, review_media, review, "
+                "badge_application, promotion, blog_share, blog_comment, blog_like, "
+                "blog_tag, blog_media, blog_post, review, "
                 "reservation_special_request, reservation_item, reservation, "
                 "restaurant_table, menu_item_criterion, menu_item, menu_category, "
                 "restaurant_payment_method, restaurant_feature, restaurant_media, "
@@ -1329,7 +1415,10 @@ def build_sql(include_truncate: bool) -> str:
         ("reservation_item", "reservationitemid"),
         ("reservation_special_request", "requestid"),
         ("review", "reviewid"),
-        ("review_media", "mediaid"),
+        ("blog_post", "blogid"),
+        ("blog_media", "mediaid"),
+        ("blog_comment", "commentid"),
+        ("blog_share", "shareid"),
         ("promotion", "promotionid"),
         ("badge_application", "appid"),
         ("restaurant_analytics_daily", "analyticsid"),

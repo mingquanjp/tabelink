@@ -93,6 +93,23 @@ interface OwnerHomePromotionRow {
   totalCost: number | string;
 }
 
+interface PublicRestaurantPromotionRow {
+  promotionId: number | string;
+  restaurantId: number | string;
+  promotionType: string;
+  targetAudience: string | null;
+  titleVn: string;
+  titleJp: string;
+  contentVn: string | null;
+  contentJp: string | null;
+  mediaUrl: string | null;
+  termsVn: string | null;
+  termsJp: string | null;
+  startDate: Date | string;
+  endDate: Date | string;
+  status: string;
+}
+
 interface OwnerHomeReviewSummaryRow {
   visibleCount: number | string;
   averageRating: number | string | null;
@@ -113,11 +130,8 @@ interface OwnerHomeReviewRow {
   dishCleanliness: number | string | null;
   spaceCleanliness: number | string | null;
   content: string | null;
-  sentiment: string | null;
   isJapaneseTag: boolean;
   createdAt: Date | string;
-  mediaUrls: string[] | null;
-  tags: string[] | null;
 }
 
 interface OwnerHomeBadgeRow {
@@ -150,7 +164,6 @@ interface CreatedReviewRow {
   dishCleanliness: number | string | null;
   spaceCleanliness: number | string | null;
   content: string | null;
-  sentiment: string | null;
   isJapaneseTag: boolean;
   status: string;
   createdAt: Date | string;
@@ -215,6 +228,32 @@ export class RestaurantsService {
       badges,
       reviewSubmission: {
         enabled: true,
+        method: 'POST',
+        endpoint: `/restaurants/${restaurantId}/reviews`,
+      },
+    };
+  }
+
+  async getPublicRestaurantDetail(restaurantId: number, user: JwtPayload) {
+    this.assertCustomerViewer(user);
+
+    const restaurant =
+      await this.findActiveRestaurantWithRelations(restaurantId);
+
+    const [promotions, reviews, badges] = await Promise.all([
+      this.getPublicRestaurantPromotions(restaurantId),
+      this.getOwnerHomeReviews(restaurantId),
+      this.getOwnerHomeBadges(restaurantId),
+    ]);
+
+    return {
+      restaurantId,
+      restaurant: this.toHomeRestaurantResponse(restaurant),
+      promotions,
+      reviews,
+      badges,
+      reviewSubmission: {
+        enabled: user.role === AuthRole.User,
         method: 'POST',
         endpoint: `/restaurants/${restaurantId}/reviews`,
       },
@@ -353,8 +392,6 @@ export class RestaurantsService {
     }
 
     const content = this.optionalTrim(dto.content) ?? null;
-    const sentiment =
-      dto.rating >= 4 ? 'Positive' : dto.rating === 3 ? 'Neutral' : 'Negative';
 
     const rows = await this.dataSource.query<CreatedReviewRow[]>(
       `
@@ -367,7 +404,6 @@ export class RestaurantsService {
           DishCleanliness,
           SpaceCleanliness,
           Content,
-          Sentiment,
           IsJapaneseTag,
           Status
         )
@@ -381,7 +417,6 @@ export class RestaurantsService {
           $7,
           $8,
           $9,
-          $10,
           'Visible'
         FROM RESTAURANT r
         INNER JOIN CUSTOMER_PROFILE cp
@@ -408,7 +443,6 @@ export class RestaurantsService {
           DishCleanliness AS "dishCleanliness",
           SpaceCleanliness AS "spaceCleanliness",
           Content AS "content",
-          Sentiment AS "sentiment",
           IsJapaneseTag AS "isJapaneseTag",
           Status AS "status",
           CreatedAt AS "createdAt",
@@ -423,7 +457,6 @@ export class RestaurantsService {
         dto.dishCleanliness ?? null,
         dto.spaceCleanliness ?? null,
         content,
-        sentiment,
         dto.isJapaneseTag ?? false,
       ],
     );
@@ -450,7 +483,6 @@ export class RestaurantsService {
       spaceCleanliness:
         row.spaceCleanliness === null ? null : Number(row.spaceCleanliness),
       content: row.content,
-      sentiment: row.sentiment,
       isJapaneseTag: row.isJapaneseTag,
       status: row.status,
       createdAt: row.createdAt,
@@ -462,6 +494,14 @@ export class RestaurantsService {
     if (user.role !== AuthRole.Owner) {
       throw new ForbiddenException(
         'Only restaurant owners can manage restaurant information.',
+      );
+    }
+  }
+
+  private assertCustomerViewer(user: JwtPayload) {
+    if (![AuthRole.User, AuthRole.Guest].includes(user.role)) {
+      throw new ForbiddenException(
+        'Only customer or guest users can view restaurant detail.',
       );
     }
   }
@@ -501,6 +541,30 @@ export class RestaurantsService {
 
     if (!restaurant) {
       throw new NotFoundException('Restaurant not found for this owner.');
+    }
+
+    return restaurant;
+  }
+
+  private async findActiveRestaurantWithRelations(restaurantId: number) {
+    const restaurant = await this.restaurantRepo.findOne({
+      where: { restaurantId, status: 'Active' },
+      relations: {
+        media: true,
+        socialLinks: true,
+        featureLinks: { feature: true },
+        paymentMethodLinks: { paymentMethod: true },
+      },
+      order: {
+        media: { sortOrder: 'ASC', mediaId: 'ASC' },
+        socialLinks: { sortOrder: 'ASC', socialLinkId: 'ASC' },
+        featureLinks: { featureId: 'ASC' },
+        paymentMethodLinks: { paymentMethodId: 'ASC' },
+      },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Active restaurant was not found.');
     }
 
     return restaurant;
@@ -824,6 +888,56 @@ export class RestaurantsService {
     };
   }
 
+  private async getPublicRestaurantPromotions(restaurantId: number) {
+    const rows = await this.dataSource.query<PublicRestaurantPromotionRow[]>(
+      `
+        SELECT
+          PromotionID AS "promotionId",
+          RestaurantID AS "restaurantId",
+          PromotionType AS "promotionType",
+          TargetAudience AS "targetAudience",
+          TitleVN AS "titleVn",
+          TitleJP AS "titleJp",
+          ContentVN AS "contentVn",
+          ContentJP AS "contentJp",
+          MediaURL AS "mediaUrl",
+          TermsVN AS "termsVn",
+          TermsJP AS "termsJp",
+          StartDate AS "startDate",
+          EndDate AS "endDate",
+          Status AS "status"
+        FROM PROMOTION
+        WHERE RestaurantID = $1
+          AND PromotionType = 'Campaign'
+          AND Status = 'Active'
+          AND StartDate <= CURRENT_TIMESTAMP
+          AND EndDate >= CURRENT_TIMESTAMP
+        ORDER BY EndDate ASC, StartDate DESC, PromotionID DESC
+      `,
+      [restaurantId],
+    );
+
+    return {
+      count: rows.length,
+      items: rows.map((row) => ({
+        promotionId: Number(row.promotionId),
+        restaurantId: Number(row.restaurantId),
+        promotionType: row.promotionType,
+        targetAudience: row.targetAudience,
+        titleVn: row.titleVn,
+        titleJp: row.titleJp,
+        contentVn: row.contentVn,
+        contentJp: row.contentJp,
+        mediaUrl: row.mediaUrl,
+        termsVn: row.termsVn,
+        termsJp: row.termsJp,
+        startDate: row.startDate,
+        endDate: row.endDate,
+        status: row.status,
+      })),
+    };
+  }
+
   private async getOwnerHomeReviews(restaurantId: number) {
     const [summaryRows, rows] = await Promise.all([
       this.dataSource.query<OwnerHomeReviewSummaryRow[]>(
@@ -832,36 +946,9 @@ export class RestaurantsService {
             COUNT(*)::int AS "visibleCount",
             AVG(Rating)::numeric(10, 2) AS "averageRating",
             COUNT(*) FILTER (WHERE IsJapaneseTag = TRUE)::int AS "japaneseReviewCount",
-            COUNT(*) FILTER (
-              WHERE COALESCE(
-                Sentiment,
-                CASE
-                  WHEN Rating >= 4 THEN 'Positive'
-                  WHEN Rating = 3 THEN 'Neutral'
-                  ELSE 'Negative'
-                END
-              ) = 'Positive'
-            )::int AS "positiveCount",
-            COUNT(*) FILTER (
-              WHERE COALESCE(
-                Sentiment,
-                CASE
-                  WHEN Rating >= 4 THEN 'Positive'
-                  WHEN Rating = 3 THEN 'Neutral'
-                  ELSE 'Negative'
-                END
-              ) = 'Neutral'
-            )::int AS "neutralCount",
-            COUNT(*) FILTER (
-              WHERE COALESCE(
-                Sentiment,
-                CASE
-                  WHEN Rating >= 4 THEN 'Positive'
-                  WHEN Rating = 3 THEN 'Neutral'
-                  ELSE 'Negative'
-                END
-              ) = 'Negative'
-            )::int AS "negativeCount"
+            COUNT(*) FILTER (WHERE Rating >= 4)::int AS "positiveCount",
+            COUNT(*) FILTER (WHERE Rating = 3)::int AS "neutralCount",
+            COUNT(*) FILTER (WHERE Rating <= 2)::int AS "negativeCount"
           FROM REVIEW
           WHERE RestaurantID = $1
             AND Status = 'Visible'
@@ -881,45 +968,13 @@ export class RestaurantsService {
             r.DishCleanliness AS "dishCleanliness",
             r.SpaceCleanliness AS "spaceCleanliness",
             r.Content AS "content",
-            r.Sentiment AS "sentiment",
             r.IsJapaneseTag AS "isJapaneseTag",
-            r.CreatedAt AS "createdAt",
-            COALESCE(
-              ARRAY_AGG(rm.MediaURL ORDER BY rm.SortOrder, rm.MediaID)
-                FILTER (WHERE rm.MediaID IS NOT NULL),
-              ARRAY[]::text[]
-            ) AS "mediaUrls",
-            COALESCE(
-              ARRAY_AGG(DISTINCT h.Name)
-                FILTER (WHERE h.TagID IS NOT NULL),
-              ARRAY[]::text[]
-            ) AS "tags"
+            r.CreatedAt AS "createdAt"
           FROM REVIEW r
           INNER JOIN CUSTOMER_PROFILE cp
             ON cp.AccountID = r.CustomerAccountID
-          LEFT JOIN REVIEW_MEDIA rm
-            ON rm.ReviewID = r.ReviewID
-          LEFT JOIN REVIEW_TAG rt
-            ON rt.ReviewID = r.ReviewID
-          LEFT JOIN HASHTAG h
-            ON h.TagID = rt.TagID
           WHERE r.RestaurantID = $1
             AND r.Status = 'Visible'
-          GROUP BY
-            r.ReviewID,
-            r.RestaurantID,
-            r.CustomerAccountID,
-            cp.DisplayName,
-            cp.FullName,
-            cp.AvatarURL,
-            r.Rating,
-            r.ToiletCleanliness,
-            r.DishCleanliness,
-            r.SpaceCleanliness,
-            r.Content,
-            r.Sentiment,
-            r.IsJapaneseTag,
-            r.CreatedAt
           ORDER BY r.CreatedAt DESC, r.ReviewID DESC
         `,
         [restaurantId],
@@ -963,10 +1018,7 @@ export class RestaurantsService {
         spaceCleanliness:
           row.spaceCleanliness === null ? null : Number(row.spaceCleanliness),
         content: row.content,
-        sentiment: row.sentiment,
         isJapaneseTag: row.isJapaneseTag,
-        mediaUrls: row.mediaUrls ?? [],
-        tags: row.tags ?? [],
         createdAt: row.createdAt,
       })),
       filters: {

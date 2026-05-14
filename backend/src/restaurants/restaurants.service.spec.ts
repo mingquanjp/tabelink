@@ -201,11 +201,8 @@ describe('RestaurantsService', () => {
           dishCleanliness: '5',
           spaceCleanliness: null,
           content: 'Good',
-          sentiment: 'Positive',
           isJapaneseTag: true,
           createdAt: '2026-05-03T00:00:00.000Z',
-          mediaUrls: ['https://example.com/review.jpg'],
-          tags: ['在住日本人'],
         },
       ])
       .mockResolvedValueOnce([
@@ -281,8 +278,7 @@ describe('RestaurantsService', () => {
           {
             reviewId: 30,
             rating: 5,
-            mediaUrls: ['https://example.com/review.jpg'],
-            tags: ['在住日本人'],
+            isJapaneseTag: true,
           },
         ],
       },
@@ -329,6 +325,169 @@ describe('RestaurantsService', () => {
     await expect(service.getOwnerHome(owner)).rejects.toBeInstanceOf(
       NotFoundException,
     );
+
+    expect(dataSource.query).not.toHaveBeenCalled();
+  });
+
+  it('returns active restaurant detail and active offers for customer screen', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([
+        {
+          promotionId: 20,
+          restaurantId: 1,
+          promotionType: 'Campaign',
+          targetAudience: 'Japanese customers',
+          titleVn: 'Giam 10%',
+          titleJp: '10% off',
+          contentVn: 'Khuyen mai cho khach moi',
+          contentJp: null,
+          mediaUrl: 'https://example.com/promo.jpg',
+          termsVn: 'Dung trong thang 5',
+          termsJp: null,
+          startDate: '2026-05-01T00:00:00.000Z',
+          endDate: '2026-06-01T00:00:00.000Z',
+          status: 'Active',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          visibleCount: '4',
+          averageRating: '4.50',
+          japaneseReviewCount: '2',
+          positiveCount: '3',
+          neutralCount: '1',
+          negativeCount: '0',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          reviewId: 30,
+          restaurantId: 1,
+          customerAccountId: 40,
+          customerName: 'Taro',
+          customerAvatarUrl: null,
+          rating: '5',
+          toiletCleanliness: '4',
+          dishCleanliness: '5',
+          spaceCleanliness: null,
+          content: 'Good',
+          isJapaneseTag: true,
+          createdAt: '2026-05-03T00:00:00.000Z',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          badgeId: 1,
+          badgeCode: 'VERIFIED',
+          badgeNameVn: 'Da xac thuc',
+          badgeNameJp: 'èªè¨¼æ¸ˆã¿',
+          descriptionVn: null,
+          descriptionJp: null,
+          grantedAt: '2026-05-01T00:00:00.000Z',
+          expiresAt: null,
+        },
+      ]);
+
+    await expect(
+      service.getPublicRestaurantDetail(1, {
+        sub: 9,
+        email: 'user@example.com',
+        role: AuthRole.User,
+      }),
+    ).resolves.toMatchObject({
+      restaurantId: 1,
+      restaurant: {
+        restaurantId: 1,
+        nameVn: 'Bun Cha Sakura',
+        coverImageUrl: 'https://example.com/cover.jpg',
+      },
+      promotions: {
+        count: 1,
+        items: [
+          {
+            promotionId: 20,
+            promotionType: 'Campaign',
+            titleVn: 'Giam 10%',
+            status: 'Active',
+          },
+        ],
+      },
+      reviews: {
+        summary: {
+          visibleCount: 4,
+          averageRating: 4.5,
+        },
+      },
+      badges: {
+        count: 1,
+        isVerified: true,
+      },
+      reviewSubmission: {
+        enabled: true,
+        endpoint: '/restaurants/1/reviews',
+      },
+    });
+
+    expect(restaurantRepo.findOne).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { restaurantId: 1, status: 'Active' },
+      }),
+    );
+    expect(dataSource.query).toHaveBeenCalledTimes(4);
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("Status = 'Active'"),
+      [1],
+    );
+  });
+
+  it('allows guest users to view restaurant detail but disables review submission', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          visibleCount: '0',
+          averageRating: null,
+          japaneseReviewCount: '0',
+          positiveCount: '0',
+          neutralCount: '0',
+          negativeCount: '0',
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    await expect(
+      service.getPublicRestaurantDetail(1, {
+        sub: 0,
+        email: 'guest',
+        role: AuthRole.Guest,
+      }),
+    ).resolves.toMatchObject({
+      reviewSubmission: {
+        enabled: false,
+      },
+    });
+  });
+
+  it('rejects owner users for customer restaurant detail', async () => {
+    await expect(
+      service.getPublicRestaurantDetail(1, owner),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(restaurantRepo.findOne).not.toHaveBeenCalled();
+    expect(dataSource.query).not.toHaveBeenCalled();
+  });
+
+  it('rejects inactive or missing restaurants for customer restaurant detail', async () => {
+    restaurantRepo.findOne.mockResolvedValueOnce(null);
+
+    await expect(
+      service.getPublicRestaurantDetail(1, {
+        sub: 9,
+        email: 'user@example.com',
+        role: AuthRole.User,
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
 
     expect(dataSource.query).not.toHaveBeenCalled();
   });

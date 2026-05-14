@@ -48,7 +48,7 @@ export class CreateRestaurantReviewDto {
   @ApiPropertyOptional({
     example: true,
     description:
-      'Marks the review as Japanese-audience feedback for Home review filters.',
+      'Marks the review as Japanese-audience feedback for screen ID5 filters.',
   })
   @IsOptional()
   @IsBoolean()

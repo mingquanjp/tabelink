@@ -1355,9 +1355,18 @@ export class RestaurantsService {
     query.skip(skip).take(limit);
     const { entities, raw } = await query.getRawAndEntities();
 
-    const items = entities.map((entity, index) => {
-      const r = raw[index];
-      const distance = r.distance !== undefined ? parseFloat(r.distance) : undefined;
+    const items = entities.map((entity) => {
+      const r = raw.find(
+        (row) =>
+          row.restaurant_restaurantid === entity.restaurantId ||
+          row.restaurant_restaurantId === entity.restaurantId ||
+          row.restaurantid === entity.restaurantId ||
+          row.restaurantId === entity.restaurantId
+      );
+      const distance =
+        r && r.distance !== undefined && r.distance !== null
+          ? parseFloat(r.distance)
+          : undefined;
       return {
         ...this.toHomeRestaurantResponse(entity),
         distance,

@@ -3,6 +3,13 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AdsModule } from './ads/ads.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { AuthModule } from './auth/auth.module';
+import { MenusModule } from './menus/menus.module';
+import { RestaurantsModule } from './restaurants/restaurants.module';
+import { TablesModule } from './tables/tables.module';
+import { VerificationModule } from './verification/verification.module';
 
 @Module({
   imports: [
@@ -22,6 +29,13 @@ import { AppService } from './app.service';
         synchronize: false,
       }),
     }),
+    AuthModule,
+    RestaurantsModule,
+    AdsModule,
+    MenusModule,
+    TablesModule,
+    VerificationModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

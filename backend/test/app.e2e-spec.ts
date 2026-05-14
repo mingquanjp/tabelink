@@ -29,21 +29,15 @@ describe('AppController (e2e)', () => {
   });
 
   it('/health (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/health')
-      .expect(200)
-      .expect({
-        status: 'ok',
-      });
+    return request(app.getHttpServer()).get('/health').expect(200).expect({
+      status: 'ok',
+    });
   });
 
   it('/db-health (GET)', async () => {
-    await request(app.getHttpServer())
-      .get('/db-health')
-      .expect(200)
-      .expect({
-        database: 'connected',
-      });
+    await request(app.getHttpServer()).get('/db-health').expect(200).expect({
+      database: 'connected',
+    });
 
     expect(dataSource.query).toHaveBeenCalledWith('select 1');
   });

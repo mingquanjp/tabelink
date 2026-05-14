@@ -2,8 +2,9 @@ node_modules/
 dist/
 build/
 .next/
+.agent/
+.vscode/
 coverage/
-
 .env
 .env.*
 !.env.example
@@ -12,3 +13,7 @@ coverage/
 uploads/
 logs/
 .DS_Store
+
+# Local agent skills (install via skill CLI; do not commit)
+.agents/skills/
+skills-lock.json

@@ -121,18 +121,20 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
   }
 
   return (
-    <header className="sticky top-0 z-30 flex w-full flex-col items-start bg-[rgba(249,249,246,0.8)] shadow-[0_1px_2px_rgba(0,0,0,0.05)] backdrop-blur-[6px]">
-      <div className="relative mx-auto flex h-20 w-full max-w-[1536px] items-center justify-between px-8">
-        <Link
-          href="/user/home"
-          className="font-brand text-[24px] font-bold leading-8 tracking-[-1.2px] text-[#af111c]"
-        >
-          TABELINK
-        </Link>
+    <header className="sticky top-0 z-30 border-b border-[#e7e5e426] bg-[#f9f9f6cc] backdrop-blur-[6px]">
+      <div className="mx-auto flex h-20 w-full max-w-screen-2xl items-center justify-between px-8">
+        <div className="flex items-center">
+          <Link
+            href="/user/home"
+            className="font-brand text-2xl font-bold leading-8 tracking-[-1.20px] text-[#af111c]"
+          >
+            TABELINK
+          </Link>
+        </div>
 
         <nav
           aria-label="User navigation"
-          className="absolute left-1/2 top-1/2 hidden -translate-x-1/2 -translate-y-1/2 items-center gap-8 lg:flex"
+          className="hidden items-center gap-8 lg:flex"
         >
           {navItems.map((item) => {
             const isActive =
@@ -144,10 +146,10 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`font-jp text-[16px] font-medium leading-6 tracking-[-0.4px] transition-colors ${
+                className={`inline-flex items-center pb-1 font-jp text-sm font-medium leading-5 tracking-[0.35px] transition-colors ${
                   isActive
-                    ? "border-b-2 border-[#af111c] pb-1.5 text-[#af111c]"
-                    : "text-[#5a6053] hover:text-[#1a1c1b]"
+                    ? "border-b-2 border-[#af111c] text-[#af111c]"
+                    : "text-stone-600 hover:text-stone-900"
                 }`}
               >
                 {item.label}
@@ -156,13 +158,13 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
           })}
         </nav>
 
-        <div className="hidden items-center gap-6 lg:flex">
+        <div className="hidden items-center gap-4 lg:flex">
           <button
             type="button"
             aria-label="Notifications"
-            className="inline-flex h-5 w-4 items-center justify-center text-[#5a6053] transition-colors hover:text-[#1a1c1b]"
+            className="inline-flex items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900"
           >
-            <Bell className="size-5" strokeWidth={2} />
+            <Bell size={20} strokeWidth={2} />
           </button>
 
           <DropdownMenu>
@@ -170,37 +172,34 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
               <button
                 type="button"
                 aria-label="User menu"
-                className="inline-flex size-5 items-center justify-center text-[#5a6053] transition-colors hover:text-[#1a1c1b]"
+                className="inline-flex items-center justify-center rounded-full border border-accent-foreground p-0 text-stone-700 transition-colors hover:text-stone-900"
               >
-                <UserRound className="size-5" strokeWidth={2} />
+                <UserRound size={20} strokeWidth={2} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              sideOffset={12}
-              className="w-56 rounded-lg border border-[rgba(228,190,186,0.1)] bg-white px-px py-[9px] shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)]"
+              className="w-56 rounded-none border border-[#e2e3e0] bg-white p-3 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
             >
-              <div className="border-b border-[rgba(228,190,186,0.1)] px-4 pb-[13px] pt-3">
-                <p className="truncate font-manrope text-[14px] font-bold leading-5 text-[#1a1c1b]">
+              <div className="px-1 pb-2">
+                <p className="truncate text-sm font-semibold leading-5 text-[#1a1c1b]">
                   {displayName}
                 </p>
-                <p className="truncate font-manrope text-[10px] font-normal leading-[15px] text-[#5a6053]">
+                <p className="truncate text-[11px] leading-4 text-[#5a6053]">
                   {userHandle}
                 </p>
               </div>
 
               <DropdownMenuItem
-                className="flex cursor-pointer items-center gap-3 rounded-none px-4 pb-2 pt-3 font-jp text-[14px] font-medium leading-5 text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
+                className="mb-1 flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
                 onSelect={() => router.push("/user/profile")}
               >
                 <UserRound className="size-4" strokeWidth={2} />
                 プロフィールを表示
               </DropdownMenuItem>
 
-              <div className="h-px w-full bg-[rgba(228,190,186,0.1)]" />
-
               <DropdownMenuItem
-                className="flex cursor-pointer items-center gap-3 rounded-none px-4 pb-2 pt-3 font-jp text-[14px] font-medium leading-5 text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
+                className="flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
                 onSelect={handleLogout}
               >
                 <LogOut className="size-[18px]" strokeWidth={2} />
@@ -213,7 +212,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
         <button
           type="button"
           aria-label="Toggle menu"
-          className="inline-flex size-10 items-center justify-center text-[#5a6053] lg:hidden"
+          className="inline-flex size-10 items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900 lg:hidden"
           onClick={() => setIsMobileMenuOpen((value) => !value)}
         >
           {isMobileMenuOpen ? <X className="size-5" /> : <Menu className="size-5" />}

@@ -15,8 +15,8 @@ const amenities = [
 
 export function MapFilterSidebar() {
   return (
-    <aside className="w-full shrink-0 border-r border-[rgba(228,190,186,0.15)] bg-[#f4f4f1] lg:h-[calc(100vh-80px)] lg:w-80 lg:overflow-y-auto">
-      <div className="flex w-full flex-col gap-8 p-6">
+    <aside className="w-full shrink-0 border border-[rgba(228,190,186,0.15)] bg-[#f4f4f1] lg:sticky lg:top-24 lg:max-h-[calc(100vh-112px)] lg:w-80 lg:overflow-y-auto">
+      <div className="flex w-full flex-col gap-8 p-5">
         <section className="flex flex-col gap-4">
           <h2 className="font-jp text-[18px] font-medium leading-7 text-[#d32f2f]">
             検索フィルター

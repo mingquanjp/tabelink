@@ -42,6 +42,10 @@ function getAuthenticatedRedirectPath(role?: string) {
     return "/owner/home";
   }
 
+  if (role === "User" || role === "Guest") {
+    return "/user/home";
+  }
+
   return "/";
 }
 
@@ -65,7 +69,7 @@ export function proxy(request: NextRequest) {
   const hasSessionCookie = Boolean(hasUsableAccessToken || refreshToken);
 
   if (pathname === "/login" || pathname.startsWith("/register")) {
-    if (hasUsableAccessToken && payload?.role === "Owner") {
+    if (hasUsableAccessToken && payload?.role) {
       const url = request.nextUrl.clone();
       url.pathname = getAuthenticatedRedirectPath(payload?.role);
       url.search = "";
@@ -93,9 +97,23 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/user")) {
+    if (!hasSessionCookie) {
+      return redirectToLogin(request);
+    }
+
+    if (payload?.role && payload.role !== "User" && payload.role !== "Guest") {
+      const url = request.nextUrl.clone();
+      url.pathname = getAuthenticatedRedirectPath(payload.role);
+      url.search = "";
+
+      return NextResponse.redirect(url);
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/login", "/register/:path*", "/owner/:path*"],
+  matcher: ["/login", "/register/:path*", "/owner/:path*", "/user/:path*"],
 };

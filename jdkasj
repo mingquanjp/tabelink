@@ -1,0 +1,20 @@
+* [32mdevelop[m
+  feature/be-dashboard-analytics-api[m
+  feature/be-impression-click-tracking-api[m
+  main[m
+  [31mremotes/origin/HEAD[m -> origin/main
+  [31mremotes/origin/develop[m
+  [31mremotes/origin/feature/add-booking-manage-screen[m
+  [31mremotes/origin/feature/add-frontend-library[m
+  [31mremotes/origin/feature/authentication[m
+  [31mremotes/origin/feature/be-dashboard-analytics-api[m
+  [31mremotes/origin/feature/be-impression-click-tracking-api[m
+  [31mremotes/origin/feature/be-menu-management[m
+  [31mremotes/origin/feature/be-popular-menu-top3[m
+  [31mremotes/origin/feature/be-verification-document-upload[m
+  [31mremotes/origin/feature/booking-and-table-status[m
+  [31mremotes/origin/feature/dashboard[m
+  [31mremotes/origin/feature/register[m
+  [31mremotes/origin/fix/ad-tracking-returning-response[m
+  [31mremotes/origin/fix/remove-menu-fixed-spice-coriander[m
+  [31mremotes/origin/main[m

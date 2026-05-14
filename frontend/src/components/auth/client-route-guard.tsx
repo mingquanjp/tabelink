@@ -5,6 +5,7 @@ import { useCallback, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   canAccessOwnerRoutes,
+  canAccessUserRoutes,
   getAuthenticatedRedirectPath,
 } from "@/lib/api/auth/routes";
 import { getAuthSession } from "@/lib/api/auth/session";
@@ -21,6 +22,10 @@ function isOwnerPath(pathname: string) {
   return pathname.startsWith("/owner");
 }
 
+function isUserPath(pathname: string) {
+  return pathname.startsWith("/user");
+}
+
 function hasSessionMarker() {
   return document.cookie
     .split(";")
@@ -32,7 +37,7 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
   const router = useRouter();
 
   const verifyCurrentRoute = useCallback(async () => {
-    if (!isPublicAuthPath(pathname) && !isOwnerPath(pathname)) {
+    if (!isPublicAuthPath(pathname) && !isOwnerPath(pathname) && !isUserPath(pathname)) {
       return;
     }
 
@@ -43,7 +48,7 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
 
       const session = await getAuthSession();
 
-      if (session && canAccessOwnerRoutes(session.account.role) && session.restaurant) {
+      if (session) {
         router.replace(getAuthenticatedRedirectPath(session.account.role));
       }
 
@@ -57,7 +62,12 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
       return;
     }
 
-    if (!canAccessOwnerRoutes(session.account.role) || !session.restaurant) {
+    if (isOwnerPath(pathname) && (!canAccessOwnerRoutes(session.account.role) || !session.restaurant)) {
+      router.replace(getAuthenticatedRedirectPath(session.account.role));
+      return;
+    }
+
+    if (isUserPath(pathname) && !canAccessUserRoutes(session.account.role)) {
       router.replace(getAuthenticatedRedirectPath(session.account.role));
     }
   }, [pathname, router]);

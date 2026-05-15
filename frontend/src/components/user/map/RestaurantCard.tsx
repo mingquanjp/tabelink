@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BadgeCheck, Map, ShieldCheck, Star } from "lucide-react";
 import type { MapRestaurant } from "./map-data";
+import { formatDistanceShort } from "./map-routing";
 
 type RestaurantCardProps = {
   restaurant: MapRestaurant;
@@ -16,6 +17,10 @@ export function RestaurantCard({
   onMapOpen,
 }: RestaurantCardProps) {
   const isCompact = variant === "compact";
+  const compactDistance =
+    restaurant.routeDistanceMeters !== undefined
+      ? formatDistanceShort(restaurant.routeDistanceMeters)
+      : restaurant.distanceValue;
 
   return (
     <article
@@ -60,7 +65,7 @@ export function RestaurantCard({
         </div>
         {isCompact ? (
           <div className="absolute bottom-3 left-3 rounded-full bg-black/60 px-3 py-1 font-manrope text-[10px] font-bold leading-[15px] text-white backdrop-blur-[6px]">
-            {restaurant.distanceValue}
+            {compactDistance}
           </div>
         ) : null}
       </div>

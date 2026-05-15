@@ -1,6 +1,8 @@
 import type { MapRestaurant } from "./map-data";
 import { MapArea } from "./MapArea";
 import { RestaurantCard } from "./RestaurantCard";
+import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
+import type { LatLngLiteral } from "./map-routing";
 import {
   SearchResultsHeader,
   type AppliedFilter,
@@ -12,7 +14,10 @@ type MapSearchResultsProps = {
   appliedFilters: AppliedFilter[];
   sort: SortOption;
   isMapOpen: boolean;
+  isRouteLoading: boolean;
   selectedRestaurant: MapRestaurant | null;
+  origin: LatLngLiteral | null;
+  routes: Record<number, RestaurantRouteResponse>;
   onCloseMap: () => void;
   onOpenMap: (restaurant: MapRestaurant) => void;
   onSortChange: (sort: SortOption) => void;
@@ -24,7 +29,10 @@ export function MapSearchResults({
   appliedFilters,
   sort,
   isMapOpen,
+  isRouteLoading,
   selectedRestaurant,
+  origin,
+  routes,
   onCloseMap,
   onOpenMap,
   onSortChange,
@@ -44,7 +52,11 @@ export function MapSearchResults({
                 onSortChange={onSortChange}
               />
             </div>
-            {restaurants.length > 0 ? (
+            {isRouteLoading ? (
+              <div className="m-6 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
+                ãƒ«ãƒ¼ãƒˆã‚’è¨ˆç®—ä¸­...
+              </div>
+            ) : restaurants.length > 0 ? (
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
                 <div className="flex flex-col gap-8">
                   {restaurants.map((restaurant) => (
@@ -64,7 +76,12 @@ export function MapSearchResults({
               </div>
             )}
           </div>
-          <MapArea restaurant={selectedRestaurant} onClose={onCloseMap} />
+          <MapArea
+            origin={origin}
+            restaurant={selectedRestaurant}
+            route={routes[selectedRestaurant.id]}
+            onClose={onCloseMap}
+          />
         </div>
       </main>
     );
@@ -80,7 +97,11 @@ export function MapSearchResults({
           onRemoveFilter={onRemoveFilter}
           onSortChange={onSortChange}
         />
-        {restaurants.length > 0 ? (
+        {isRouteLoading ? (
+          <div className="mt-10 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
+            ãƒ«ãƒ¼ãƒˆã‚’è¨ˆç®—ä¸­...
+          </div>
+        ) : restaurants.length > 0 ? (
           <div className="grid grid-cols-1 gap-x-6 gap-y-8 pt-10 md:grid-cols-2 xl:grid-cols-3">
             {restaurants.map((restaurant) => (
               <RestaurantCard

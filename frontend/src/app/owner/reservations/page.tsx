@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnnouncementsPanel } from "@/components/owner/reservations/AnnouncementsPanel";
 import { FloorMap } from "@/components/owner/reservations/FloorMap";
 import { ReservationsHeader } from "@/components/owner/reservations/ReservationsHeader";
@@ -24,6 +24,7 @@ import {
     writeSessionCache,
 } from "@/lib/api/cache";
 import { getAuthSession, requireOwnerRestaurant } from "@/lib/api/auth/session";
+import { OWNER_TOAST_MESSAGES, showErrorToast } from "@/lib/app-toast";
 
 const ownerReservationsCacheKey = "tabelink:owner:reservations:v1";
 const DEFAULT_NEW_TABLE_CAPACITY = 4;
@@ -50,27 +51,31 @@ function getNextTableName(tables: RestaurantTableDto[]) {
 }
 
 export default function OwnerReservationsPage() {
-    const [cachedInitialData] = useState(() =>
-        readSessionCache<OwnerReservationsCache>(
-            ownerReservationsCacheKey,
-            SESSION_CACHE_TTL.reservations,
-        )
-    );
-    const [restaurantId, setRestaurantId] = useState<number | null>(
-        () => cachedInitialData?.restaurantId ?? null
-    );
-    const [tables, setTables] = useState<RestaurantTableDto[]>(
-        () => cachedInitialData?.tables ?? []
-    );
-    const [reservations, setReservations] = useState<ReservationDto[]>(
-        () => cachedInitialData?.reservations ?? []
-    );
+    const hasInitialSessionCache = useRef(false);
+    const [restaurantId, setRestaurantId] = useState<number | null>(null);
+    const [tables, setTables] = useState<RestaurantTableDto[]>([]);
+    const [reservations, setReservations] = useState<ReservationDto[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
-    const [isLoading, setIsLoading] = useState(() => !cachedInitialData);
+    const [isLoading, setIsLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+    useLayoutEffect(() => {
+        const cached = readSessionCache<OwnerReservationsCache>(
+            ownerReservationsCacheKey,
+            SESSION_CACHE_TTL.reservations,
+        );
+
+        if (cached) {
+            hasInitialSessionCache.current = true;
+            setRestaurantId(cached.restaurantId);
+            setTables(cached.tables);
+            setReservations(cached.reservations);
+            setIsLoading(false);
+        }
+    }, []);
+
     const loadData = useCallback(async () => {
-        if (!cachedInitialData) {
+        if (!hasInitialSessionCache.current) {
             setIsLoading(true);
         }
 
@@ -94,16 +99,16 @@ export default function OwnerReservationsPage() {
                 reservations: reservationResponse.reservations,
             });
         } catch (error) {
-            if (cachedInitialData) {
+            if (hasInitialSessionCache.current) {
                 return;
             }
             setErrorMessage(error instanceof Error ? error.message : "予約データを取得できませんでした");
         } finally {
-            if (!cachedInitialData) {
+            if (!hasInitialSessionCache.current) {
                 setIsLoading(false);
             }
         }
-    }, [cachedInitialData]);
+    }, []);
 
     useEffect(() => {
         const timeoutId = window.setTimeout(() => {
@@ -183,8 +188,8 @@ export default function OwnerReservationsPage() {
                 tables: nextTables,
                 reservations,
             });
-        } catch (error) {
-            setErrorMessage(error instanceof Error ? error.message : "テーブルを削除できませんでした");
+        } catch {
+            showErrorToast(OWNER_TOAST_MESSAGES.deleteTableError);
         }
     }
 

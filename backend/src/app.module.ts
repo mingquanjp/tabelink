@@ -7,10 +7,12 @@ import { AdsModule } from './ads/ads.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
 import { BlogsModule } from './blogs/blogs.module';
+import { FeedModule } from './feed/feed.module';
 import { MapsModule } from './maps/maps.module';
 import { MenusModule } from './menus/menus.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { TablesModule } from './tables/tables.module';
+import { UserHomeModule } from './user-home/user-home.module';
 import { VerificationModule } from './verification/verification.module';
 
 @Module({
@@ -33,11 +35,13 @@ import { VerificationModule } from './verification/verification.module';
     }),
     AuthModule,
     BlogsModule,
+    FeedModule,
     RestaurantsModule,
     AdsModule,
     MapsModule,
     MenusModule,
     TablesModule,
+    UserHomeModule,
     VerificationModule,
     AnalyticsModule,
   ],

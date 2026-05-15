@@ -130,6 +130,57 @@ Frontend behavior:
 - If OSRM route data is unavailable, the frontend should show no route path
   instead of drawing a direct line between origin and destination.
 
+### Reservations
+POST /restaurants/:restaurantId/reservations
+- Auth: Bearer access token (role User)
+- Description:
+  Creates a pending reservation request for screen ID6, stores special request
+  templates/custom text, and sends an owner email notification.
+- Body:
+  {
+    "customerName": "Tanaka Taro",
+    "phoneNumber": "090-1234-5678",
+    "reservationDate": "2026-05-20",
+    "reservationTime": "19:00",
+    "pax": 2,
+    "durationMinutes": 120,
+    "requestTypes": ["Coriander", "LessSpicy", "VATInvoice"],
+    "customRequest": "Window seat if available."
+  }
+- requestTypes:
+  Coriander, LessSpicy, VATInvoice, PrivateRoom, Other.
+  PrivateRoom is stored as custom text because the current DB master enum does
+  not include it.
+- Response:
+  {
+    "message": "Reservation request submitted successfully.",
+    "ownerNotification": { "sent": true },
+    "reservation": {
+      "reservationId": 100,
+      "restaurantId": 1,
+      "reservationDateTime": "2026-05-20T12:00:00.000Z",
+      "durationMinutes": 120,
+      "reservationEndDateTime": "2026-05-20T14:00:00.000Z",
+      "pax": 2,
+      "customerName": "Tanaka Taro",
+      "phoneNumber": "090-1234-5678",
+      "note": "Window seat if available.",
+      "status": "Pending",
+      "specialRequests": [
+        {
+          "requestId": 1,
+          "templateId": 1,
+          "requestType": "Coriander",
+          "textJp": "パクチー抜き",
+          "descriptionJp": "すべての料理からパクチー（コリアンダー）を除きます。",
+          "customText": null,
+          "label": "パクチー抜き",
+          "description": "すべての料理からパクチー（コリアンダー）を除きます。"
+        }
+      ]
+    }
+  }
+
 ## Environment variables
 - APP_PORT
 - NODE_ENV

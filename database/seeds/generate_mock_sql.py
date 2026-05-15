@@ -219,25 +219,21 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     request_templates = [
         {
             "templateid": 1,
-            "textvn": "Không rau mùi",
             "textjp": "パクチー抜き",
             "requesttype": "Coriander",
         },
         {
             "templateid": 2,
-            "textvn": "Ít cay",
             "textjp": "辛さ控えめ",
             "requesttype": "LessSpicy",
         },
         {
             "templateid": 3,
-            "textvn": "Cần hóa đơn VAT",
             "textjp": "VAT領収書が必要",
             "requesttype": "VATInvoice",
         },
         {
             "templateid": 4,
-            "textvn": "Ghế trẻ em nếu có",
             "textjp": "子ども椅子希望",
             "requesttype": "Other",
         },
@@ -1114,9 +1110,80 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 }
             )
 
+    upcoming_hours = [10, 11, 12, 13, 18, 19, 20]
+    upcoming_statuses = ["Confirmed", "Arrived", "Completed", "Pending"]
+    upcoming_reservation_start_id = 50001
+    for restaurant_offset, restaurant_row in enumerate(restaurants, start=0):
+        restaurant_id = int(restaurant_row["restaurantid"])
+        if restaurant_row["status"] != "Active":
+            continue
+
+        restaurant_menu = menu_items_by_restaurant[restaurant_id]
+        for day_offset in range(31):
+            for hour_index, hour in enumerate(upcoming_hours):
+                tables_for_hour = tables_by_restaurant[restaurant_id]
+                # Lunch and dinner peaks intentionally use every table so dashboard
+                # busy-hour charts have clear data for CURRENT_DATE and coming days.
+                table_count = len(tables_for_hour) if hour in {12, 18, 19} else max(2, len(tables_for_hour) // 2)
+                for table_offset, table_row in enumerate(tables_for_hour[:table_count]):
+                    reservation_id = upcoming_reservation_start_id + len(reservations) - 800
+                    status = upcoming_statuses[
+                        (restaurant_offset + day_offset + hour_index + table_offset) % len(upcoming_statuses)
+                    ]
+                    reservation_time = RawSql(
+                        "CURRENT_DATE "
+                        f"+ INTERVAL '{day_offset} days' "
+                        f"+ INTERVAL '{hour} hours' "
+                        f"+ INTERVAL '{5 + (table_offset % 2) * 15} minutes'"
+                    )
+                    customer_id = 201 + ((restaurant_offset * 7 + day_offset + hour_index * 3 + table_offset) % 75)
+                    pax = min(int(table_row["capacity"]), 1 + ((day_offset + hour_index + table_offset) % int(table_row["capacity"])))
+                    reservations.append(
+                        {
+                            "reservationid": reservation_id,
+                            "customeraccountid": customer_id,
+                            "restaurantid": restaurant_id,
+                            "tableid": table_row["tableid"],
+                            "reservationdatetime": reservation_time,
+                            "durationminutes": 90 if hour in {10, 13, 20} else 120,
+                            "pax": pax,
+                            "note": f"Upcoming reservation seed day {day_offset} restaurant {restaurant_id} hour {hour}",
+                            "status": status,
+                            "createdat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 day'"),
+                            "updatedat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 hour'"),
+                        }
+                    )
+
+                    for item_offset in range(1 + ((day_offset + hour_index + table_offset) % 2)):
+                        item_id_for_order = restaurant_menu[
+                            (day_offset + hour_index + table_offset + item_offset) % len(restaurant_menu)
+                        ]
+                        reservation_items.append(
+                            {
+                                "reservationitemid": len(reservation_items) + 1,
+                                "reservationid": reservation_id,
+                                "restaurantid": restaurant_id,
+                                "itemid": item_id_for_order,
+                                "quantity": 1 + ((day_offset + hour_index + table_offset + item_offset) % 3),
+                                "unitprice": menu_items[item_id_for_order - 5001]["price"],
+                                "note": "Upcoming dashboard pre-order" if item_offset == 0 else None,
+                                "createdat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 day'"),
+                            }
+                        )
+
+                    if (day_offset + hour_index + table_offset) % 3 == 0:
+                        reservation_special_requests.append(
+                            {
+                                "requestid": len(reservation_special_requests) + 1,
+                                "reservationid": reservation_id,
+                                "templateid": ((day_offset + hour_index + table_offset) % 4) + 1,
+                                "customtext": None,
+                            }
+                        )
+
     reviewable_reservations = [
         row for row in reservations if row["status"] in {"Completed", "Confirmed", "Arrived"}
-    ][:400]
+    ][:700]
     reviews = []
     blog_posts = []
     blog_media = []
@@ -1126,7 +1193,8 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     blog_shares = []
     for index, reservation_row in enumerate(reviewable_reservations, start=1):
         review_id = 3000 + index
-        rating = 3 + ((index * 7) % 3)
+        rating = [5, 5, 5, 4, 4, 4, 3, 3, 2, 1][index % 10]
+        cleanliness_base = max(1, min(5, rating + ((index % 3) - 1)))
         reviews.append(
             {
                 "reviewid": review_id,
@@ -1134,14 +1202,14 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 "restaurantid": reservation_row["restaurantid"],
                 "reservationid": reservation_row["reservationid"],
                 "rating": rating,
-                "toiletcleanliness": 3 + (index % 3),
-                "dishcleanliness": 3 + ((index + 1) % 3),
-                "spacecleanliness": 3 + ((index + 2) % 3),
-                "content": f"Mock review {index}: rating {rating} with realistic variation.",
-                "isjapanesetag": index % 2 == 0,
-                "status": ["Visible", "Visible", "Visible", "Hidden"][index % 4],
-                "createdat": base_created,
-                "updatedat": base_created,
+                "toiletcleanliness": max(1, min(5, cleanliness_base)),
+                "dishcleanliness": max(1, min(5, cleanliness_base + (1 if index % 4 == 0 else 0))),
+                "spacecleanliness": max(1, min(5, cleanliness_base - (1 if index % 5 == 0 else 0))),
+                "content": f"Mock review {index}: rating {rating}, service and cleanliness vary for dashboard testing.",
+                "isjapanesetag": index % 3 in {0, 1},
+                "status": ["Visible", "Visible", "Visible", "Visible", "Hidden", "Deleted"][index % 6],
+                "createdat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 day'") if index > 620 else base_created,
+                "updatedat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 hour'") if index > 620 else base_created,
             }
         )
         if index <= 120:
@@ -1292,6 +1360,8 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     for restaurant_row in restaurants:
         for day_index in range(90):
             stat_date = analytics_start + __import__("datetime").timedelta(days=day_index)
+            if stat_date >= date(2026, 5, 1):
+                continue
             visits = 80 + ((int(restaurant_row["restaurantid"]) + day_index * 13) % 220)
             japanese_visits = visits // (3 + (day_index % 3))
             restaurant_analytics.append(
@@ -1307,6 +1377,23 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 }
             )
             analytics_id += 1
+        for day_index in range(31):
+            visits = 220 + ((int(restaurant_row["restaurantid"]) + day_index * 17) % 180)
+            japanese_visits = visits // (2 + (day_index % 2))
+            restaurant_analytics.append(
+                {
+                    "analyticsid": 100000 + (int(restaurant_row["restaurantid"]) - 1000) * 100 + day_index,
+                    "restaurantid": restaurant_row["restaurantid"],
+                    "statdate": RawSql(
+                        f"(DATE_TRUNC('month', CURRENT_DATE)::date + INTERVAL '{day_index} days')::date"
+                    ),
+                    "visitcount": visits,
+                    "japanesevisitcount": japanese_visits,
+                    "reviewcount": 3 + ((day_index + int(restaurant_row["restaurantid"])) % 12),
+                    "reservationcount": 12 + ((day_index * 3 + int(restaurant_row["restaurantid"])) % 35),
+                    "peakhour": [11, 12, 13, 18, 19, 20][day_index % 6],
+                }
+            )
 
     menu_analytics = []
     analytics_id = 1
@@ -1362,8 +1449,18 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         ("badge_application", badge_applications, ["appid"], None),
         ("restaurant_badge", restaurant_badges, ["restaurantid", "badgeid"], None),
         ("moderation_log", moderation_logs, ["logid"], None),
-        ("restaurant_analytics_daily", restaurant_analytics, ["analyticsid"], None),
-        ("menu_item_analytics_daily", menu_analytics, ["analyticsid"], None),
+        (
+            "restaurant_analytics_daily",
+            restaurant_analytics,
+            ["restaurantid", "statdate"],
+            ["visitcount", "japanesevisitcount", "reviewcount", "reservationcount", "peakhour"],
+        ),
+        (
+            "menu_item_analytics_daily",
+            menu_analytics,
+            ["itemid", "statdate"],
+            ["viewcount", "ordercount"],
+        ),
     ]
 
 

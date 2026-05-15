@@ -10,6 +10,18 @@ export interface TemporaryPasswordMailOptions {
   lang?: 'vi' | 'ja';
 }
 
+export interface ReservationRequestMailOptions {
+  to: string;
+  restaurantName: string;
+  customerName: string;
+  phoneNumber: string;
+  reservationDateTime: Date;
+  pax: number;
+  note?: string | null;
+  specialRequests?: string[];
+  reservationId: number;
+}
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -65,9 +77,78 @@ export class MailService {
     }
   }
 
+  async sendReservationRequestNotification(
+    options: ReservationRequestMailOptions,
+  ): Promise<void> {
+    const fromName = this.config.get<string>('SMTP_FROM_NAME', 'Tabelink');
+    const fromAddress = this.config.get<string>(
+      'SMTP_FROM_ADDRESS',
+      this.config.get<string>('SMTP_USER', 'noreply@tabelink.com'),
+    );
+    const from = `"${fromName}" <${fromAddress}>`;
+    const isDev = this.config.get<string>('NODE_ENV') === 'development';
+    const subject = `[Tabelink] New reservation request #${options.reservationId}`;
+    const specialRequests = options.specialRequests?.length
+      ? options.specialRequests.join(', ')
+      : 'None';
+    const note = options.note?.trim() || 'None';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>${subject}</title>
+</head>
+<body style="font-family: Arial, sans-serif; color: #1a1c1b;">
+  <h2>New reservation request</h2>
+  <p>A customer submitted a reservation request for <strong>${this.escapeHtml(options.restaurantName)}</strong>.</p>
+  <ul>
+    <li><strong>Reservation ID:</strong> ${options.reservationId}</li>
+    <li><strong>Customer:</strong> ${this.escapeHtml(options.customerName)}</li>
+    <li><strong>Phone:</strong> ${this.escapeHtml(options.phoneNumber)}</li>
+    <li><strong>Date time:</strong> ${options.reservationDateTime.toISOString()}</li>
+    <li><strong>Party size:</strong> ${options.pax}</li>
+    <li><strong>Special requests:</strong> ${this.escapeHtml(specialRequests)}</li>
+    <li><strong>Note:</strong> ${this.escapeHtml(note)}</li>
+  </ul>
+  <p>Please confirm or cancel this reservation in the Tabelink owner screen.</p>
+</body>
+</html>`;
+
+    try {
+      await this.transporter.sendMail({ from, to: options.to, subject, html });
+      this.logger.log(
+        `Reservation request email sent to ${options.to} for #${options.reservationId}`,
+      );
+    } catch (err: unknown) {
+      if (isDev) {
+        this.logger.warn(
+          `[DEV] Failed to send reservation email to ${options.to} for #${options.reservationId}`,
+        );
+        this.logger.warn(err);
+      } else {
+        this.logger.error(
+          `Failed to send reservation request email to ${options.to}`,
+          err,
+        );
+        throw err;
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // Private template builders
   // ---------------------------------------------------------------------------
+
+  private escapeHtml(value: string) {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
 
   private buildVietnameseTemplate(tempPassword: string) {
     const subject = '[Tabelink] Mật khẩu tạm thời mới của bạn';

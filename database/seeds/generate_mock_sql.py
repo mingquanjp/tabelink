@@ -219,25 +219,21 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     request_templates = [
         {
             "templateid": 1,
-            "textvn": "Không rau mùi",
             "textjp": "パクチー抜き",
             "requesttype": "Coriander",
         },
         {
             "templateid": 2,
-            "textvn": "Ít cay",
             "textjp": "辛さ控えめ",
             "requesttype": "LessSpicy",
         },
         {
             "templateid": 3,
-            "textvn": "Cần hóa đơn VAT",
             "textjp": "VAT領収書が必要",
             "requesttype": "VATInvoice",
         },
         {
             "templateid": 4,
-            "textvn": "Ghế trẻ em nếu có",
             "textjp": "子ども椅子希望",
             "requesttype": "Other",
         },

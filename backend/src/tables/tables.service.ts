@@ -250,7 +250,6 @@ export class TablesService {
     const customerName = this.requiredTrim(dto.customerName, 'customerName');
     const phoneNumber = this.requiredTrim(dto.phoneNumber, 'phoneNumber');
     const customRequest = this.optionalTrim(dto.customRequest) ?? null;
-    await this.assertSpecialRequestTemplateIdsExist(dto.templateIds ?? []);
 
     const reservation = this.reservationRepo.create({
       customerAccountId: user.sub,
@@ -293,7 +292,7 @@ export class TablesService {
     return {
       message: 'Reservation request submitted successfully.',
       ownerNotification,
-      reservation: this.toReservationResponse(refreshed),
+      reservation: this.toCreatedReservationResponse(refreshed),
     };
   }
 
@@ -439,8 +438,8 @@ export class TablesService {
     reservationId: number,
     dto: CreateReservationRequestDto,
   ) {
-    const templateIds = [...new Set(dto.templateIds ?? [])];
     const requestTypes = [...new Set(dto.requestTypes ?? [])];
+    const templateIds = await this.resolveRequestedTemplateIds(requestTypes);
     const requests: ReservationSpecialRequest[] = [];
 
     if (templateIds.length) {
@@ -456,43 +455,6 @@ export class TablesService {
           }),
         ),
       );
-    }
-
-    const dbRequestTypes = requestTypes.filter(
-      (type) => type !== ReservationRequestType.PrivateRoom,
-    );
-
-    if (dbRequestTypes.length) {
-      const templates = await this.specialRequestTemplateRepo.find({
-        where: { requestType: In(dbRequestTypes) },
-        order: { templateId: 'ASC' },
-      });
-
-      const usedRequestTypes = new Set<string>();
-      for (const type of dbRequestTypes) {
-        const template = templates.find(
-          (item) =>
-            item.requestType === (type as unknown as SpecialRequestType) &&
-            !usedRequestTypes.has(item.requestType),
-        );
-
-        if (template) {
-          usedRequestTypes.add(template.requestType);
-          requests.push(
-            this.reservationSpecialRequestRepo.create({
-              reservationId,
-              templateId: template.templateId,
-            }),
-          );
-        } else {
-          requests.push(
-            this.reservationSpecialRequestRepo.create({
-              reservationId,
-              customText: this.defaultSpecialRequestText(type),
-            }),
-          );
-        }
-      }
     }
 
     if (requestTypes.includes(ReservationRequestType.PrivateRoom)) {
@@ -523,22 +485,34 @@ export class TablesService {
     return this.reservationSpecialRequestRepo.save(requests);
   }
 
-  private async assertSpecialRequestTemplateIdsExist(templateIds: number[]) {
-    const uniqueTemplateIds = [...new Set(templateIds)];
+  private async resolveRequestedTemplateIds(
+    requestTypes: ReservationRequestType[],
+  ) {
+    const resolvedTemplateIds = new Set<number>();
+    const dbRequestTypes = requestTypes.filter(
+      (type) => type !== ReservationRequestType.PrivateRoom,
+    );
 
-    if (!uniqueTemplateIds.length) {
-      return;
+    if (!dbRequestTypes.length) {
+      return [...resolvedTemplateIds];
     }
 
-    const count = await this.specialRequestTemplateRepo.count({
-      where: { templateId: In(uniqueTemplateIds) },
+    const templates = await this.specialRequestTemplateRepo.find({
+      where: { requestType: In(dbRequestTypes) },
+      order: { templateId: 'ASC' },
     });
 
-    if (count !== uniqueTemplateIds.length) {
-      throw new BadRequestException(
-        'Special request template selection contains unknown IDs.',
+    for (const type of dbRequestTypes) {
+      const template = templates.find(
+        (item) => item.requestType === (type as unknown as SpecialRequestType),
       );
+
+      if (template) {
+        resolvedTemplateIds.add(template.templateId);
+      }
     }
+
+    return [...resolvedTemplateIds];
   }
 
   private defaultSpecialRequestText(type: ReservationRequestType) {
@@ -859,25 +833,47 @@ export class TablesService {
     };
   }
 
+  private toCreatedReservationResponse(reservation: Reservation) {
+    return {
+      reservationId: reservation.reservationId,
+      restaurantId: reservation.restaurantId,
+      reservationDateTime: reservation.reservationDateTime,
+      durationMinutes: reservation.durationMinutes,
+      reservationEndDateTime: this.reservationEndDateTime(reservation),
+      pax: reservation.pax,
+      customerName: reservation.customerName ?? null,
+      phoneNumber: reservation.phoneNumber ?? null,
+      note: reservation.note ?? null,
+      specialRequests: (reservation.specialRequests ?? []).map((request) =>
+        this.toSpecialRequestResponse(request),
+      ),
+      status: reservation.status,
+    };
+  }
+
   private toSpecialRequestResponse(request: ReservationSpecialRequest) {
     return {
       requestId: request.requestId,
       templateId: request.templateId ?? null,
       requestType: request.template?.requestType ?? null,
-      textVn: request.template?.textVn ?? null,
       textJp: request.template?.textJp ?? null,
+      descriptionJp: request.template?.descriptionJp ?? null,
       customText: request.customText ?? null,
       label: this.specialRequestLabel(request),
+      description: this.specialRequestDescription(request),
     };
   }
 
   private specialRequestLabel(request: ReservationSpecialRequest) {
     return (
       request.template?.textJp ??
-      request.template?.textVn ??
       request.customText ??
       'Special request'
     );
+  }
+
+  private specialRequestDescription(request: ReservationSpecialRequest) {
+    return request.template?.descriptionJp ?? null;
   }
 
   private async hasOverlappingActiveReservation(

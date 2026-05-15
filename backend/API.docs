@@ -158,8 +158,6 @@ POST /restaurants/:restaurantId/reservations
     "reservation": {
       "reservationId": 100,
       "restaurantId": 1,
-      "customerAccountId": 20,
-      "tableId": null,
       "reservationDateTime": "2026-05-20T12:00:00.000Z",
       "durationMinutes": 120,
       "reservationEndDateTime": "2026-05-20T14:00:00.000Z",
@@ -168,7 +166,18 @@ POST /restaurants/:restaurantId/reservations
       "phoneNumber": "090-1234-5678",
       "note": "Window seat if available.",
       "status": "Pending",
-      "specialRequests": []
+      "specialRequests": [
+        {
+          "requestId": 1,
+          "templateId": 1,
+          "requestType": "Coriander",
+          "textJp": "パクチー抜き",
+          "descriptionJp": "すべての料理からパクチー（コリアンダー）を除きます。",
+          "customText": null,
+          "label": "パクチー抜き",
+          "description": "すべての料理からパクチー（コリアンダー）を除きます。"
+        }
+      ]
     }
   }
 

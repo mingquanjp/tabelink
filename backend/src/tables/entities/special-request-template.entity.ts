@@ -12,11 +12,11 @@ export class SpecialRequestTemplate {
   @PrimaryGeneratedColumn({ name: 'templateid' })
   templateId!: number;
 
-  @Column({ name: 'textvn', type: 'text' })
-  textVn!: string;
-
   @Column({ name: 'textjp', type: 'text' })
   textJp!: string;
+
+  @Column({ name: 'descriptionjp', type: 'text', nullable: true })
+  descriptionJp?: string | null;
 
   @Column({ name: 'requesttype', length: 50 })
   requestType!: SpecialRequestType;

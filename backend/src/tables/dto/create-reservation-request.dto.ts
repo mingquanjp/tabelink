@@ -14,6 +14,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { ReservationStatus } from '../entities/reservation.entity';
 
 export enum ReservationRequestType {
   Coriander = 'Coriander',
@@ -94,26 +95,13 @@ export class CreateReservationRequestDto {
       ReservationRequestType.VATInvoice,
     ],
     description:
-      'Template-style special requests from screen ID6. PrivateRoom is stored as custom text because the current DB master enum does not include it.',
+      'Special request selections from screen ID6. This is the preferred input. Labels/descriptions are resolved from SPECIAL_REQUEST_TEMPLATE in Japanese. PrivateRoom is stored as custom text because the current DB master enum does not include it.',
   })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(10)
   @IsEnum(ReservationRequestType, { each: true })
   requestTypes?: ReservationRequestType[];
-
-  @ApiPropertyOptional({
-    example: [1, 2, 3],
-    description:
-      'Optional direct SPECIAL_REQUEST_TEMPLATE.TemplateID values. requestTypes is preferred for screen ID6.',
-  })
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(10)
-  @Type(() => Number)
-  @IsInt({ each: true })
-  @Min(1, { each: true })
-  templateIds?: number[];
 
   @ApiPropertyOptional({
     example: 'Window seat if available.',
@@ -123,4 +111,116 @@ export class CreateReservationRequestDto {
   @IsString()
   @MaxLength(2000)
   customRequest?: string;
+}
+
+export class ReservationSpecialRequestResponseDto {
+  @ApiProperty({ example: 1 })
+  requestId!: number;
+
+  @ApiPropertyOptional({ example: 1, nullable: true })
+  templateId!: number | null;
+
+  @ApiPropertyOptional({
+    enum: ReservationRequestType,
+    example: ReservationRequestType.Coriander,
+    nullable: true,
+  })
+  requestType!: ReservationRequestType | null;
+
+  @ApiPropertyOptional({
+    example: 'パクチー抜き',
+    nullable: true,
+    description: 'Japanese template title stored in SPECIAL_REQUEST_TEMPLATE.TextJP.',
+  })
+  textJp!: string | null;
+
+  @ApiPropertyOptional({
+    example: 'すべての料理からパクチー（コリアンダー）を除きます。',
+    nullable: true,
+    description:
+      'Japanese template description stored in SPECIAL_REQUEST_TEMPLATE.DescriptionJP.',
+  })
+  descriptionJp!: string | null;
+
+  @ApiPropertyOptional({
+    example: 'Window seat if available.',
+    nullable: true,
+    description: 'Free-form custom request. Null when the item comes from a template.',
+  })
+  customText!: string | null;
+
+  @ApiProperty({
+    example: 'パクチー抜き',
+    description: 'Display label for the user/owner UI. Uses Japanese text when template-based.',
+  })
+  label!: string;
+
+  @ApiPropertyOptional({
+    example: 'すべての料理からパクチー（コリアンダー）を除きます。',
+    nullable: true,
+    description: 'Display description for the user/owner UI. Japanese only.',
+  })
+  description!: string | null;
+}
+
+export class CreatedReservationResponseDto {
+  @ApiProperty({ example: 100 })
+  reservationId!: number;
+
+  @ApiProperty({ example: 1 })
+  restaurantId!: number;
+
+  @ApiProperty({ example: '2026-05-20T12:00:00.000Z' })
+  reservationDateTime!: Date;
+
+  @ApiProperty({ example: 120 })
+  durationMinutes!: number;
+
+  @ApiProperty({ example: '2026-05-20T14:00:00.000Z' })
+  reservationEndDateTime!: Date;
+
+  @ApiProperty({ example: 2 })
+  pax!: number;
+
+  @ApiProperty({ example: 'Tanaka Taro' })
+  customerName!: string;
+
+  @ApiProperty({ example: '090-1234-5678' })
+  phoneNumber!: string;
+
+  @ApiPropertyOptional({
+    example: 'Window seat if available.',
+    nullable: true,
+  })
+  note!: string | null;
+
+  @ApiProperty({
+    type: [ReservationSpecialRequestResponseDto],
+  })
+  specialRequests!: ReservationSpecialRequestResponseDto[];
+
+  @ApiProperty({ enum: ReservationStatus, example: ReservationStatus.Pending })
+  status!: ReservationStatus;
+}
+
+export class OwnerNotificationResponseDto {
+  @ApiProperty({ example: true })
+  sent!: boolean;
+
+  @ApiPropertyOptional({
+    example: 'Owner notification failed.',
+    description: 'Present only when the owner email notification was not sent.',
+  })
+  reason?: string;
+}
+
+export class CreateReservationRequestResponseDto {
+  @ApiProperty({ example: 'Reservation request submitted successfully.' })
+  message!: string;
+
+  @ApiProperty({ type: OwnerNotificationResponseDto })
+  ownerNotification!: OwnerNotificationResponseDto;
+
+  @ApiProperty({ type: CreatedReservationResponseDto })
+  reservation!: CreatedReservationResponseDto;
 }

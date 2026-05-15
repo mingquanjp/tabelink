@@ -93,6 +93,10 @@ async function bootstrap() {
     )
     .addTag('ads', 'ID9/ID10/ID14 - Ad impression and click tracking')
     .addTag(
+      'maps',
+      'ID4 / Feature 9 - Map route coordinates, distance, and duration',
+    )
+    .addTag(
       'analytics',
       'ID13 - Owner dashboard analytics: Top 3 menu and insights',
     )

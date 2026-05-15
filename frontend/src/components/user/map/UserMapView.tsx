@@ -1,30 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { showErrorToast } from "@/lib/app-toast";
+import { getMapRestaurants, getRestaurantRoute } from "@/lib/api/maps/API";
+import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
 import { MapFilterSidebar, type MapFilterState } from "./MapFilterSidebar";
 import { MapSearchResults } from "./MapSearchResults";
-import {
-  restaurants as mockRestaurants,
-  type AmenityKey,
-  type DistanceOption,
-  type MapRestaurant,
+import type {
+  AmenityKey,
+  MapRestaurant,
 } from "./map-data";
+import { currentLocation as fallbackLocation } from "./map-data";
+import {
+  distanceLimitMeters,
+  distanceOptionForMeters,
+  formatDistanceShort,
+  getBrowserCurrentLocation,
+  type BrowserLocation,
+} from "./map-routing";
 import type { AppliedFilter, SortOption } from "./SearchResultsHeader";
 
 const initialFilters: MapFilterState = {
   keyword: "",
   distance: "1.0km",
   quality: {
-    hygiene: true,
+    hygiene: false,
     japaneseStaff: false,
     japaneseMenu: false,
   },
   cuisines: [],
   amenities: {
-    vat: true,
-    parking: true,
-    privateRoom: true,
+    vat: false,
+    parking: false,
+    privateRoom: false,
   },
 };
 
@@ -44,24 +52,105 @@ function isValidKeyword(value: string) {
   return value.length <= 255 && /^[\p{L}\p{N}\sー・.,、。-]*$/u.test(value);
 }
 
-function distanceRank(value: DistanceOption) {
-  if (value === "500m") {
-    return 0;
-  }
-
-  if (value === "1.0km") {
-    return 1;
-  }
-
-  return 2;
-}
+type RouteMap = Record<number, RestaurantRouteResponse>;
 
 export function UserMapView() {
   const [filters, setFilters] = useState<MapFilterState>(initialFilters);
   const [sort, setSort] = useState<SortOption>("recommended");
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<MapRestaurant | null>(null);
+  const [restaurants, setRestaurants] = useState<MapRestaurant[]>([]);
+  const [currentLocation, setCurrentLocation] =
+    useState<BrowserLocation | null>(null);
+  const [routes, setRoutes] = useState<RouteMap>({});
+  const [completedRouteKey, setCompletedRouteKey] = useState("");
   const isMapOpen = selectedRestaurant !== null;
+  const routeRequestKey = useMemo(() => {
+    if (!currentLocation || restaurants.length === 0) {
+      return "";
+    }
+
+    return `${currentLocation.point.lat},${currentLocation.point.lng}:${restaurants
+      .map((restaurant) => restaurant.id)
+      .join(",")}`;
+  }, [currentLocation, restaurants]);
+  const isRouteLoading =
+    currentLocation === null ||
+    (routeRequestKey !== "" && completedRouteKey !== routeRequestKey);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getMapRestaurants()
+      .then((data) => {
+        if (!cancelled) setRestaurants(data);
+      })
+      .catch((error) => {
+        if (!cancelled) showErrorToast("Failed to load restaurants: " + error.message);
+      });
+
+    getBrowserCurrentLocation()
+      .then((location) => {
+        if (cancelled) {
+          return;
+        }
+
+        setCurrentLocation(location);
+      })
+      .catch((error: Error) => {
+        if (cancelled) {
+          return;
+        }
+
+        setCurrentLocation({
+          point: fallbackLocation,
+          accuracyMeters: Number.POSITIVE_INFINITY,
+          capturedAt: Date.now(),
+        });
+        setRoutes({});
+        showErrorToast(error.message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!currentLocation || routeRequestKey === "") {
+      return;
+    }
+
+    let cancelled = false;
+
+    Promise.allSettled(
+      restaurants.map((restaurant) =>
+        getRestaurantRoute(restaurant.id, currentLocation.point).then(
+          (route) => [restaurant.id, route] as const,
+        ),
+      ),
+    ).then((results) => {
+      if (cancelled) {
+        return;
+      }
+
+      const nextRoutes: RouteMap = {};
+
+      results.forEach((result) => {
+        if (result.status === "fulfilled") {
+          const [restaurantId, route] = result.value;
+          nextRoutes[restaurantId] = route;
+        }
+      });
+
+      setRoutes(nextRoutes);
+      setCompletedRouteKey(routeRequestKey);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentLocation, restaurants, routeRequestKey]);
 
   const appliedFilters = useMemo<AppliedFilter[]>(() => {
     const items: AppliedFilter[] = [
@@ -93,16 +182,47 @@ export function UserMapView() {
     return items;
   }, [filters]);
 
+  const routedRestaurants = useMemo<MapRestaurant[]>(
+    () =>
+      restaurants.map((restaurant) => {
+        const route = routes[restaurant.id];
+        const routeOrigin = currentLocation?.point;
+
+        if (
+          !route ||
+          !routeOrigin ||
+          route.origin.lat !== routeOrigin.lat ||
+          route.origin.lng !== routeOrigin.lng
+        ) {
+          return restaurant;
+        }
+
+        return {
+          ...restaurant,
+          distance: formatDistanceShort(route.distanceMeters),
+          distanceValue:
+            distanceOptionForMeters(route.distanceMeters) ??
+            restaurant.distanceValue,
+          routeDistanceMeters: route.distanceMeters,
+          routeDurationSeconds: route.durationSeconds,
+        };
+      }),
+    [currentLocation, routes, restaurants],
+  );
+
   const filteredRestaurants = useMemo(() => {
     const keyword = filters.keyword.trim().toLowerCase();
-    const selectedDistanceRank = distanceRank(filters.distance);
+    const selectedDistanceLimit = distanceLimitMeters(filters.distance);
 
-    const nextRestaurants = mockRestaurants.filter((restaurant) => {
+    const nextRestaurants = routedRestaurants.filter((restaurant) => {
       if (keyword && !restaurant.name.toLowerCase().includes(keyword)) {
         return false;
       }
 
-      if (distanceRank(restaurant.distanceValue) > selectedDistanceRank) {
+      if (
+        restaurant.routeDistanceMeters === undefined ||
+        restaurant.routeDistanceMeters > selectedDistanceLimit
+      ) {
         return false;
       }
 
@@ -140,12 +260,15 @@ export function UserMapView() {
       }
 
       if (sort === "distance") {
-        return distanceRank(a.distanceValue) - distanceRank(b.distanceValue);
+        return (
+          (a.routeDistanceMeters ?? Number.POSITIVE_INFINITY) -
+          (b.routeDistanceMeters ?? Number.POSITIVE_INFINITY)
+        );
       }
 
       return Number(Boolean(b.isVerified)) - Number(Boolean(a.isVerified));
     });
-  }, [filters, sort]);
+  }, [filters, routedRestaurants, sort]);
 
   function handleKeywordBlur() {
     if (isValidKeyword(filters.keyword)) {
@@ -240,7 +363,10 @@ export function UserMapView() {
         <MapSearchResults
           appliedFilters={appliedFilters}
           isMapOpen={isMapOpen}
+          origin={currentLocation?.point ?? null}
+          isRouteLoading={isRouteLoading}
           restaurants={filteredRestaurants}
+          routes={routes}
           selectedRestaurant={selectedRestaurant}
           sort={sort}
           onCloseMap={() => setSelectedRestaurant(null)}
@@ -258,7 +384,10 @@ export function UserMapView() {
       <MapSearchResults
         appliedFilters={appliedFilters}
         isMapOpen={isMapOpen}
+        origin={currentLocation?.point ?? null}
+        isRouteLoading={isRouteLoading}
         restaurants={filteredRestaurants}
+        routes={routes}
         selectedRestaurant={selectedRestaurant}
         sort={sort}
         onCloseMap={() => setSelectedRestaurant(null)}

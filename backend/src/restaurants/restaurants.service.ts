@@ -14,6 +14,9 @@ import {
 } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
+import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
+import { SearchRestaurantDto } from './dto/search-restaurant.dto';
+import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { FeatureMaster } from './entities/feature-master.entity';
 import { PaymentMethod } from './entities/payment-method.entity';
 import { RestaurantFeature } from './entities/restaurant-feature.entity';
@@ -28,9 +31,6 @@ import {
   RestaurantSocialProvider,
 } from './entities/restaurant-social-link.entity';
 import { Restaurant } from './entities/restaurant.entity';
-import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
-import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
-import { SearchRestaurantDto } from './dto/search-restaurant.dto';
 
 interface OwnerHomeMenuSummaryRow {
   totalCount: number | string;
@@ -1313,7 +1313,8 @@ export class RestaurantsService {
     const limit = dto.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const query = this.restaurantRepo.createQueryBuilder('restaurant')
+    const query = this.restaurantRepo
+      .createQueryBuilder('restaurant')
       .leftJoinAndSelect('restaurant.media', 'media')
       .leftJoinAndSelect('restaurant.featureLinks', 'featureLinks')
       .leftJoinAndSelect('featureLinks.feature', 'feature')
@@ -1324,25 +1325,29 @@ export class RestaurantsService {
     if (dto.keyword) {
       query.andWhere(
         '(restaurant.nameVn ILIKE :keyword OR restaurant.nameJp ILIKE :keyword OR restaurant.address ILIKE :keyword)',
-        { keyword: `%${dto.keyword}%` }
+        { keyword: `%${dto.keyword.trim()}%` },
       );
     }
 
     if (dto.issuesVAT !== undefined) {
-      query.andWhere('restaurant.issuesVat = :issuesVAT', { issuesVAT: dto.issuesVAT });
+      query.andWhere('restaurant.issuesVat = :issuesVAT', {
+        issuesVAT: dto.issuesVAT,
+      });
     }
 
     if (dto.lat !== undefined && dto.lng !== undefined) {
-      // Haversine formula for distance in meters
+      const lat = parseFloat(dto.lat as any);
+      const lng = parseFloat(dto.lng as any);
+
+      // Công thức tính khoảng cách (mét) - Sử dụng tham số hóa để an toàn
       const haversine = `(6371000 * acos(cos(radians(:lat)) * cos(radians(restaurant.latitude)) * cos(radians(restaurant.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(restaurant.latitude))))`;
-      query.addSelect(`${haversine}`, 'distance');
+      query.addSelect(haversine, 'distance'); // Alias là 'distance'
       query.setParameter('lat', dto.lat);
       query.setParameter('lng', dto.lng);
 
       if (dto.radius !== undefined) {
         query.andWhere(`${haversine} <= :radius`, { radius: dto.radius });
       }
-
       // Order by distance ascending
       query.orderBy('distance', 'ASC');
     } else {
@@ -1358,7 +1363,7 @@ export class RestaurantsService {
           AND mc.categoryid IN (:...dishTypes)
           AND mi.deletedat IS NULL
         )`,
-        { dishTypes: dto.dishTypes }
+        { dishTypes: dto.dishTypes },
       );
     }
 
@@ -1369,14 +1374,14 @@ export class RestaurantsService {
           WHERE rf.restaurantid = restaurant.restaurantid
           AND rf.featureid IN (:...services)
         )`,
-        { services: dto.services }
+        { services: dto.services },
       );
     }
 
     if (dto.japaneseStandards && dto.japaneseStandards.length > 0) {
       // Assume -1 represents Hygiene score > 4.0
       const hasHygiene = dto.japaneseStandards.includes(-1);
-      const featureIds = dto.japaneseStandards.filter(id => id !== -1);
+      const featureIds = dto.japaneseStandards.filter((id) => id !== -1);
 
       if (featureIds.length > 0) {
         query.andWhere(
@@ -1385,7 +1390,7 @@ export class RestaurantsService {
             WHERE rf.restaurantid = restaurant.restaurantid
             AND rf.featureid IN (:...featureIds)
           )`,
-          { featureIds }
+          { featureIds },
         );
       }
 
@@ -1395,30 +1400,23 @@ export class RestaurantsService {
             SELECT 1 FROM review r
             WHERE r.restaurantid = restaurant.restaurantid
             AND r.status = 'Visible'
-            HAVING AVG(COALESCE(r.toiletcleanliness, 0) + COALESCE(r.dishcleanliness, 0) + COALESCE(r.spacecleanliness, 0)) / 3.0 >= 4.0
-          )`
+            GROUP BY  r.restaurantid
+            HAVING (AVG(COALESCE(r.toiletcleanliness, 0)) + AVG(COALESCE(r.dishcleanliness, 0)) + AVG(COALESCE(r.spacecleanliness, 0))) / 3.0 >= 4.0
+          )`,
         );
       }
     }
 
-    const countQuery = query.clone();
+    const countQuery = query.clone(); //
     const totalCount = await countQuery.getCount();
-
     query.skip(skip).take(limit);
     const { entities, raw } = await query.getRawAndEntities();
 
-    const items = entities.map((entity) => {
-      const r = raw.find(
-        (row) =>
-          row.restaurant_restaurantid === entity.restaurantId ||
-          row.restaurant_restaurantId === entity.restaurantId ||
-          row.restaurantid === entity.restaurantId ||
-          row.restaurantId === entity.restaurantId
-      );
+    const items = entities.map((entity, index) => {
+      const rawData = raw[index];
       const distance =
-        r && r.distance !== undefined && r.distance !== null
-          ? parseFloat(r.distance)
-          : undefined;
+        rawData && rawData.distance ? parseFloat(rawData.distance) : undefined;
+
       return {
         ...this.toHomeRestaurantResponse(entity),
         distance,

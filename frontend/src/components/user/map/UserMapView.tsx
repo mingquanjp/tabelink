@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { showErrorToast } from "@/lib/app-toast";
 import { getMapRestaurants, getRestaurantRoute } from "@/lib/api/maps/API";
 import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
-import { MapFilterSidebar, type MapFilterState } from "./MapFilterSidebar";
-import { MapSearchResults } from "./MapSearchResults";
+import { showErrorToast } from "@/lib/app-toast";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AmenityKey,
   MapRestaurant,
@@ -18,6 +16,8 @@ import {
   getBrowserCurrentLocation,
   type BrowserLocation,
 } from "./map-routing";
+import { MapFilterSidebar, type MapFilterState } from "./MapFilterSidebar";
+import { MapSearchResults } from "./MapSearchResults";
 import type { AppliedFilter, SortOption } from "./SearchResultsHeader";
 
 const initialFilters: MapFilterState = {

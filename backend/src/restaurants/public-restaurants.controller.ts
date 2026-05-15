@@ -38,6 +38,19 @@ interface AuthenticatedRequest extends Request {
 export class PublicRestaurantsController {
   constructor(private readonly restaurantsService: RestaurantsService) {}
 
+  @Get('advanced-search')
+  @ApiOperation({
+    summary: 'Search for restaurants',
+    description:
+      'Advanced search API with filters for keyword, distance, Japanese standards, dish types, and services. Returns paginated results with total count.',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of restaurants matching search criteria.',
+  })
+  searchRestaurants(@Query() query: SearchRestaurantDto) {
+    return this.restaurantsService.searchRestaurants(query);
+  }
+
   @Get(':restaurantId')
   @ApiOperation({
     summary: 'Get customer restaurant detail',
@@ -146,18 +159,5 @@ export class PublicRestaurantsController {
       dto,
       request.user,
     );
-  }
-
-  @Get('search')
-  @ApiOperation({
-    summary: 'Search for restaurants',
-    description:
-      'Advanced search API with filters for keyword, distance, Japanese standards, dish types, and services. Returns paginated results with total count.',
-  })
-  @ApiOkResponse({
-    description: 'Paginated list of restaurants matching search criteria.',
-  })
-  searchRestaurants(@Query() query: SearchRestaurantDto) {
-    return this.restaurantsService.searchRestaurants(query);
   }
 }

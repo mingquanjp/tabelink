@@ -66,3 +66,55 @@ export type CreateRestaurantReviewResponse = {
   createdAt: string | Date;
   updatedAt: string | Date;
 };
+
+export type ReservationRequestType =
+  | "Coriander"
+  | "LessSpicy"
+  | "VATInvoice"
+  | "PrivateRoom"
+  | "Other";
+
+export type CreateRestaurantReservationPayload = {
+  customerName: string;
+  phoneNumber: string;
+  reservationDate: string;
+  reservationTime: string;
+  pax: number;
+  durationMinutes?: number;
+  requestTypes?: ReservationRequestType[];
+  customRequest?: string;
+};
+
+export type RestaurantReservationSpecialRequest = {
+  requestId: number;
+  templateId: number | null;
+  requestType: ReservationRequestType | null;
+  textJp: string | null;
+  descriptionJp: string | null;
+  customText: string | null;
+  label: string;
+  description: string | null;
+};
+
+export type CreatedRestaurantReservation = {
+  reservationId: number;
+  restaurantId: number;
+  reservationDateTime: string | Date;
+  durationMinutes: number;
+  reservationEndDateTime: string | Date;
+  pax: number;
+  customerName: string;
+  phoneNumber: string;
+  note: string | null;
+  specialRequests: RestaurantReservationSpecialRequest[];
+  status: string;
+};
+
+export type CreateRestaurantReservationResponse = {
+  message: string;
+  ownerNotification: {
+    sent: boolean;
+    reason?: string;
+  };
+  reservation: CreatedRestaurantReservation;
+};

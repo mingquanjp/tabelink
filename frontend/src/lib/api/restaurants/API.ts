@@ -1,5 +1,7 @@
 import { apiRequest } from "@/lib/api/client";
 import type {
+  CreateRestaurantReservationPayload,
+  CreateRestaurantReservationResponse,
   CreateRestaurantReviewPayload,
   CreateRestaurantReviewResponse,
 } from "@/lib/api/restaurants/type";
@@ -18,3 +20,16 @@ export function createRestaurantReview(
   );
 }
 
+export function createRestaurantReservation(
+  restaurantId: number,
+  payload: CreateRestaurantReservationPayload,
+) {
+  return apiRequest<CreateRestaurantReservationResponse>(
+    `/restaurants/${restaurantId}/reservations`,
+    {
+      auth: true,
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}

@@ -317,6 +317,8 @@ CREATE TABLE RESERVATION (
     ReservationDateTime TIMESTAMPTZ NOT NULL,
     DurationMinutes INT NOT NULL DEFAULT 120 CHECK (DurationMinutes > 0),
     Pax INT NOT NULL CHECK (Pax > 0),
+    CustomerName VARCHAR(255),
+    PhoneNumber VARCHAR(50),
     Note TEXT,
     Status VARCHAR(50) NOT NULL DEFAULT 'Pending'
         CHECK (Status IN ('Pending', 'Confirmed', 'Arrived', 'Completed', 'Cancelled')),

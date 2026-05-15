@@ -3,18 +3,30 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, In, Not, Repository } from 'typeorm';
+import { Between, In, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import { Reservation, ReservationStatus } from './entities/reservation.entity';
+import { ReservationSpecialRequest } from './entities/reservation-special-request.entity';
 import {
   RestaurantTable,
   RestaurantTableStatus,
 } from './entities/restaurant-table.entity';
+import {
+  SpecialRequestTemplate,
+  SpecialRequestType,
+} from './entities/special-request-template.entity';
+import { CustomerProfile } from '../auth/entities/customer-profile.entity';
+import { MailService } from '../mail/mail.service';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
+import {
+  CreateReservationRequestDto,
+  ReservationRequestType,
+} from './dto/create-reservation-request.dto';
 import { CreateTableDto } from './dto/create-table.dto';
 import { ListReservationsQueryDto } from './dto/list-reservations-query.dto';
 import { UpdateReservationDto } from './dto/update-reservation.dto';
@@ -28,13 +40,22 @@ const ACTIVE_RESERVATION_STATUSES = [
 
 @Injectable()
 export class TablesService {
+  private readonly logger = new Logger(TablesService.name);
+
   constructor(
+    @InjectRepository(CustomerProfile)
+    private readonly customerRepo: Repository<CustomerProfile>,
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
     @InjectRepository(RestaurantTable)
     private readonly tableRepo: Repository<RestaurantTable>,
     @InjectRepository(Reservation)
     private readonly reservationRepo: Repository<Reservation>,
+    @InjectRepository(ReservationSpecialRequest)
+    private readonly reservationSpecialRequestRepo: Repository<ReservationSpecialRequest>,
+    @InjectRepository(SpecialRequestTemplate)
+    private readonly specialRequestTemplateRepo: Repository<SpecialRequestTemplate>,
+    private readonly mailService: MailService,
   ) {}
 
   async listTables(restaurantId: number, user: JwtPayload) {
@@ -197,6 +218,85 @@ export class TablesService {
     };
   }
 
+  async createReservationRequest(
+    restaurantId: number,
+    dto: CreateReservationRequestDto,
+    user: JwtPayload,
+  ) {
+    if (user.role !== AuthRole.User) {
+      throw new ForbiddenException(
+        'Only customer users can submit reservation requests.',
+      );
+    }
+
+    const [restaurant, customer] = await Promise.all([
+      this.findActiveRestaurantForBooking(restaurantId),
+      this.customerRepo.findOne({ where: { accountId: user.sub } }),
+    ]);
+
+    if (!customer) {
+      throw new NotFoundException('Customer profile was not found.');
+    }
+
+    const reservationDateTime = this.parseReservationDateTime(
+      dto.reservationDate,
+      dto.reservationTime,
+    );
+
+    if (reservationDateTime.getTime() <= Date.now()) {
+      throw new BadRequestException('Reservation date time must be future.');
+    }
+
+    const customerName = this.requiredTrim(dto.customerName, 'customerName');
+    const phoneNumber = this.requiredTrim(dto.phoneNumber, 'phoneNumber');
+    const customRequest = this.optionalTrim(dto.customRequest) ?? null;
+    await this.assertSpecialRequestTemplateIdsExist(dto.templateIds ?? []);
+
+    const reservation = this.reservationRepo.create({
+      customerAccountId: user.sub,
+      restaurantId,
+      reservationDateTime,
+      durationMinutes: dto.durationMinutes ?? 120,
+      pax: dto.pax,
+      customerName,
+      phoneNumber,
+      note: customRequest,
+      status: ReservationStatus.Pending,
+    });
+
+    const savedReservation = await this.reservationRepo.save(reservation);
+    const specialRequests = await this.createSpecialRequests(
+      savedReservation.reservationId,
+      dto,
+    );
+
+    const ownerNotification = await this.notifyOwnerOfReservation({
+      restaurant,
+      reservation: savedReservation,
+      customerName,
+      phoneNumber,
+      customRequest,
+      specialRequestLabels: specialRequests.map((request) =>
+        this.specialRequestLabel(request),
+      ),
+    });
+
+    const refreshed = await this.reservationRepo.findOneOrFail({
+      where: { reservationId: savedReservation.reservationId },
+      relations: {
+        customer: true,
+        restaurant: true,
+        specialRequests: { template: true },
+      },
+    });
+
+    return {
+      message: 'Reservation request submitted successfully.',
+      ownerNotification,
+      reservation: this.toReservationResponse(refreshed),
+    };
+  }
+
   async listReservations(
     restaurantId: number,
     query: ListReservationsQueryDto,
@@ -223,6 +323,7 @@ export class TablesService {
       relations: {
         table: true,
         customer: true,
+        specialRequests: { template: true },
       },
       order: {
         reservationDateTime: 'ASC',
@@ -309,6 +410,193 @@ export class TablesService {
     return this.toReservationResponse(refreshed);
   }
 
+  private async findActiveRestaurantForBooking(restaurantId: number) {
+    const restaurant = await this.restaurantRepo.findOne({
+      where: { restaurantId, status: 'Active' },
+      relations: {
+        owner: { account: true },
+      },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Active restaurant was not found.');
+    }
+
+    return restaurant;
+  }
+
+  private parseReservationDateTime(date: string, time: string) {
+    const value = new Date(`${date}T${time}:00+07:00`);
+
+    if (Number.isNaN(value.getTime())) {
+      throw new BadRequestException('Reservation date time is invalid.');
+    }
+
+    return value;
+  }
+
+  private async createSpecialRequests(
+    reservationId: number,
+    dto: CreateReservationRequestDto,
+  ) {
+    const templateIds = [...new Set(dto.templateIds ?? [])];
+    const requestTypes = [...new Set(dto.requestTypes ?? [])];
+    const requests: ReservationSpecialRequest[] = [];
+
+    if (templateIds.length) {
+      const templates = await this.specialRequestTemplateRepo.find({
+        where: { templateId: In(templateIds) },
+      });
+
+      requests.push(
+        ...templates.map((template) =>
+          this.reservationSpecialRequestRepo.create({
+            reservationId,
+            templateId: template.templateId,
+          }),
+        ),
+      );
+    }
+
+    const dbRequestTypes = requestTypes.filter(
+      (type) => type !== ReservationRequestType.PrivateRoom,
+    );
+
+    if (dbRequestTypes.length) {
+      const templates = await this.specialRequestTemplateRepo.find({
+        where: { requestType: In(dbRequestTypes) },
+        order: { templateId: 'ASC' },
+      });
+
+      const usedRequestTypes = new Set<string>();
+      for (const type of dbRequestTypes) {
+        const template = templates.find(
+          (item) =>
+            item.requestType === (type as unknown as SpecialRequestType) &&
+            !usedRequestTypes.has(item.requestType),
+        );
+
+        if (template) {
+          usedRequestTypes.add(template.requestType);
+          requests.push(
+            this.reservationSpecialRequestRepo.create({
+              reservationId,
+              templateId: template.templateId,
+            }),
+          );
+        } else {
+          requests.push(
+            this.reservationSpecialRequestRepo.create({
+              reservationId,
+              customText: this.defaultSpecialRequestText(type),
+            }),
+          );
+        }
+      }
+    }
+
+    if (requestTypes.includes(ReservationRequestType.PrivateRoom)) {
+      requests.push(
+        this.reservationSpecialRequestRepo.create({
+          reservationId,
+          customText: this.defaultSpecialRequestText(
+            ReservationRequestType.PrivateRoom,
+          ),
+        }),
+      );
+    }
+
+    const customRequest = this.optionalTrim(dto.customRequest);
+    if (customRequest) {
+      requests.push(
+        this.reservationSpecialRequestRepo.create({
+          reservationId,
+          customText: customRequest,
+        }),
+      );
+    }
+
+    if (!requests.length) {
+      return [];
+    }
+
+    return this.reservationSpecialRequestRepo.save(requests);
+  }
+
+  private async assertSpecialRequestTemplateIdsExist(templateIds: number[]) {
+    const uniqueTemplateIds = [...new Set(templateIds)];
+
+    if (!uniqueTemplateIds.length) {
+      return;
+    }
+
+    const count = await this.specialRequestTemplateRepo.count({
+      where: { templateId: In(uniqueTemplateIds) },
+    });
+
+    if (count !== uniqueTemplateIds.length) {
+      throw new BadRequestException(
+        'Special request template selection contains unknown IDs.',
+      );
+    }
+  }
+
+  private defaultSpecialRequestText(type: ReservationRequestType) {
+    const labels: Record<ReservationRequestType, string> = {
+      [ReservationRequestType.Coriander]: 'No coriander / パクチー抜き',
+      [ReservationRequestType.LessSpicy]: 'Less spicy / 辛さ控えめ',
+      [ReservationRequestType.VATInvoice]: 'VAT invoice requested / 領収書・VAT希望',
+      [ReservationRequestType.PrivateRoom]: 'Private room requested / 個室希望',
+      [ReservationRequestType.Other]: 'Other special request',
+    };
+
+    return labels[type];
+  }
+
+  private async notifyOwnerOfReservation({
+    restaurant,
+    reservation,
+    customerName,
+    phoneNumber,
+    customRequest,
+    specialRequestLabels,
+  }: {
+    restaurant: Restaurant;
+    reservation: Reservation;
+    customerName: string;
+    phoneNumber: string;
+    customRequest: string | null;
+    specialRequestLabels: string[];
+  }) {
+    const ownerEmail = restaurant.owner?.account?.email;
+
+    if (!ownerEmail) {
+      return { sent: false, reason: 'Owner email was not found.' };
+    }
+
+    try {
+      await this.mailService.sendReservationRequestNotification({
+        to: ownerEmail,
+        restaurantName: restaurant.nameJp || restaurant.nameVn,
+        customerName,
+        phoneNumber,
+        reservationDateTime: reservation.reservationDateTime,
+        pax: reservation.pax,
+        note: customRequest,
+        specialRequests: specialRequestLabels,
+        reservationId: reservation.reservationId,
+      });
+
+      return { sent: true };
+    } catch (error) {
+      this.logger.warn(
+        `Failed to notify owner for reservation #${reservation.reservationId}`,
+      );
+      this.logger.warn(error);
+      return { sent: false, reason: 'Owner notification failed.' };
+    }
+  }
+
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {
     if (user.role !== AuthRole.Owner) {
       throw new ForbiddenException('Only restaurant owners can manage tables.');
@@ -347,6 +635,7 @@ export class TablesService {
       relations: {
         table: true,
         customer: true,
+        specialRequests: { template: true },
       },
     });
 
@@ -466,6 +755,16 @@ export class TablesService {
     return value === undefined ? undefined : value.toFixed(2);
   }
 
+  private requiredTrim(value: string, fieldName: string) {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      throw new BadRequestException(`${fieldName} must not be empty.`);
+    }
+
+    return trimmed;
+  }
+
   private optionalTrim(value?: string) {
     const trimmed = value?.trim();
     return trimmed ? trimmed : undefined;
@@ -548,11 +847,37 @@ export class TablesService {
       durationMinutes: reservation.durationMinutes,
       reservationEndDateTime: this.reservationEndDateTime(reservation),
       pax: reservation.pax,
+      customerName: reservation.customerName ?? null,
+      phoneNumber: reservation.phoneNumber ?? null,
       note: reservation.note ?? null,
+      specialRequests: (reservation.specialRequests ?? []).map((request) =>
+        this.toSpecialRequestResponse(request),
+      ),
       status: reservation.status,
       createdAt: reservation.createdAt,
       updatedAt: reservation.updatedAt,
     };
+  }
+
+  private toSpecialRequestResponse(request: ReservationSpecialRequest) {
+    return {
+      requestId: request.requestId,
+      templateId: request.templateId ?? null,
+      requestType: request.template?.requestType ?? null,
+      textVn: request.template?.textVn ?? null,
+      textJp: request.template?.textJp ?? null,
+      customText: request.customText ?? null,
+      label: this.specialRequestLabel(request),
+    };
+  }
+
+  private specialRequestLabel(request: ReservationSpecialRequest) {
+    return (
+      request.template?.textJp ??
+      request.template?.textVn ??
+      request.customText ??
+      'Special request'
+    );
   }
 
   private async hasOverlappingActiveReservation(

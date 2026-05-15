@@ -109,6 +109,10 @@ async function bootstrap() {
       'ID12 / Feature 15 - Owner table and reservation management',
     )
     .addTag(
+      'reservations',
+      'Screen ID6 / Backend Feature ID 12 - Customer reservation request submission',
+    )
+    .addTag(
       'verification',
       'ID13 - Owner verification application and document upload',
     )

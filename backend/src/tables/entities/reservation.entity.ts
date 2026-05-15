@@ -4,12 +4,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { CustomerProfile } from '../../auth/entities/customer-profile.entity';
 import { RestaurantTable } from './restaurant-table.entity';
 import { Restaurant } from '../../restaurants/entities/restaurant.entity';
+import { ReservationSpecialRequest } from './reservation-special-request.entity';
 
 export enum ReservationStatus {
   Pending = 'Pending',
@@ -60,6 +62,12 @@ export class Reservation {
   @Column({ name: 'pax' })
   pax!: number;
 
+  @Column({ name: 'customername', length: 255, nullable: true })
+  customerName?: string | null;
+
+  @Column({ name: 'phonenumber', length: 50, nullable: true })
+  phoneNumber?: string | null;
+
   @Column({ name: 'note', type: 'text', nullable: true })
   note?: string | null;
 
@@ -75,4 +83,10 @@ export class Reservation {
 
   @UpdateDateColumn({ name: 'updatedat', type: 'timestamptz' })
   updatedAt!: Date;
+
+  @OneToMany(
+    () => ReservationSpecialRequest,
+    (specialRequest) => specialRequest.reservation,
+  )
+  specialRequests?: ReservationSpecialRequest[];
 }

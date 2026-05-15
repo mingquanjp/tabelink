@@ -8,6 +8,7 @@ export const OWNER_TOAST_MESSAGES = {
   error: "エラーが発生しました",
   validationError: "入力形式が正しくありません。再度入力してください",
   uploadError: "ファイルのアップロードに失敗しました",
+  deleteTableError: "テーブルを削除できませんでした",
 } as const;
 
 export const AUTH_TOAST_MESSAGES = {

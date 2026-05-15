@@ -219,25 +219,21 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     request_templates = [
         {
             "templateid": 1,
-            "textvn": "Không rau mùi",
             "textjp": "パクチー抜き",
             "requesttype": "Coriander",
         },
         {
             "templateid": 2,
-            "textvn": "Ít cay",
             "textjp": "辛さ控えめ",
             "requesttype": "LessSpicy",
         },
         {
             "templateid": 3,
-            "textvn": "Cần hóa đơn VAT",
             "textjp": "VAT領収書が必要",
             "requesttype": "VATInvoice",
         },
         {
             "templateid": 4,
-            "textvn": "Ghế trẻ em nếu có",
             "textjp": "子ども椅子希望",
             "requesttype": "Other",
         },
@@ -584,14 +580,48 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         }
     ]
 
-    review_media = [
-        {"mediaid": 1, "reviewid": 3001, "mediaurl": "https://images.example.test/reviews/3001/pho.jpg", "mediatype": "Photo", "sortorder": 0}
+    blog_posts = [
+        {
+            "blogid": 4001,
+            "customeraccountid": 201,
+            "restaurantid": 1001,
+            "title": "Lunch near Hoan Kiem",
+            "content": "Clean space, easy booking, and a clear Japanese menu.",
+            "status": "Published",
+            "createdat": datetime(2026, 5, 5, 15, 0, tzinfo=utc),
+            "updatedat": datetime(2026, 5, 5, 15, 0, tzinfo=utc),
+        }
     ]
 
-    review_tags = [
-        {"reviewid": 3001, "tagid": 1},
-        {"reviewid": 3001, "tagid": 3},
-        {"reviewid": 3001, "tagid": 4},
+    blog_media = [
+        {"mediaid": 1, "blogid": 4001, "mediaurl": "https://images.example.test/blogs/4001/pho.jpg", "mediatype": "Photo", "sortorder": 0}
+    ]
+
+    blog_tags = [
+        {"blogid": 4001, "tagid": 1},
+        {"blogid": 4001, "tagid": 3},
+        {"blogid": 4001, "tagid": 4},
+    ]
+
+    blog_likes = [
+        {"blogid": 4001, "customeraccountid": 202, "createdat": datetime(2026, 5, 5, 16, 0, tzinfo=utc)}
+    ]
+
+    blog_comments = [
+        {
+            "commentid": 1,
+            "blogid": 4001,
+            "customeraccountid": 202,
+            "parentcommentid": None,
+            "content": "Useful note for lunch.",
+            "status": "Visible",
+            "createdat": datetime(2026, 5, 5, 16, 5, tzinfo=utc),
+            "updatedat": datetime(2026, 5, 5, 16, 5, tzinfo=utc),
+        }
+    ]
+
+    blog_shares = [
+        {"shareid": 1, "blogid": 4001, "customeraccountid": 202, "createdat": datetime(2026, 5, 5, 16, 10, tzinfo=utc)}
     ]
 
     promotions = [
@@ -1080,15 +1110,91 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 }
             )
 
+    upcoming_hours = [10, 11, 12, 13, 18, 19, 20]
+    upcoming_statuses = ["Confirmed", "Arrived", "Completed", "Pending"]
+    upcoming_reservation_start_id = 50001
+    for restaurant_offset, restaurant_row in enumerate(restaurants, start=0):
+        restaurant_id = int(restaurant_row["restaurantid"])
+        if restaurant_row["status"] != "Active":
+            continue
+
+        restaurant_menu = menu_items_by_restaurant[restaurant_id]
+        for day_offset in range(31):
+            for hour_index, hour in enumerate(upcoming_hours):
+                tables_for_hour = tables_by_restaurant[restaurant_id]
+                # Lunch and dinner peaks intentionally use every table so dashboard
+                # busy-hour charts have clear data for CURRENT_DATE and coming days.
+                table_count = len(tables_for_hour) if hour in {12, 18, 19} else max(2, len(tables_for_hour) // 2)
+                for table_offset, table_row in enumerate(tables_for_hour[:table_count]):
+                    reservation_id = upcoming_reservation_start_id + len(reservations) - 800
+                    status = upcoming_statuses[
+                        (restaurant_offset + day_offset + hour_index + table_offset) % len(upcoming_statuses)
+                    ]
+                    reservation_time = RawSql(
+                        "CURRENT_DATE "
+                        f"+ INTERVAL '{day_offset} days' "
+                        f"+ INTERVAL '{hour} hours' "
+                        f"+ INTERVAL '{5 + (table_offset % 2) * 15} minutes'"
+                    )
+                    customer_id = 201 + ((restaurant_offset * 7 + day_offset + hour_index * 3 + table_offset) % 75)
+                    pax = min(int(table_row["capacity"]), 1 + ((day_offset + hour_index + table_offset) % int(table_row["capacity"])))
+                    reservations.append(
+                        {
+                            "reservationid": reservation_id,
+                            "customeraccountid": customer_id,
+                            "restaurantid": restaurant_id,
+                            "tableid": table_row["tableid"],
+                            "reservationdatetime": reservation_time,
+                            "durationminutes": 90 if hour in {10, 13, 20} else 120,
+                            "pax": pax,
+                            "note": f"Upcoming reservation seed day {day_offset} restaurant {restaurant_id} hour {hour}",
+                            "status": status,
+                            "createdat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 day'"),
+                            "updatedat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 hour'"),
+                        }
+                    )
+
+                    for item_offset in range(1 + ((day_offset + hour_index + table_offset) % 2)):
+                        item_id_for_order = restaurant_menu[
+                            (day_offset + hour_index + table_offset + item_offset) % len(restaurant_menu)
+                        ]
+                        reservation_items.append(
+                            {
+                                "reservationitemid": len(reservation_items) + 1,
+                                "reservationid": reservation_id,
+                                "restaurantid": restaurant_id,
+                                "itemid": item_id_for_order,
+                                "quantity": 1 + ((day_offset + hour_index + table_offset + item_offset) % 3),
+                                "unitprice": menu_items[item_id_for_order - 5001]["price"],
+                                "note": "Upcoming dashboard pre-order" if item_offset == 0 else None,
+                                "createdat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 day'"),
+                            }
+                        )
+
+                    if (day_offset + hour_index + table_offset) % 3 == 0:
+                        reservation_special_requests.append(
+                            {
+                                "requestid": len(reservation_special_requests) + 1,
+                                "reservationid": reservation_id,
+                                "templateid": ((day_offset + hour_index + table_offset) % 4) + 1,
+                                "customtext": None,
+                            }
+                        )
+
     reviewable_reservations = [
         row for row in reservations if row["status"] in {"Completed", "Confirmed", "Arrived"}
-    ][:400]
+    ][:700]
     reviews = []
-    review_media = []
-    review_tags = []
+    blog_posts = []
+    blog_media = []
+    blog_tags = []
+    blog_likes = []
+    blog_comments = []
+    blog_shares = []
     for index, reservation_row in enumerate(reviewable_reservations, start=1):
         review_id = 3000 + index
-        rating = 3 + ((index * 7) % 3)
+        rating = [5, 5, 5, 4, 4, 4, 3, 3, 2, 1][index % 10]
+        cleanliness_base = max(1, min(5, rating + ((index % 3) - 1)))
         reviews.append(
             {
                 "reviewid": review_id,
@@ -1096,30 +1202,73 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 "restaurantid": reservation_row["restaurantid"],
                 "reservationid": reservation_row["reservationid"],
                 "rating": rating,
-                "toiletcleanliness": 3 + (index % 3),
-                "dishcleanliness": 3 + ((index + 1) % 3),
-                "spacecleanliness": 3 + ((index + 2) % 3),
-                "content": f"Mock review {index}: rating {rating} with realistic variation.",
-                "isjapanesetag": index % 2 == 0,
-                "status": ["Visible", "Visible", "Visible", "Hidden"][index % 4],
-                "createdat": base_created,
-                "updatedat": base_created,
+                "toiletcleanliness": max(1, min(5, cleanliness_base)),
+                "dishcleanliness": max(1, min(5, cleanliness_base + (1 if index % 4 == 0 else 0))),
+                "spacecleanliness": max(1, min(5, cleanliness_base - (1 if index % 5 == 0 else 0))),
+                "content": f"Mock review {index}: rating {rating}, service and cleanliness vary for dashboard testing.",
+                "isjapanesetag": index % 3 in {0, 1},
+                "status": ["Visible", "Visible", "Visible", "Visible", "Hidden", "Deleted"][index % 6],
+                "createdat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 day'") if index > 620 else base_created,
+                "updatedat": RawSql("CURRENT_TIMESTAMP - INTERVAL '1 hour'") if index > 620 else base_created,
             }
         )
-        if index % 2 == 0:
-            review_media.append(
+        if index <= 120:
+            blog_id = 4000 + index
+            blog_posts.append(
                 {
-                    "mediaid": len(review_media) + 1,
-                    "reviewid": review_id,
-                    "mediaurl": f"https://images.example.test/reviews/{review_id}/photo.jpg",
-                    "mediatype": "Photo",
-                    "sortorder": 0,
+                    "blogid": blog_id,
+                    "customeraccountid": reservation_row["customeraccountid"],
+                    "restaurantid": reservation_row["restaurantid"],
+                    "title": f"Mock restaurant note {index}",
+                    "content": f"Mock blog {index}: useful dining note with photos and social interactions.",
+                    "status": ["Published", "Published", "Published", "Hidden"][index % 4],
+                    "createdat": base_created,
+                    "updatedat": base_created,
                 }
             )
-        for tag_id in [1 + (index % 5), 1 + ((index + 2) % 5)]:
-            tag_row = {"reviewid": review_id, "tagid": tag_id}
-            if tag_row not in review_tags:
-                review_tags.append(tag_row)
+            if index % 2 == 0:
+                blog_media.append(
+                    {
+                        "mediaid": len(blog_media) + 1,
+                        "blogid": blog_id,
+                        "mediaurl": f"https://images.example.test/blogs/{blog_id}/photo.jpg",
+                        "mediatype": "Photo",
+                        "sortorder": 0,
+                    }
+                )
+            for tag_id in [1 + (index % 5), 1 + ((index + 2) % 5)]:
+                tag_row = {"blogid": blog_id, "tagid": tag_id}
+                if tag_row not in blog_tags:
+                    blog_tags.append(tag_row)
+            liker_id = customer_profiles[index % len(customer_profiles)]["accountid"]
+            if liker_id != reservation_row["customeraccountid"]:
+                blog_likes.append(
+                    {
+                        "blogid": blog_id,
+                        "customeraccountid": liker_id,
+                        "createdat": base_created,
+                    }
+                )
+            blog_comments.append(
+                {
+                    "commentid": len(blog_comments) + 1,
+                    "blogid": blog_id,
+                    "customeraccountid": liker_id,
+                    "parentcommentid": None,
+                    "content": f"Mock comment for blog {index}.",
+                    "status": "Visible",
+                    "createdat": base_created,
+                    "updatedat": base_created,
+                }
+            )
+            blog_shares.append(
+                {
+                    "shareid": len(blog_shares) + 1,
+                    "blogid": blog_id,
+                    "customeraccountid": liker_id,
+                    "createdat": base_created,
+                }
+            )
 
     promotions = []
     for index, restaurant_row in enumerate(restaurants, start=1):
@@ -1211,6 +1360,8 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     for restaurant_row in restaurants:
         for day_index in range(90):
             stat_date = analytics_start + __import__("datetime").timedelta(days=day_index)
+            if stat_date >= date(2026, 5, 1):
+                continue
             visits = 80 + ((int(restaurant_row["restaurantid"]) + day_index * 13) % 220)
             japanese_visits = visits // (3 + (day_index % 3))
             restaurant_analytics.append(
@@ -1226,6 +1377,23 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 }
             )
             analytics_id += 1
+        for day_index in range(31):
+            visits = 220 + ((int(restaurant_row["restaurantid"]) + day_index * 17) % 180)
+            japanese_visits = visits // (2 + (day_index % 2))
+            restaurant_analytics.append(
+                {
+                    "analyticsid": 100000 + (int(restaurant_row["restaurantid"]) - 1000) * 100 + day_index,
+                    "restaurantid": restaurant_row["restaurantid"],
+                    "statdate": RawSql(
+                        f"(DATE_TRUNC('month', CURRENT_DATE)::date + INTERVAL '{day_index} days')::date"
+                    ),
+                    "visitcount": visits,
+                    "japanesevisitcount": japanese_visits,
+                    "reviewcount": 3 + ((day_index + int(restaurant_row["restaurantid"])) % 12),
+                    "reservationcount": 12 + ((day_index * 3 + int(restaurant_row["restaurantid"])) % 35),
+                    "peakhour": [11, 12, 13, 18, 19, 20][day_index % 6],
+                }
+            )
 
     menu_analytics = []
     analytics_id = 1
@@ -1271,14 +1439,28 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         ("reservation_item", reservation_items, ["reservationitemid"], None),
         ("reservation_special_request", reservation_special_requests, ["requestid"], None),
         ("review", reviews, ["reviewid"], None),
-        ("review_media", review_media, ["mediaid"], None),
-        ("review_tag", review_tags, ["reviewid", "tagid"], None),
+        ("blog_post", blog_posts, ["blogid"], None),
+        ("blog_media", blog_media, ["mediaid"], None),
+        ("blog_tag", blog_tags, ["blogid", "tagid"], None),
+        ("blog_like", blog_likes, ["blogid", "customeraccountid"], None),
+        ("blog_comment", blog_comments, ["commentid"], None),
+        ("blog_share", blog_shares, ["shareid"], None),
         ("promotion", promotions, ["promotionid"], None),
         ("badge_application", badge_applications, ["appid"], None),
         ("restaurant_badge", restaurant_badges, ["restaurantid", "badgeid"], None),
         ("moderation_log", moderation_logs, ["logid"], None),
-        ("restaurant_analytics_daily", restaurant_analytics, ["analyticsid"], None),
-        ("menu_item_analytics_daily", menu_analytics, ["analyticsid"], None),
+        (
+            "restaurant_analytics_daily",
+            restaurant_analytics,
+            ["restaurantid", "statdate"],
+            ["visitcount", "japanesevisitcount", "reviewcount", "reservationcount", "peakhour"],
+        ),
+        (
+            "menu_item_analytics_daily",
+            menu_analytics,
+            ["itemid", "statdate"],
+            ["viewcount", "ordercount"],
+        ),
     ]
 
 
@@ -1296,7 +1478,8 @@ def build_sql(include_truncate: bool) -> str:
                 "-- Optional destructive reset requested by --truncate.",
                 "TRUNCATE TABLE "
                 "menu_item_analytics_daily, restaurant_analytics_daily, restaurant_badge, "
-                "badge_application, promotion, review_tag, review_media, review, "
+                "badge_application, promotion, blog_share, blog_comment, blog_like, "
+                "blog_tag, blog_media, blog_post, review, "
                 "reservation_special_request, reservation_item, reservation, "
                 "restaurant_table, menu_item_criterion, menu_item, menu_category, "
                 "restaurant_payment_method, restaurant_feature, restaurant_media, "
@@ -1329,7 +1512,10 @@ def build_sql(include_truncate: bool) -> str:
         ("reservation_item", "reservationitemid"),
         ("reservation_special_request", "requestid"),
         ("review", "reviewid"),
-        ("review_media", "mediaid"),
+        ("blog_post", "blogid"),
+        ("blog_media", "mediaid"),
+        ("blog_comment", "commentid"),
+        ("blog_share", "shareid"),
         ("promotion", "promotionid"),
         ("badge_application", "appid"),
         ("restaurant_analytics_daily", "analyticsid"),

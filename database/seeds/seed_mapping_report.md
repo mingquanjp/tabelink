@@ -67,12 +67,16 @@ The password value is not stored as plain text. The generator stores a bcrypt ha
 | `MENU_ITEM` | 270 | 17/17 | None |
 | `MENU_ITEM_CRITERION` | 540 | 6/6 | None |
 | `RESTAURANT_TABLE` | 90 | 10/10 | None |
-| `RESERVATION` | 800 | 11/11 | None |
-| `RESERVATION_ITEM` | 1,599 | 8/8 | None |
-| `RESERVATION_SPECIAL_REQUEST` | 480 | 4/4 | None |
-| `REVIEW` | 400 | 13/13 | None |
-| `REVIEW_MEDIA` | 200 | 5/5 | None |
-| `REVIEW_TAG` | 800 | 2/2 | None |
+| `RESERVATION` | 12,890 | 11/11 | None |
+| `RESERVATION_ITEM` | 19,734 | 8/8 | None |
+| `RESERVATION_SPECIAL_REQUEST` | 4,510 | 4/4 | None |
+| `REVIEW` | 700 | 13/13 | None |
+| `BLOG_POST` | 120 | 8/8 | None |
+| `BLOG_MEDIA` | 60 | 5/5 | None |
+| `BLOG_TAG` | 240 | 2/2 | None |
+| `BLOG_LIKE` | 120 | 3/3 | None |
+| `BLOG_COMMENT` | 120 | 8/8 | None |
+| `BLOG_SHARE` | 120 | 4/4 | None |
 | `PROMOTION` | 15 | 19/19 | None |
 | `BADGE_APPLICATION` | 15 | 13/13 | None |
 | `RESTAURANT_BADGE` | 15 | 5/5 | None |
@@ -114,8 +118,8 @@ Notes:
 | Active reservation uniqueness | Active table time slots avoid 2-hour overlap for `Pending`, `Confirmed`, and `Arrived` through backend service validation. |
 | Reservation items | All quantities are positive and item/restaurant pairs are valid. |
 | Special requests | Covers template-based and custom-text requests. |
-| Reviews | Ratings and cleanliness scores stay between 1 and 5. |
-| Review status | Covers `Visible`, `Hidden`. `Deleted` is not currently represented. |
+| Reviews | Ratings and cleanliness scores stay between 1 and 5, with positive reviews intentionally weighted higher than negative reviews. |
+| Review status | Covers `Visible`, `Hidden`, and `Deleted`. |
 | Promotion status | Covers `Active`, `Pending`. `Rejected` and `Ended` are not currently represented. |
 | Promotion approval rule | Every `Active` promotion has `ApprovedByAdminID`. |
 | Badge application status | Covers `Approved`, `Pending`. `Rejected` is not currently represented. |
@@ -130,12 +134,12 @@ Notes:
 | Authentication and roles | `USER_ACCOUNT`, `CUSTOMER_PROFILE`, `OWNER_PROFILE` | 100 accounts with bcrypt login password, role/status variation. |
 | Owner restaurant management | `RESTAURANT`, `RESTAURANT_MEDIA`, `RESTAURANT_FEATURE`, `RESTAURANT_PAYMENT_METHOD` | 15 restaurants, media, features, and payment methods. |
 | Menu management | `MENU_ITEM`, `MENU_ITEM_CRITERION`, `MENU_ITEM_ANALYTICS_DAILY` | 270 menu items, 540 criteria, 90 days of item analytics. |
-| Feature ID 15 / Screen ID12 table management | `RESTAURANT_TABLE`, `RESERVATION`, `RESERVATION_ITEM`, `RESERVATION_SPECIAL_REQUEST` | 90 tables, 800 reservations, 1,599 pre-order items, 480 special requests. |
-| Review and social | `REVIEW`, `REVIEW_MEDIA`, `REVIEW_TAG`, `HASHTAG`, `USER_FOLLOW` | 400 reviews, 200 media rows, 800 tags, 75 follows. |
+| Feature ID 15 / Screen ID12 table management | `RESTAURANT_TABLE`, `RESERVATION`, `RESERVATION_ITEM`, `RESERVATION_SPECIAL_REQUEST` | 90 tables, 12,890 reservations, including 12,090 rolling reservations from `CURRENT_DATE` through the next 30 days. |
+| Review, blog, and social | `REVIEW`, `BLOG_POST`, `BLOG_MEDIA`, `BLOG_TAG`, `BLOG_LIKE`, `BLOG_COMMENT`, `BLOG_SHARE`, `HASHTAG`, `USER_FOLLOW` | 700 reviews with balanced 1-5 star ratings, 120 blog posts with media/tags/likes/comments/shares, 75 follows. |
 | Promotion | `PROMOTION` | 15 promotions with valid approval rules. |
 | Verification and badges | `BADGE_MASTER`, `BADGE_APPLICATION`, `RESTAURANT_BADGE` | 2 badge types, 15 applications, 15 granted badges. |
 | Admin moderation/audit | `MODERATION_LOG` | 150 audit log rows. |
-| Restaurant analytics | `RESTAURANT_ANALYTICS_DAILY` | 90 days per restaurant, 1,350 rows total. |
+| Restaurant analytics | `RESTAURANT_ANALYTICS_DAILY` | Historical rows plus rolling current-month rows through `CURRENT_DATE` for visitor trend charts. |
 
 ## Current Gaps By Data Variety
 
@@ -146,7 +150,6 @@ These are not schema gaps. They are optional data-variety gaps that may be usefu
 | Account status | `Disabled` is not represented. | Add a small number of disabled users for admin filtering tests. |
 | Restaurant status | `Draft` and `Suspended` are not represented. | Add 1-2 restaurants for each missing status. |
 | Restaurant media | `Other` media type and `Rejected` status are not represented. | Add rejected media and non-cover/non-photo media rows. |
-| Review status | `Deleted` is not represented. | Add deleted reviews to test moderation/history UI. |
 | Promotion status | `Rejected` and `Ended` are not represented. | Add ended/rejected campaigns for owner campaign history. |
 | Badge application status | `Rejected` is not represented. | Add rejected badge applications with review notes. |
 | Moderation target IDs | Some log target IDs are synthetic and not guaranteed to point to existing target rows. | If strict clickable audit trail is needed, generate logs directly from real inserted target IDs. |
@@ -160,8 +163,8 @@ These are not schema gaps. They are optional data-variety gaps that may be usefu
 | Accounts | 50-100 | 100 | At upper bound |
 | Restaurants | 10-20 | 15 | In range |
 | Menu items | 200-300 | 270 | In range |
-| Reservations | 500-1,000 | 800 | In range |
-| Reviews | 300-500 | 400 | In range |
+| Reservations | 10,000-15,000 | 12,890 | In range |
+| Reviews | 500-800 | 700 | In range |
 | Analytics | 90 days | 90 days per restaurant and per menu item | Covered |
 | Logs | 100-200 | 150 | In range |
 

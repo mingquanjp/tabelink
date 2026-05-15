@@ -1,46 +1,89 @@
 import { CalendarDays, Clock3, Minus, Plus } from "lucide-react";
 import type { ReactNode } from "react";
-import { bookingFields } from "./booking-data";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-function StaticField({
-  label,
-  value,
-  tone = "strong",
-  trailingIcon,
-}: {
+export type BookingFormValues = {
+  customerName: string;
+  phoneNumber: string;
+  reservationDate: string;
+  reservationTime: string;
+};
+
+type BookingDetailsCardProps = {
+  values: BookingFormValues;
+  guestCount: number;
+  minDate: string;
+  onChangeValues: (values: BookingFormValues) => void;
+  onDecreaseGuestCount: () => void;
+  onIncreaseGuestCount: () => void;
+};
+
+type BookingFieldProps = {
   label: string;
-  value: string;
-  tone?: "strong" | "muted";
-  trailingIcon?: ReactNode;
-}) {
+  children: ReactNode;
+};
+
+const timeOptions = [
+  "10:00",
+  "10:30",
+  "11:00",
+  "11:30",
+  "12:00",
+  "12:30",
+  "13:00",
+  "13:30",
+  "17:00",
+  "17:30",
+  "18:00",
+  "18:30",
+  "19:00",
+  "19:30",
+  "20:00",
+  "20:30",
+  "21:00",
+  "21:30",
+  "22:00",
+];
+
+const inputClass =
+  "h-12 rounded bg-[#f4f4f1] border-0 px-3 font-manrope text-base font-medium text-[#1a1c1b] shadow-none outline-none focus-visible:ring-1 focus-visible:ring-[#af111c] placeholder:text-[#6b7280]";
+
+function BookingField({ label, children }: BookingFieldProps) {
   return (
     <label className="flex flex-col gap-2">
       <span className="font-jp text-[14px] font-medium uppercase leading-5 tracking-[0.7px] text-[#5b403d]">
         {label}
       </span>
-      <span
-        className={`flex h-12 items-center justify-between rounded bg-[#f4f4f1] px-3 font-manrope text-base font-medium ${
-          tone === "muted" ? "text-[#6b7280]" : "text-[#1a1c1b]"
-        }`}
-      >
-        {value}
-        {trailingIcon}
-      </span>
+      {children}
     </label>
   );
 }
 
-type BookingDetailsCardProps = {
-  guestCount: number;
-  onDecreaseGuestCount: () => void;
-  onIncreaseGuestCount: () => void;
-};
-
 export function BookingDetailsCard({
+  values,
   guestCount,
+  minDate,
+  onChangeValues,
   onDecreaseGuestCount,
   onIncreaseGuestCount,
 }: BookingDetailsCardProps) {
+  function updateField<Key extends keyof BookingFormValues>(
+    field: Key,
+    value: BookingFormValues[Key],
+  ) {
+    onChangeValues({
+      ...values,
+      [field]: value,
+    });
+  }
+
   return (
     <section
       aria-labelledby="reservation-detail-title"
@@ -57,20 +100,61 @@ export function BookingDetailsCard({
       </div>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-6 max-sm:grid-cols-1">
-        {bookingFields.map((field) => (
-          <StaticField
-            key={field.label}
-            label={field.label}
-            value={field.value}
-            tone={field.tone}
+        <BookingField label="氏名">
+          <Input
+            value={values.customerName}
+            onChange={(event) => updateField("customerName", event.target.value)}
+            placeholder="例：田中 太郎"
+            className={inputClass}
           />
-        ))}
+        </BookingField>
 
-        <StaticField
-          label="時間"
-          value="19:00"
-          trailingIcon={<Clock3 className="size-5 text-[#6b7280]" />}
-        />
+        <BookingField label="電話番号">
+          <Input
+            value={values.phoneNumber}
+            onChange={(event) => updateField("phoneNumber", event.target.value)}
+            placeholder="090-1234-5678"
+            inputMode="tel"
+            className={inputClass}
+          />
+        </BookingField>
+
+        <BookingField label="予約日">
+          <Input
+            type="date"
+            value={values.reservationDate}
+            min={minDate}
+            onChange={(event) =>
+              updateField("reservationDate", event.target.value)
+            }
+            className={`${inputClass} uppercase`}
+          />
+        </BookingField>
+
+        <BookingField label="時間">
+          <Select
+            value={values.reservationTime}
+            onValueChange={(value) => updateField("reservationTime", value)}
+          >
+            <SelectTrigger
+              className={`${inputClass} w-full justify-between px-3 [&>svg]:hidden`}
+            >
+              <SelectValue placeholder="時間を選択" />
+              <Clock3 className="size-5 text-[#6b7280]" />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              align="start"
+              className="max-h-72 rounded-md border border-[#e4beba33] bg-white font-manrope shadow-lg"
+            >
+              {timeOptions.map((time) => (
+                <SelectItem key={time} value={time}>
+                  {time}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </BookingField>
 
         <label className="flex flex-col gap-2">
           <span className="font-jp text-[14px] font-medium uppercase leading-5 tracking-[0.7px] text-[#5b403d]">

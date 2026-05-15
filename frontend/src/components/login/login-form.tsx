@@ -22,6 +22,24 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGuestSubmitting, setIsGuestSubmitting] = useState(false);
+
+  async function handleGuestLogin() {
+    setIsGuestSubmitting(true);
+    try {
+      const { guestLogin } = await import("@/lib/api/auth/API");
+      const response = await guestLogin();
+
+      showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
+      clearAuthSessionCache();
+      removeSessionCacheByPrefix("tabelink:owner:");
+      router.replace(getAuthenticatedRedirectPath("Guest"));
+    } catch {
+      showErrorToast();
+    } finally {
+      setIsGuestSubmitting(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -123,7 +141,7 @@ export function LoginForm() {
       <div className="space-y-4 pt-2">
         <Button
           className="h-16 w-full gap-2 rounded-lg bg-[linear-gradient(172deg,var(--primary)_0%,var(--primary-bright)_100%)] text-white shadow-[0px_10px_15px_-3px_rgba(0,0,0,0.1),0px_4px_6px_-4px_rgba(0,0,0,0.1)] hover:brightness-95"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isGuestSubmitting}
           type="submit"
         >
           ログインする
@@ -131,6 +149,8 @@ export function LoginForm() {
         </Button>
         <Button
           className="h-17 w-full gap-2 rounded-lg border-2 border-primary text-primary hover:bg-(--primary)/5"
+          disabled={isSubmitting || isGuestSubmitting}
+          onClick={handleGuestLogin}
           type="button"
           variant="outline"
         >

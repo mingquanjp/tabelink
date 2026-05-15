@@ -5,13 +5,29 @@ import {
   BookingActions,
   BookingBreadcrumb,
   BookingDetailsCard,
+  type BookingFormValues,
   RequestTemplatesCard,
   RestaurantSummaryCard,
   type RequestTemplateId,
 } from "@/components/user/reservations";
 
+function toDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 export default function UserReservationsPage() {
+  const minReservationDate = toDateInputValue(new Date());
   const [guestCount, setGuestCount] = useState(2);
+  const [bookingValues, setBookingValues] = useState<BookingFormValues>({
+    customerName: "",
+    phoneNumber: "",
+    reservationDate: minReservationDate,
+    reservationTime: "19:00",
+  });
   const [selectedRequestIds, setSelectedRequestIds] = useState<
     RequestTemplateId[]
   >([]);
@@ -44,7 +60,10 @@ export default function UserReservationsPage() {
         <div className="mt-10 flex flex-col gap-8 max-sm:mt-8 max-sm:gap-6">
           <RestaurantSummaryCard />
           <BookingDetailsCard
+            values={bookingValues}
             guestCount={guestCount}
+            minDate={minReservationDate}
+            onChangeValues={setBookingValues}
             onDecreaseGuestCount={() =>
               setGuestCount((count) => Math.max(1, count - 1))
             }

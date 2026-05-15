@@ -38,6 +38,73 @@ interface AuthenticatedRequest extends Request {
 export class PublicRestaurantsController {
   constructor(private readonly restaurantsService: RestaurantsService) {}
 
+  @Get(':restaurantId')
+  @ApiOperation({
+    summary: 'Get customer restaurant detail',
+    description:
+      'Returns public restaurant profile and active offers for Backend Feature ID 6 / screen ID5 restaurant detail. Booking and review submission are handled by separate APIs.',
+  })
+  @ApiOkResponse({
+    description: 'Restaurant detail for customer screen ID5.',
+    schema: {
+      example: {
+        restaurantId: 1,
+        restaurant: {
+          restaurantId: 1,
+          nameVn: 'Bun Cha Sakura',
+          nameJp: 'ブンチャーさくら',
+          address: '24 Hang Manh, Hoan Kiem, Hanoi',
+          coverImageUrl: 'https://example.com/cover.jpg',
+        },
+        promotions: {
+          count: 1,
+          items: [
+            {
+              promotionId: 20,
+              titleVn: 'Giam 10%',
+              titleJp: '10% off',
+              startDate: '2026-05-01T00:00:00.000Z',
+              endDate: '2026-06-01T00:00:00.000Z',
+              status: 'Active',
+            },
+          ],
+        },
+        reviews: {
+          summary: {
+            visibleCount: 8,
+            averageRating: 4.5,
+          },
+          items: [],
+        },
+        badges: {
+          count: 1,
+          isVerified: true,
+          items: [],
+        },
+        reviewSubmission: {
+          enabled: true,
+          method: 'POST',
+          endpoint: '/restaurants/1/reviews',
+        },
+      },
+    },
+  })
+  @ApiForbiddenResponse({
+    description: 'Only customer or guest users can view restaurant detail.',
+  })
+  @ApiNotFoundResponse({
+    description: 'Active restaurant was not found.',
+  })
+  findPublicDetail(
+    @Param('restaurantId', ParseIntPipe) restaurantId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.restaurantsService.getPublicRestaurantDetail(
+      restaurantId,
+      request.user,
+    );
+  }
+
   @Post(':restaurantId/reviews')
   @ApiOperation({
     summary: 'Submit a restaurant review',
@@ -57,7 +124,6 @@ export class PublicRestaurantsController {
         dishCleanliness: 5,
         spaceCleanliness: 4,
         content: 'Clean and easy to reserve.',
-        sentiment: 'Positive',
         isJapaneseTag: true,
         status: 'Visible',
       },

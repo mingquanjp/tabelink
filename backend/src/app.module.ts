@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AdsModule } from './ads/ads.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AuthModule } from './auth/auth.module';
+import { BlogsModule } from './blogs/blogs.module';
 import { MapsModule } from './maps/maps.module';
 import { MenusModule } from './menus/menus.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
@@ -31,6 +32,7 @@ import { VerificationModule } from './verification/verification.module';
       }),
     }),
     AuthModule,
+    BlogsModule,
     RestaurantsModule,
     AdsModule,
     MapsModule,

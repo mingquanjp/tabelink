@@ -18,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  homepageUser,
   type HomepageComment,
   type HomepagePost,
 } from "./homepage-data";
@@ -26,23 +25,35 @@ import { HomepageAvatar } from "./HomepageAvatar";
 import { RatingDots } from "./RatingDots";
 
 type PostDetailsDialogProps = {
+  canFollowAuthor: boolean;
   comments: HomepageComment[];
   commentCount: number;
+  currentUserInitials: string;
+  isAuthorFollowing: boolean;
+  isAuthorFollowPending: boolean;
   isLiked: boolean;
   isSaved: boolean;
   isShared: boolean;
   likeCount: number;
   post: HomepagePost | null;
-  onAddComment: (postId: number, text: string) => void;
+  onAddComment: (postId: number, text: string) => Promise<boolean>;
   onOpenChange: (open: boolean) => void;
   onShare: (postId: number) => void;
+  onToggleAuthorFollow: (
+    accountId: number,
+    currentIsFollowing: boolean,
+  ) => void;
   onToggleSave: (postId: number) => void;
   onToggleVote: (postId: number) => void;
 };
 
 export function PostDetailsDialog({
+  canFollowAuthor,
   comments,
   commentCount,
+  currentUserInitials,
+  isAuthorFollowing,
+  isAuthorFollowPending,
   isLiked,
   isSaved,
   isShared,
@@ -51,12 +62,13 @@ export function PostDetailsDialog({
   onAddComment,
   onOpenChange,
   onShare,
+  onToggleAuthorFollow,
   onToggleSave,
   onToggleVote,
 }: PostDetailsDialogProps) {
   const [commentText, setCommentText] = useState("");
 
-  function handleSubmitComment(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!post) {
@@ -69,8 +81,11 @@ export function PostDetailsDialog({
       return;
     }
 
-    onAddComment(post.id, trimmedText);
-    setCommentText("");
+    const created = await onAddComment(post.id, trimmedText);
+
+    if (created) {
+      setCommentText("");
+    }
   }
 
   return (
@@ -110,11 +125,21 @@ export function PostDetailsDialog({
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
+                    aria-pressed={isAuthorFollowing}
+                    disabled={!canFollowAuthor || isAuthorFollowPending}
                     size="sm"
                     variant="outline"
                     className="h-8 rounded-full border-[#af111c] px-4 font-jp text-[11px] font-semibold text-[#af111c] hover:bg-[#af111c0d]"
+                    onClick={() => {
+                      if (post.authorAccountId) {
+                        onToggleAuthorFollow(
+                          post.authorAccountId,
+                          isAuthorFollowing,
+                        );
+                      }
+                    }}
                   >
-                    フォロー
+                    {isAuthorFollowing ? "フォロー中" : "フォロー"}
                   </Button>
                   <DialogClose asChild>
                     <Button
@@ -229,7 +254,7 @@ export function PostDetailsDialog({
                   className="flex items-center gap-2"
                   onSubmit={handleSubmitComment}
                 >
-                  <HomepageAvatar initials={homepageUser.initials} size="sm" />
+                  <HomepageAvatar initials={currentUserInitials} size="sm" />
                   <input
                     className="h-9 min-w-0 flex-1 rounded-full bg-[#f4f4f1] px-3 font-jp text-[11px] font-medium text-[#1a1c1b] outline-none placeholder:text-[#9a9f93] focus:ring-2 focus:ring-[#af111c33]"
                     maxLength={240}

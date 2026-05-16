@@ -25,6 +25,10 @@ export function FeaturedPostCard({
 }: FeaturedPostCardProps) {
   const restaurant = items[activeIndex] ?? items[0];
 
+  if (!restaurant) {
+    return null;
+  }
+
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">

@@ -192,8 +192,24 @@ export const homepageComments = [
   },
 ];
 
-export type HomepagePost = (typeof homepagePosts)[number];
-export type HomepageComment = (typeof homepageComments)[number];
+export type HomepagePost = (typeof homepagePosts)[number] & {
+  authorAccountId?: number;
+};
+export type HomepageComment = (typeof homepageComments)[number] & {
+  authorAccountId?: number;
+};
+export type HomepageUser = typeof homepageUser & {
+  accountId?: number;
+  postCount?: number;
+  followerCount?: number;
+  followingCount?: number;
+};
 export type HomepageRecommendation = (typeof homepageRecommendations)[number];
+export type HomepageHotRestaurant = (typeof homepageHotRestaurants)[number];
 export type HomepageFeaturedRestaurant =
   (typeof homepageFeaturedRestaurants)[number];
+export type HomepageReviewer = (typeof homepageReviewers)[number] & {
+  accountId?: number;
+  isFollowing?: boolean;
+};
+export type HomepageTopic = (typeof homepageTopics)[number];

@@ -3,12 +3,16 @@ import { requestTemplates, type RequestTemplateId } from "./booking-data";
 
 type RequestTemplatesCardProps = {
   selectedRequestIds: RequestTemplateId[];
+  customRequest: string;
   onToggleRequest: (id: RequestTemplateId) => void;
+  onCustomRequestChange: (value: string) => void;
 };
 
 export function RequestTemplatesCard({
   selectedRequestIds,
+  customRequest,
   onToggleRequest,
+  onCustomRequestChange,
 }: RequestTemplatesCardProps) {
   const selectedRequestSet = new Set(selectedRequestIds);
 
@@ -77,7 +81,9 @@ export function RequestTemplatesCard({
         </label>
         <textarea
           id="other-request"
-          defaultValue="その他、スタッフに伝えたいことがあればご記入ください。"
+          value={customRequest}
+          onChange={(event) => onCustomRequestChange(event.target.value)}
+          placeholder="その他、スタッフに伝えたいことがあればご記入ください。"
           className="min-h-24 w-full resize-none rounded border-0 bg-[#f4f4f1] p-4 font-jp text-base font-medium leading-6 text-[#6b7280] outline-none focus:ring-2 focus:ring-[#af111c]/20"
         />
       </div>

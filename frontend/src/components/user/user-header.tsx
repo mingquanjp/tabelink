@@ -31,7 +31,6 @@ type UserHeaderProps = {
 const defaultNavItems: UserHeaderNavItem[] = [
   { label: "ホーム", href: "/user/home" },
   { label: "マップ検索", href: "/user/map" },
-  { label: "予約", href: "/user/reservations" },
   { label: "キャンペーン", href: "/user/campaigns" },
 ];
 

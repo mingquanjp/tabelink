@@ -95,6 +95,48 @@ describe('UserHomeService', () => {
     });
   });
 
+  it('returns only SNS advertised restaurants with promotion content', async () => {
+    dataSource.query.mockResolvedValueOnce([
+      {
+        promotionId: '10',
+        restaurantId: '1',
+        restaurantNameVN: 'Phở Hà Nội',
+        restaurantNameJP: 'ハノイフォー',
+        heroImageUrl: 'https://example.com/hero.jpg',
+        contentVN: 'Nội dung quảng cáo',
+        contentJP: '広告内容',
+        averageRating: '4.7',
+        reviewCount: '86',
+      },
+    ]);
+
+    await expect(service.getAdvertisedRestaurants()).resolves.toEqual({
+      items: [
+        {
+          promotionId: 10,
+          restaurantId: 1,
+          restaurantNameVN: 'Phở Hà Nội',
+          restaurantNameJP: 'ハノイフォー',
+          heroImageUrl: 'https://example.com/hero.jpg',
+          contentVN: 'Nội dung quảng cáo',
+          contentJP: '広告内容',
+          averageRating: 4.7,
+          reviewCount: 86,
+        },
+      ],
+    });
+
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("p.AdvertisementType = 'SNS'"),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('p.ContentVN AS "contentVN"'),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('p.ContentJP AS "contentJP"'),
+    );
+  });
+
   it('upserts reviewer follow relationship', async () => {
     dataSource.query
       .mockResolvedValueOnce([{ exists: true }])

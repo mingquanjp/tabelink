@@ -106,6 +106,10 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
   const displayName = useMemo(() => getDisplayName(session), [session]);
   const userHandle = useMemo(() => getUserHandle(session), [session]);
 
+  if (pathname.startsWith("/user/blog/create")) {
+    return null;
+  }
+
   async function handleLogout() {
     try {
       await logoutAccount();

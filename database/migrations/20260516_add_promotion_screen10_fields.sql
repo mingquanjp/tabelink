@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_promotion_advertisement_type
 UPDATE PROMOTION
 SET
     TargetAudience = CASE
-        WHEN TargetAudience IN ('all', 'new', 'elite') THEN TargetAudience
+        WHEN TargetAudience IN ('all', 'new') THEN TargetAudience
         ELSE 'all'
     END,
     DiscountType = COALESCE(NULLIF(BTRIM(DiscountType), ''), '10'),

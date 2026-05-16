@@ -661,7 +661,7 @@ export class AdsService {
       )
     ) {
       throw new BadRequestException(
-        'Campaign targetAudience must be one of: all, new, elite.',
+        'Campaign targetAudience must be one of: all, new.',
       );
     }
   }

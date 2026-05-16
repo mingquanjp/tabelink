@@ -58,6 +58,66 @@ describe('AdsService', () => {
     totalCost: '0',
   };
 
+  it('lists available active campaigns for screen ID9', async () => {
+    dataSource.query.mockResolvedValueOnce([
+      {
+        promotionId: '8001',
+        restaurantId: '1001',
+        restaurantNameVN: 'Sushi Tokyo VN',
+        restaurantNameJP: 'スシ東京',
+        imageUrl: 'https://example.com/restaurant-cover.jpg',
+        promotionType: 'Campaign',
+        campaignNameVN: 'Ưu đãi mùa hè',
+        campaignNameJP: 'サマーキャンペーン',
+        campaignDescriptionVN: 'Nội dung campaign tiếng Việt.',
+        campaignDescriptionJP: 'キャンペーン内容。',
+        targetAudience: 'all',
+        discountType: '10',
+        discountValue: '10%OFF',
+        noteVN: 'Áp dụng trong thời gian campaign.',
+        noteJP: 'キャンペーン期間中に適用。',
+        startDate: '2026-05-01T00:00:00.000Z',
+        endDate: '2026-08-01T00:00:00.000Z',
+        status: 'Active',
+      },
+    ]);
+
+    await expect(service.listAvailableCampaigns()).resolves.toEqual({
+      items: [
+        {
+          promotionId: 8001,
+          restaurantId: 1001,
+          restaurantNameVN: 'Sushi Tokyo VN',
+          restaurantNameJP: 'スシ東京',
+          imageUrl: 'https://example.com/restaurant-cover.jpg',
+          promotionType: 'Campaign',
+          campaignNameVN: 'Ưu đãi mùa hè',
+          campaignNameJP: 'サマーキャンペーン',
+          campaignDescriptionVN: 'Nội dung campaign tiếng Việt.',
+          campaignDescriptionJP: 'キャンペーン内容。',
+          targetAudience: 'all',
+          discountType: '10',
+          discountValue: '10%OFF',
+          noteVN: 'Áp dụng trong thời gian campaign.',
+          noteJP: 'キャンペーン期間中に適用。',
+          startDate: '2026-05-01T00:00:00.000Z',
+          endDate: '2026-08-01T00:00:00.000Z',
+          status: 'Active',
+        },
+      ],
+    });
+
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("p.PromotionType = 'Campaign'"),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("p.Status = 'Active'"),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("rm.MediaType = 'Cover'"),
+    );
+  });
+
   it('lists owner promotions for screen ID10', async () => {
     dataSource.query
       .mockResolvedValueOnce([{ restaurantId: 1 }])

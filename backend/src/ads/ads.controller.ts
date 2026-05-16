@@ -44,6 +44,45 @@ interface AuthenticatedRequest extends Request {
 export class AdsController {
   constructor(private readonly adsService: AdsService) {}
 
+  @Get('campaigns')
+  @ApiOperation({
+    summary: 'List active available campaigns for users',
+    description:
+      'Screen ID9 campaign list. Returns active Campaign promotions that are currently within their valid date range. Restaurant image uses approved restaurant cover media.',
+  })
+  @ApiOkResponse({
+    description: 'Available campaign list for users.',
+    schema: {
+      example: {
+        items: [
+          {
+            promotionId: 8001,
+            restaurantId: 1001,
+            restaurantNameVN: 'Sushi Tokyo',
+            restaurantNameJP: 'スシ東京',
+            imageUrl: 'https://example.com/restaurant-cover.jpg',
+            promotionType: 'Campaign',
+            campaignNameVN: 'Ưu đãi mùa hè',
+            campaignNameJP: 'サマーキャンペーン',
+            campaignDescriptionVN: 'Nội dung campaign tiếng Việt.',
+            campaignDescriptionJP: 'キャンペーン内容。',
+            targetAudience: 'all',
+            discountType: '10',
+            discountValue: '10%OFF',
+            noteVN: 'Áp dụng trong thời gian campaign.',
+            noteJP: 'キャンペーン期間中に適用。',
+            startDate: '2026-05-01T00:00:00.000Z',
+            endDate: '2026-08-01T00:00:00.000Z',
+            status: 'Active',
+          },
+        ],
+      },
+    },
+  })
+  listAvailableCampaigns() {
+    return this.adsService.listAvailableCampaigns();
+  }
+
   @Get('owner/promotions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')

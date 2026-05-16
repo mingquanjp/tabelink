@@ -49,7 +49,7 @@ SET
         WHEN TargetAudience IN ('all', 'new') THEN TargetAudience
         ELSE 'all'
     END,
-    DiscountType = COALESCE(NULLIF(BTRIM(DiscountType), ''), '10'),
-    DiscountValue = COALESCE(NULLIF(BTRIM(DiscountValue), ''), '10%OFF'),
+    DiscountType = 'Percentage',
+    DiscountValue = '10%',
     MediaURL = NULL
 WHERE PromotionType = 'Campaign';

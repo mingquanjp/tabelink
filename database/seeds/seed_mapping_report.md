@@ -153,7 +153,7 @@ These are not schema gaps. They are optional data-variety gaps that may be usefu
 | Promotion status | `Rejected` and `Ended` are not represented. | Add ended/rejected campaigns for owner campaign history. |
 | Badge application status | `Rejected` is not represented. | Add rejected badge applications with review notes. |
 | Moderation target IDs | Some log target IDs are synthetic and not guaranteed to point to existing target rows. | If strict clickable audit trail is needed, generate logs directly from real inserted target IDs. |
-| Image/file URLs | URLs are mock URLs, not real Cloudinary assets. | Use real test assets only if visual rendering requires it. |
+| File URLs | Verification document URLs are mock file URLs, not real Cloudinary assets. | Use real test files only if document preview/download testing requires it. |
 | Passwords | All accounts share one password by design. | Good for QA; do not use this seed in production. |
 
 ## Seed Size Versus Requested Sweet Spot

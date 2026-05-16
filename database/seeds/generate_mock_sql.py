@@ -27,6 +27,61 @@ ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = ROOT / "database" / "seeds" / "mock_data.sql"
 
 
+def unsplash_image(photo_id: str, width: int = 1200, height: int = 800) -> str:
+    return (
+        f"https://images.unsplash.com/{photo_id}"
+        f"?auto=format&fit=crop&w={width}&h={height}&q=80"
+    )
+
+
+RESTAURANT_PHOTO_IDS = [
+    "photo-1762390629592-812f7affd214",
+    "photo-1517248135467-4c7edcad34c4",
+    "photo-1552566626-52f8b828add9",
+    "photo-1555396273-367ea4eb4db5",
+    "photo-1550966871-3ed3cdb5ed0c",
+    "photo-1544148103-0773bf10d330",
+    "photo-1590846406792-0adc7f938f1d",
+    "photo-1578474846511-04ba529f0b88",
+]
+
+MENU_PHOTO_IDS = [
+    "photo-1766050586763-723571af4dde",
+    "photo-1742893368398-128bded9c656",
+    "photo-1590420882553-4f9150b71f92",
+    "photo-1544025162-d76694265947",
+    "photo-1600628422019-6348b5665c7c",
+    "photo-1569718212165-3a8278d5f624",
+    "photo-1559847844-5315695dadae",
+    "photo-1625938144755-652e08e359b7",
+    "photo-1504674900247-0877df9cc836",
+    "photo-1604908176997-125f25cc6f3d",
+    "photo-1546069901-ba9599a7e63c",
+    "photo-1555939594-58d7cb561ad1",
+    "photo-1547592180-85f173990554",
+    "photo-1565958011703-44f9829ba187",
+    "photo-1745210358756-e7f7ff40e506",
+    "photo-1562967914-608f82629710",
+    "photo-1612927601601-6638404737ce",
+    "photo-1540189549336-e6e99c3679fe",
+]
+
+BLOG_PHOTO_IDS = [
+    "photo-1766050586763-723571af4dde",
+    "photo-1742893368398-128bded9c656",
+    "photo-1590420882553-4f9150b71f92",
+    "photo-1544025162-d76694265947",
+    "photo-1745210358756-e7f7ff40e506",
+]
+
+PROMOTION_PHOTO_IDS = [
+    "photo-1555396273-367ea4eb4db5",
+    "photo-1517248135467-4c7edcad34c4",
+    "photo-1552566626-52f8b828add9",
+    "photo-1550966871-3ed3cdb5ed0c",
+]
+
+
 @dataclass(frozen=True)
 class RawSql:
     value: str
@@ -269,7 +324,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "dob": date(1994, 4, 12),
             "nationality": "Japan",
             "purpose": "Business lunch and local food discovery",
-            "avatarurl": "https://images.example.test/avatars/sato.jpg",
+            "avatarurl": "https://randomuser.me/api/portraits/men/32.jpg",
         },
         {
             "accountid": 202,
@@ -279,7 +334,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "dob": date(1990, 9, 5),
             "nationality": "Japan",
             "purpose": "Family dining",
-            "avatarurl": "https://images.example.test/avatars/tanaka.jpg",
+            "avatarurl": "https://randomuser.me/api/portraits/women/44.jpg",
         },
         {
             "accountid": 203,
@@ -299,14 +354,14 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "fullname": "Tran Minh",
             "phone": "+84901234567",
             "businessname": "Saigon Pho Group",
-            "avatarurl": "https://images.example.test/owners/saigon.jpg",
+            "avatarurl": "https://randomuser.me/api/portraits/men/12.jpg",
         },
         {
             "accountid": 102,
             "fullname": "Pham Anh",
             "phone": "+84987654321",
             "businessname": "Hanoi Home Kitchen",
-            "avatarurl": "https://images.example.test/owners/hanoi.jpg",
+            "avatarurl": "https://randomuser.me/api/portraits/women/18.jpg",
         },
     ]
 
@@ -369,7 +424,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         {
             "mediaid": 1,
             "restaurantid": 1001,
-            "mediaurl": "https://images.example.test/restaurants/1001/cover.jpg",
+            "mediaurl": unsplash_image("photo-1517248135467-4c7edcad34c4", 1400, 900),
             "mediatype": "Cover",
             "sortorder": 0,
             "status": "Approved",
@@ -377,7 +432,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         {
             "mediaid": 2,
             "restaurantid": 1001,
-            "mediaurl": "https://images.example.test/restaurants/1001/dining-room.jpg",
+            "mediaurl": unsplash_image("photo-1552566626-52f8b828add9", 1400, 900),
             "mediatype": "Photo",
             "sortorder": 1,
             "status": "Approved",
@@ -385,7 +440,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         {
             "mediaid": 3,
             "restaurantid": 1002,
-            "mediaurl": "https://images.example.test/restaurants/1002/cover.jpg",
+            "mediaurl": unsplash_image("photo-1555396273-367ea4eb4db5", 1400, 900),
             "mediatype": "Cover",
             "sortorder": 0,
             "status": "Pending",
@@ -422,7 +477,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "isrecommendedforjp": True,
             "spicylevel": 1,
             "corianderlevel": 2,
-            "imageurl": "https://images.example.test/menu/pho-bo-tai.jpg",
+            "imageurl": unsplash_image("photo-1766050586763-723571af4dde", 900, 700),
             "imagepublicid": "tabelink/restaurants/1001/menus/pho-bo-tai",
             "isactive": True,
             "deletedat": None,
@@ -441,7 +496,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "isrecommendedforjp": True,
             "spicylevel": 0,
             "corianderlevel": 1,
-            "imageurl": "https://images.example.test/menu/goi-cuon.jpg",
+            "imageurl": unsplash_image("photo-1742893368398-128bded9c656", 900, 700),
             "imagepublicid": "tabelink/restaurants/1001/menus/goi-cuon",
             "isactive": True,
             "deletedat": None,
@@ -460,7 +515,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "isrecommendedforjp": True,
             "spicylevel": 1,
             "corianderlevel": 2,
-            "imageurl": "https://images.example.test/menu/bun-cha.jpg",
+            "imageurl": unsplash_image("photo-1590420882553-4f9150b71f92", 900, 700),
             "imagepublicid": "tabelink/restaurants/1002/menus/bun-cha",
             "isactive": True,
             "deletedat": None,
@@ -594,7 +649,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     ]
 
     blog_media = [
-        {"mediaid": 1, "blogid": 4001, "mediaurl": "https://images.example.test/blogs/4001/pho.jpg", "mediatype": "Photo", "sortorder": 0}
+        {"mediaid": 1, "blogid": 4001, "mediaurl": unsplash_image("photo-1766050586763-723571af4dde", 1000, 750), "mediatype": "Photo", "sortorder": 0}
     ]
 
     blog_tags = [
@@ -636,7 +691,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "titlejp": "日本人向けランチセット",
             "contentvn": "Giảm 10% cho combo phở và gỏi cuốn.",
             "contentjp": "フォーと生春巻きセットを10%割引。",
-            "mediaurl": "https://images.example.test/promotions/8001.jpg",
+            "mediaurl": unsplash_image("photo-1555396273-367ea4eb4db5", 1200, 700),
             "termsvn": "Áp dụng từ thứ Hai đến thứ Sáu.",
             "termsjp": "平日のみ適用。",
             "startdate": datetime(2026, 5, 6, 0, 0, tzinfo=utc),
@@ -657,7 +712,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "titlejp": "家族向けディナー",
             "contentvn": "Set bún chả cho nhóm 4 người.",
             "contentjp": "4名向けブンチャーセット。",
-            "mediaurl": "https://images.example.test/promotions/8002.jpg",
+            "mediaurl": unsplash_image("photo-1517248135467-4c7edcad34c4", 1200, 700),
             "termsvn": "Chờ duyệt.",
             "termsjp": "承認待ち。",
             "startdate": datetime(2026, 5, 15, 0, 0, tzinfo=utc),
@@ -789,7 +844,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "fullname": f"Owner {offset:02d}",
             "phone": f"+8490{offset:07d}",
             "businessname": f"Tabelink Mock Restaurant Group {offset:02d}",
-            "avatarurl": f"https://images.example.test/owners/{account_id}.jpg",
+            "avatarurl": f"https://randomuser.me/api/portraits/men/{offset}.jpg",
         }
         for offset, account_id in enumerate(range(101, 121), start=1)
     ]
@@ -803,7 +858,10 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "dob": date(1988 + (offset % 16), (offset % 12) + 1, (offset % 27) + 1),
             "nationality": ["Japan", "Vietnam", "Korea", "Singapore"][offset % 4],
             "purpose": ["Business lunch", "Family dining", "Food discovery", "Date night"][offset % 4],
-            "avatarurl": f"https://images.example.test/avatars/{account_id}.jpg",
+            "avatarurl": (
+                "https://randomuser.me/api/portraits/"
+                f"{'women' if offset % 2 else 'men'}/{offset % 70 + 1}.jpg"
+            ),
         }
         for offset, account_id in enumerate(range(201, 276), start=1)
     ]
@@ -876,7 +934,13 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 {
                     "mediaid": media_id,
                     "restaurantid": restaurant_row["restaurantid"],
-                    "mediaurl": f"https://images.example.test/restaurants/{restaurant_row['restaurantid']}/{sort_order}.jpg",
+                    "mediaurl": unsplash_image(
+                        RESTAURANT_PHOTO_IDS[
+                            (media_id + sort_order) % len(RESTAURANT_PHOTO_IDS)
+                        ],
+                        1400,
+                        900,
+                    ),
                     "mediatype": media_type,
                     "sortorder": sort_order,
                     "status": "Approved" if restaurant_row["status"] == "Active" else "Pending",
@@ -964,7 +1028,11 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                     "descriptionjp": f"{name_jp} のモックメニューです。",
                     "ingredients": "Gia vị Việt Nam, rau thơm, nguyên liệu tươi",
                     "isrecommendedforjp": dish_index % 3 != 0,
-                    "imageurl": f"https://images.example.test/menu/{current_item_id}.jpg",
+                    "imageurl": unsplash_image(
+                        MENU_PHOTO_IDS[(dish_index - 1) % len(MENU_PHOTO_IDS)],
+                        900,
+                        700,
+                    ),
                     "imagepublicid": f"tabelink/restaurants/{restaurant_id}/menus/{current_item_id}",
                     "isactive": dish_index % 17 != 0,
                     "deletedat": None,
@@ -1231,7 +1299,11 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                     {
                         "mediaid": len(blog_media) + 1,
                         "blogid": blog_id,
-                        "mediaurl": f"https://images.example.test/blogs/{blog_id}/photo.jpg",
+                        "mediaurl": unsplash_image(
+                            BLOG_PHOTO_IDS[index % len(BLOG_PHOTO_IDS)],
+                            1000,
+                            750,
+                        ),
                         "mediatype": "Photo",
                         "sortorder": 0,
                     }
@@ -1285,7 +1357,11 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
                 "titlejp": f"モックキャンペーン {index:02d}",
                 "contentvn": "Nội dung khuyến mãi mock.",
                 "contentjp": "モックキャンペーン内容。",
-                "mediaurl": f"https://images.example.test/promotions/{8000 + index}.jpg",
+                "mediaurl": unsplash_image(
+                    PROMOTION_PHOTO_IDS[index % len(PROMOTION_PHOTO_IDS)],
+                    1200,
+                    700,
+                ),
                 "termsvn": "Áp dụng trong thời gian mock.",
                 "termsjp": "モック期間中に適用。",
                 "startdate": datetime(2026, 5, 1, 0, 0, tzinfo=utc),

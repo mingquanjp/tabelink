@@ -1,8 +1,8 @@
+import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
 import type { MapRestaurant } from "./map-data";
+import type { LatLngLiteral } from "./map-routing";
 import { MapArea } from "./MapArea";
 import { RestaurantCard } from "./RestaurantCard";
-import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
-import type { LatLngLiteral } from "./map-routing";
 import {
   SearchResultsHeader,
   type AppliedFilter,
@@ -22,6 +22,8 @@ type MapSearchResultsProps = {
   onOpenMap: (restaurant: MapRestaurant) => void;
   onSortChange: (sort: SortOption) => void;
   onRemoveFilter: (key: string) => void;
+  totalCount: number;
+  isLoading: boolean;
 };
 
 export function MapSearchResults({
@@ -37,6 +39,8 @@ export function MapSearchResults({
   onOpenMap,
   onSortChange,
   onRemoveFilter,
+  totalCount,
+  isLoading,
 }: MapSearchResultsProps) {
   if (isMapOpen && selectedRestaurant) {
     return (
@@ -46,7 +50,7 @@ export function MapSearchResults({
             <div className="shrink-0 px-6">
               <SearchResultsHeader
                 appliedFilters={appliedFilters}
-                count={restaurants.length}
+                count={totalCount}
                 sort={sort}
                 onRemoveFilter={onRemoveFilter}
                 onSortChange={onSortChange}
@@ -92,14 +96,14 @@ export function MapSearchResults({
       <div className="flex w-full flex-col">
         <SearchResultsHeader
           appliedFilters={appliedFilters}
-          count={restaurants.length}
+          count={totalCount}
           sort={sort}
           onRemoveFilter={onRemoveFilter}
           onSortChange={onSortChange}
         />
         {isRouteLoading ? (
           <div className="mt-10 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
-            ãƒ«ãƒ¼ãƒˆã‚’è¨ˆç®—ä¸­...
+            loading...
           </div>
         ) : restaurants.length > 0 ? (
           <div className="grid grid-cols-1 gap-x-6 gap-y-8 pt-10 md:grid-cols-2 xl:grid-cols-3">

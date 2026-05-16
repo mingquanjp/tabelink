@@ -5,7 +5,6 @@ import {
   Param,
   ParseIntPipe,
   Post,
-  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -23,7 +22,6 @@ import { Request } from 'express';
 import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
-import { SearchRestaurantDto } from './dto/search-restaurant.dto';
 import { RestaurantsService } from './restaurants.service';
 
 interface AuthenticatedRequest extends Request {
@@ -37,19 +35,6 @@ interface AuthenticatedRequest extends Request {
 @Controller('restaurants')
 export class PublicRestaurantsController {
   constructor(private readonly restaurantsService: RestaurantsService) {}
-
-  @Get('advanced-search')
-  @ApiOperation({
-    summary: 'Search for restaurants',
-    description:
-      'Advanced search API with filters for keyword, distance, Japanese standards, dish types, and services. Returns paginated results with total count.',
-  })
-  @ApiOkResponse({
-    description: 'Paginated list of restaurants matching search criteria.',
-  })
-  searchRestaurants(@Query() query: SearchRestaurantDto) {
-    return this.restaurantsService.searchRestaurants(query);
-  }
 
   @Get(':restaurantId')
   @ApiOperation({

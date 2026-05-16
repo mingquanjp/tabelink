@@ -33,7 +33,7 @@ export interface AdvancedSearchParams {
 }
 
 export interface AdvancedSearchResponse {
-  items: RestaurantSearchItem[]; // Map đúng type bạn đã định nghĩa
+  items: RestaurantSearchItem[];
   totalCount: number;
   page: number;
   limit: number;

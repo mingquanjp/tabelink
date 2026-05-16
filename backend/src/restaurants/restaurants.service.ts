@@ -15,7 +15,6 @@ import {
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
-import { SearchRestaurantDto } from './dto/search-restaurant.dto';
 import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { FeatureMaster } from './entities/feature-master.entity';
 import { PaymentMethod } from './entities/payment-method.entity';
@@ -1305,129 +1304,6 @@ export class RestaurantsService {
         })),
       createdAt: restaurant.createdAt,
       updatedAt: restaurant.updatedAt,
-    };
-  }
-
-  async searchRestaurants(dto: SearchRestaurantDto) {
-    const page = dto.page ?? 1;
-    const limit = dto.limit ?? 20;
-    const skip = (page - 1) * limit;
-
-    const query = this.restaurantRepo
-      .createQueryBuilder('restaurant')
-      .leftJoinAndSelect('restaurant.media', 'media')
-      .leftJoinAndSelect('restaurant.featureLinks', 'featureLinks')
-      .leftJoinAndSelect('featureLinks.feature', 'feature')
-      .leftJoinAndSelect('restaurant.paymentMethodLinks', 'paymentMethodLinks')
-      .leftJoinAndSelect('paymentMethodLinks.paymentMethod', 'paymentMethod')
-      .where('restaurant.status = :status', { status: 'Active' });
-
-    if (dto.keyword) {
-      query.andWhere(
-        '(restaurant.nameVn ILIKE :keyword OR restaurant.nameJp ILIKE :keyword OR restaurant.address ILIKE :keyword)',
-        { keyword: `%${dto.keyword.trim()}%` },
-      );
-    }
-
-    if (dto.issuesVAT !== undefined) {
-      query.andWhere('restaurant.issuesVat = :issuesVAT', {
-        issuesVAT: dto.issuesVAT,
-      });
-    }
-
-    if (dto.lat !== undefined && dto.lng !== undefined) {
-      const lat = parseFloat(dto.lat as any);
-      const lng = parseFloat(dto.lng as any);
-
-      // Công thức tính khoảng cách (mét) - Sử dụng tham số hóa để an toàn
-      const haversine = `(6371000 * acos(cos(radians(:lat)) * cos(radians(restaurant.latitude)) * cos(radians(restaurant.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(restaurant.latitude))))`;
-      query.addSelect(haversine, 'distance'); // Alias là 'distance'
-      query.setParameter('lat', dto.lat);
-      query.setParameter('lng', dto.lng);
-
-      if (dto.radius !== undefined) {
-        query.andWhere(`${haversine} <= :radius`, { radius: dto.radius });
-      }
-      // Order by distance ascending
-      query.orderBy('distance', 'ASC');
-    } else {
-      query.orderBy('restaurant.createdAt', 'DESC');
-    }
-
-    if (dto.dishTypes && dto.dishTypes.length > 0) {
-      query.andWhere(
-        `EXISTS (
-          SELECT 1 FROM menu_item mi 
-          LEFT JOIN menu_category mc ON mi.categoryid = mc.categoryid
-          WHERE mi.restaurantid = restaurant.restaurantid 
-          AND mc.categoryid IN (:...dishTypes)
-          AND mi.deletedat IS NULL
-        )`,
-        { dishTypes: dto.dishTypes },
-      );
-    }
-
-    if (dto.services && dto.services.length > 0) {
-      query.andWhere(
-        `EXISTS (
-          SELECT 1 FROM restaurant_feature rf
-          WHERE rf.restaurantid = restaurant.restaurantid
-          AND rf.featureid IN (:...services)
-        )`,
-        { services: dto.services },
-      );
-    }
-
-    if (dto.japaneseStandards && dto.japaneseStandards.length > 0) {
-      // Assume -1 represents Hygiene score > 4.0
-      const hasHygiene = dto.japaneseStandards.includes(-1);
-      const featureIds = dto.japaneseStandards.filter((id) => id !== -1);
-
-      if (featureIds.length > 0) {
-        query.andWhere(
-          `EXISTS (
-            SELECT 1 FROM restaurant_feature rf
-            WHERE rf.restaurantid = restaurant.restaurantid
-            AND rf.featureid IN (:...featureIds)
-          )`,
-          { featureIds },
-        );
-      }
-
-      if (hasHygiene) {
-        query.andWhere(
-          `EXISTS (
-            SELECT 1 FROM review r
-            WHERE r.restaurantid = restaurant.restaurantid
-            AND r.status = 'Visible'
-            GROUP BY  r.restaurantid
-            HAVING (AVG(COALESCE(r.toiletcleanliness, 0)) + AVG(COALESCE(r.dishcleanliness, 0)) + AVG(COALESCE(r.spacecleanliness, 0))) / 3.0 >= 4.0
-          )`,
-        );
-      }
-    }
-
-    const countQuery = query.clone(); //
-    const totalCount = await countQuery.getCount();
-    query.skip(skip).take(limit);
-    const { entities, raw } = await query.getRawAndEntities();
-
-    const items = entities.map((entity, index) => {
-      const rawData = raw[index];
-      const distance =
-        rawData && rawData.distance ? parseFloat(rawData.distance) : undefined;
-
-      return {
-        ...this.toHomeRestaurantResponse(entity),
-        distance,
-      };
-    });
-
-    return {
-      items,
-      totalCount,
-      page,
-      limit,
     };
   }
 }

@@ -17,6 +17,13 @@ import type { UserCampaign } from "@/lib/api/campaigns/type";
 
 const ALL_VALUE = "__all__";
 const FALLBACK_IMAGE_URL = "https://placehold.co/320x236";
+const DISCOUNT_TYPE_LABELS: Record<string, string> = {
+  Percentage: "パーセント割引",
+  FixedAmount: "定額割引",
+};
+const TARGET_AUDIENCE_LABELS: Record<string, string> = {
+  new: "新規ユーザー",
+};
 
 type FilterKey = "category" | "benefit" | "target";
 
@@ -70,6 +77,22 @@ function formatDateRange(startDate: string, endDate: string) {
   )}`;
 }
 
+function formatDiscountType(discountType: string | null) {
+  if (!discountType) {
+    return "未分類";
+  }
+
+  return DISCOUNT_TYPE_LABELS[discountType] ?? discountType;
+}
+
+function formatTargetAudience(targetAudience: string | null) {
+  if (!targetAudience || targetAudience === "all") {
+    return "すべて";
+  }
+
+  return TARGET_AUDIENCE_LABELS[targetAudience] ?? targetAudience;
+}
+
 function toCampaignViewModel(campaign: UserCampaign): CampaignViewModel {
   const discountValue = pickText(campaign.discountValue, campaign.discountType);
 
@@ -78,13 +101,13 @@ function toCampaignViewModel(campaign: UserCampaign): CampaignViewModel {
     restaurantId: campaign.restaurantId,
     badge: discountValue || "キャンペーン",
     badgeClassName: discountValue.includes("%") ? "bg-[#af111c]" : "bg-[#5a6053]",
-    category: campaign.discountType || "未分類",
+    category: formatDiscountType(campaign.discountType),
     name: pickText(campaign.restaurantNameJP, campaign.restaurantNameVN),
     description: pickText(
       campaign.campaignDescriptionJP,
       campaign.campaignDescriptionVN,
     ),
-    target: campaign.targetAudience || "すべて",
+    target: formatTargetAudience(campaign.targetAudience),
     period: formatDateRange(campaign.startDate, campaign.endDate),
     condition: pickText(campaign.noteJP, campaign.noteVN) || "条件なし",
     imageUrl: campaign.imageUrl || FALLBACK_IMAGE_URL,
@@ -228,7 +251,11 @@ export function CampaignList({
       {
         key: "target",
         label: "対象ユーザー",
-        options: uniqueOptions(campaignCards.map((campaign) => campaign.target)),
+        options: uniqueOptions(
+          campaignCards
+            .map((campaign) => campaign.target)
+            .filter((target) => target !== "すべて"),
+        ),
       },
     ],
     [campaignCards],

@@ -41,6 +41,8 @@ export class AdvertisedRestaurantResponseDto {
   restaurantNameVN!: string;
   restaurantNameJP!: string;
   heroImageUrl!: string | null;
+  contentVN!: string | null;
+  contentJP!: string | null;
   averageRating!: number;
   reviewCount!: number;
 }

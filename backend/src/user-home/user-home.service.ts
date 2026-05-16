@@ -52,6 +52,8 @@ interface AdvertisedRestaurantRow {
   restaurantNameVN: string;
   restaurantNameJP: string;
   heroImageUrl: string | null;
+  contentVN: string | null;
+  contentJP: string | null;
   averageRating: number | string | null;
   reviewCount: number | string;
 }
@@ -235,6 +237,8 @@ export class UserHomeService {
           r.NameVN AS "restaurantNameVN",
           r.NameJP AS "restaurantNameJP",
           COALESCE(p.MediaURL, media.MediaURL) AS "heroImageUrl",
+          p.ContentVN AS "contentVN",
+          p.ContentJP AS "contentJP",
           COALESCE(ROUND(AVG(rv.Rating)::numeric, 1), 0) AS "averageRating",
           COUNT(rv.ReviewID) AS "reviewCount"
         FROM PROMOTION p
@@ -255,6 +259,7 @@ export class UserHomeService {
           LIMIT 1
         ) media ON TRUE
         WHERE p.PromotionType = 'Advertisement'
+          AND p.AdvertisementType = 'SNS'
           AND p.Status = 'Active'
           AND p.StartDate <= CURRENT_TIMESTAMP
           AND p.EndDate >= CURRENT_TIMESTAMP
@@ -265,6 +270,8 @@ export class UserHomeService {
           r.NameVN,
           r.NameJP,
           p.MediaURL,
+          p.ContentVN,
+          p.ContentJP,
           media.MediaURL
         ORDER BY p.StartDate DESC, p.PromotionID DESC
       `,
@@ -277,6 +284,8 @@ export class UserHomeService {
         restaurantNameVN: row.restaurantNameVN,
         restaurantNameJP: row.restaurantNameJP,
         heroImageUrl: row.heroImageUrl,
+        contentVN: row.contentVN,
+        contentJP: row.contentJP,
         averageRating: Number(row.averageRating),
         reviewCount: Number(row.reviewCount),
       })),

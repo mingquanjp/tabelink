@@ -58,7 +58,7 @@ export function MapSearchResults({
             </div>
             {isRouteLoading ? (
               <div className="m-6 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
-                ãƒ«ãƒ¼ãƒˆã‚’è¨ˆç®—ä¸­...
+                ルートを計算中...
               </div>
             ) : restaurants.length > 0 ? (
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
@@ -103,7 +103,7 @@ export function MapSearchResults({
         />
         {isRouteLoading ? (
           <div className="mt-10 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
-            loading...
+            ルートを計算中...
           </div>
         ) : restaurants.length > 0 ? (
           <div className="grid grid-cols-1 gap-x-6 gap-y-8 pt-10 md:grid-cols-2 xl:grid-cols-3">

@@ -10,6 +10,7 @@ import type {
 } from "./map-data";
 import { currentLocation as fallbackLocation } from "./map-data";
 import {
+  distanceLimitMeters,
   distanceOptionForMeters,
   formatDistanceShort,
   getBrowserCurrentLocation,
@@ -94,43 +95,6 @@ export function UserMapView() {
     currentLocation === null ||
     (routeRequestKey !== "" && completedRouteKey !== routeRequestKey);
 
-  // useEffect(() => {
-  //   let cancelled = false;
-  //   getMapRestaurants()
-  //     .then((data) => {
-  //       if (!cancelled) setRestaurants(data);
-  //     })
-  //     .catch((error) => {
-  //       if (!cancelled) showErrorToast("Failed to load restaurants: " + error.message);
-  //     });
-
-  //   getBrowserCurrentLocation()
-  //     .then((location) => {
-  //       if (cancelled) {
-  //         return;
-  //       }
-
-  //       setCurrentLocation(location);
-  //     })
-  //     .catch((error: Error) => {
-  //       if (cancelled) {
-  //         return;
-  //       }
-
-  //       setCurrentLocation({
-  //         point: fallbackLocation,
-  //         accuracyMeters: Number.POSITIVE_INFINITY,
-  //         capturedAt: Date.now(),
-  //       });
-  //       setRoutes({});
-  //       showErrorToast(error.message);
-  //     });
-
-  //   return () => {
-  //     cancelled = true;
-  //   };
-  // }, []);
-
   useEffect(() => {
     getBrowserCurrentLocation()
       .then(setCurrentLocation)
@@ -140,16 +104,15 @@ export function UserMapView() {
           accuracyMeters: Number.POSITIVE_INFINITY,
           capturedAt: Date.now(),
         });
-        showErrorToast(error.message);
+        console.error(error);
+        showErrorToast("現在地を取得できませんでした");
       });
   }, []);
 
   useEffect(() => {
     if (!currentLocation) return;
-
     let cancelled = false;
     setIsLoading(true);
-
     // Chuyển đổi Filter sang API Params
     const radius = parseFloat(filters.distance) * 1000;
     const dishTypes = filters.cuisines.flatMap(c => CUISINE_MAP[c] || []);
@@ -167,16 +130,16 @@ export function UserMapView() {
       japaneseStandards,
       issuesVAT: filters.amenities.vat || undefined,
       page: 1,
-      limit: 50, // Lấy dư một chút để Map hiển thị đẹp
+      limit: 50,
     })
       .then((res) => {
         if (cancelled) return;
-        // Dữ liệu từ BE đã được transform qua transformToMapRestaurant nên nạp thẳng
         setRestaurants(res.items as any);
         setTotalCount(res.totalCount);
       })
       .catch((err) => {
-        if (!cancelled) showErrorToast("Tìm kiếm thất bại: " + err.message);
+        console.error(err);
+        if (!cancelled) showErrorToast("検索に失敗しました");
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -280,75 +243,23 @@ export function UserMapView() {
     [currentLocation, routes, restaurants],
   );
 
-  // const filteredRestaurants = useMemo(() => {
-  //   const keyword = filters.keyword.trim().toLowerCase();
-  //   const selectedDistanceLimit = distanceLimitMeters(filters.distance);
-
-  //   const nextRestaurants = routedRestaurants.filter((restaurant) => {
-  //     if (keyword && !restaurant.name.toLowerCase().includes(keyword)) {
-  //       return false;
-  //     }
-
-  //     if (
-  //       restaurant.routeDistanceMeters === undefined ||
-  //       restaurant.routeDistanceMeters > selectedDistanceLimit
-  //     ) {
-  //       return false;
-  //     }
-
-  //     if (filters.quality.hygiene && !restaurant.isVerified) {
-  //       return false;
-  //     }
-
-  //     if (filters.quality.japaneseStaff && !restaurant.hasJapaneseStaff) {
-  //       return false;
-  //     }
-
-  //     if (filters.quality.japaneseMenu && !restaurant.hasJapaneseMenu) {
-  //       return false;
-  //     }
-
-  //     if (
-  //       filters.cuisines.length > 0 &&
-  //       !filters.cuisines.includes(restaurant.cuisine)
-  //     ) {
-  //       return false;
-  //     }
-
-  //     return Object.entries(filters.amenities).every(([key, value]) => {
-  //       if (!value) {
-  //         return true;
-  //       }
-
-  //       return restaurant.amenities.includes(key as AmenityKey);
-  //     });
-  //   });
-
-  //   return [...nextRestaurants].sort((a, b) => {
-  //     if (sort === "rating") {
-  //       return b.ratingValue - a.ratingValue;
-  //     }
-
-  //     if (sort === "distance") {
-  //       return (
-  //         (a.routeDistanceMeters ?? Number.POSITIVE_INFINITY) -
-  //         (b.routeDistanceMeters ?? Number.POSITIVE_INFINITY)
-  //       );
-  //     }
-
-  //     return Number(Boolean(b.isVerified)) - Number(Boolean(a.isVerified));
-  //   });
-  // }, [filters, routedRestaurants, sort]);
-
   const filteredRestaurants = useMemo(() => {
-    return [...routedRestaurants].sort((a, b) => {
+    const selectedDistanceLimit = distanceLimitMeters(filters.distance);
+
+    return [...routedRestaurants].filter((restaurant) => {
+      if (restaurant.routeDistanceMeters !== undefined) {
+        return restaurant.routeDistanceMeters <= selectedDistanceLimit;
+      }
+      return true;
+    }).sort((a, b) => {
       if (sort === "rating") return b.ratingValue - a.ratingValue;
       if (sort === "distance") {
         return (a.routeDistanceMeters ?? Number.POSITIVE_INFINITY) - (b.routeDistanceMeters ?? Number.POSITIVE_INFINITY);
       }
       return Number(Boolean(b.isVerified)) - Number(Boolean(a.isVerified));
     });
-  }, [routedRestaurants, sort]);
+  }, [routedRestaurants, sort, filters.distance]);
+
   function handleKeywordBlur() {
     if (isValidKeyword(filters.keyword)) {
       return;
@@ -440,7 +351,7 @@ export function UserMapView() {
       <div className="mx-auto flex h-[calc(100vh-80px)] min-h-0 w-full max-w-[1280px] flex-col overflow-hidden bg-[#f4f4f1] lg:flex-row lg:items-start">
         {filterSidebar}
         <MapSearchResults
-          totalCount={totalCount}
+          totalCount={filteredRestaurants.length}
           isLoading={isLoading}
           appliedFilters={appliedFilters}
           isMapOpen={isMapOpen}
@@ -463,7 +374,7 @@ export function UserMapView() {
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-8">
       {filterSidebar}
       <MapSearchResults
-        totalCount={totalCount}
+        totalCount={filteredRestaurants.length}
         isLoading={isLoading}
         appliedFilters={appliedFilters}
         isMapOpen={isMapOpen}

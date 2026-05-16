@@ -6,7 +6,6 @@ import { ApiError } from "@/lib/api/client";
 import {
   createBlogTag,
   createRestaurantBlog,
-  listBlogTags,
   searchBlogRestaurants,
   uploadBlogMedia,
 } from "@/lib/api/blogs/API";
@@ -68,7 +67,6 @@ export function BlogCreatePage() {
   const [selectedTagNames, setSelectedTagNames] =
     useState<string[]>(defaultTags);
   const [tagInput, setTagInput] = useState("");
-  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
 
@@ -105,36 +103,6 @@ export function BlogCreatePage() {
     };
   }, [restaurantQuery]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const timeoutId = window.setTimeout(async () => {
-      try {
-        const response = await listBlogTags(tagInput);
-
-        if (!cancelled) {
-          setTagSuggestions(
-            uniqueTagLabels(response.items.map((tag) => tag.name)).filter(
-              (tag) =>
-                !selectedTagNames.some(
-                  (selected) => selected.toLowerCase() === tag.toLowerCase(),
-                ),
-            ),
-          );
-        }
-      } catch {
-        if (!cancelled) {
-          setTagSuggestions([]);
-        }
-      }
-    }, 250);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
-  }, [selectedTagNames, tagInput]);
-
   function handleRatingChange(key: RatingKey, value: number) {
     setRatings((current) => ({ ...current, [key]: value }));
   }
@@ -166,11 +134,6 @@ export function BlogCreatePage() {
     setSelectedTagNames((current) => uniqueTagLabels([...current, label]));
     setTagInput("");
     setIsAddingTag(false);
-  }
-
-  function handleSelectSuggestion(tag: string) {
-    setSelectedTagNames((current) => uniqueTagLabels([...current, tag]));
-    setTagInput("");
   }
 
   function handleRemoveTag(tag: string) {
@@ -284,7 +247,6 @@ export function BlogCreatePage() {
           <ReviewTextEditor value={reviewBody} onChange={setReviewBody} />
           <TagSelector
             tags={selectedTagNames}
-            suggestions={tagSuggestions}
             tagInput={tagInput}
             isAddingTag={isAddingTag}
             onTagInputChange={setTagInput}
@@ -294,7 +256,6 @@ export function BlogCreatePage() {
               setTagInput("");
             }}
             onAddTag={handleAddTag}
-            onSelectSuggestion={handleSelectSuggestion}
             onRemoveTag={handleRemoveTag}
           />
         </section>

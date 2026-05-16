@@ -5,27 +5,23 @@ import { Input } from "@/components/ui/input";
 
 type TagSelectorProps = {
   tags: string[];
-  suggestions: string[];
   tagInput: string;
   isAddingTag: boolean;
   onTagInputChange: (value: string) => void;
   onStartAddTag: () => void;
   onCancelAddTag: () => void;
   onAddTag: () => void;
-  onSelectSuggestion: (tag: string) => void;
   onRemoveTag: (tag: string) => void;
 };
 
 export function TagSelector({
   tags,
-  suggestions,
   tagInput,
   isAddingTag,
   onTagInputChange,
   onStartAddTag,
   onCancelAddTag,
   onAddTag,
-  onSelectSuggestion,
   onRemoveTag,
 }: TagSelectorProps) {
   return (
@@ -98,21 +94,6 @@ export function TagSelector({
           </Button>
         )}
       </div>
-
-      {suggestions.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {suggestions.map((tag) => (
-            <button
-              key={tag}
-              type="button"
-              onClick={() => onSelectSuggestion(tag)}
-              className="rounded-xl bg-[#f4f4f1] px-3 py-2 font-jp text-xs text-[#5a6053] transition-colors hover:bg-[#e7e5df]"
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-      ) : null}
     </section>
   );
 }

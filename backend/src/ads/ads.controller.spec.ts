@@ -3,6 +3,7 @@ import { AdsController } from './ads.controller';
 import { AdsService } from './ads.service';
 import {
   AdvertisementType,
+  CampaignDiscountType,
   CampaignTargetAudience,
   PromotionType,
 } from './dto/create-promotion.dto';
@@ -89,7 +90,8 @@ describe('AdsController', () => {
       campaignName: 'Autumn offer',
       campaignDescription: '10% off.',
       targetAudience: CampaignTargetAudience.All,
-      discountType: '10' as const,
+      discountType: CampaignDiscountType.Percentage,
+      discountValue: '10%' as const,
       note: 'Cannot be combined with other coupons.',
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
@@ -105,8 +107,8 @@ describe('AdsController', () => {
         contentVn: '10% off.',
         contentJp: '10% off.',
         targetAudience: 'all',
-        discountType: '10',
-        discountValue: '10%OFF',
+        discountType: 'Percentage',
+        discountValue: '10%',
         termsVn: 'Cannot be combined with other coupons.',
         termsJp: 'Cannot be combined with other coupons.',
         startDate: '2026-05-20T00:00:00.000Z',
@@ -120,9 +122,7 @@ describe('AdsController', () => {
     const dto = {
       titleVn: 'Weekend banner',
       contentVn: 'Banner message.',
-      targetAudience: 'Japanese customers within 5km',
       advertisementType: AdvertisementType.SNS,
-      targetRadiusKm: 5,
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
       totalCost: 50000,
@@ -134,6 +134,7 @@ describe('AdsController', () => {
       {
         ...dto,
         promotionType: PromotionType.Advertisement,
+        targetAudience: 'all',
       },
       user,
     );

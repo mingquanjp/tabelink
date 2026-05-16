@@ -30,20 +30,30 @@ export enum CampaignTargetAudience {
   New = 'new',
 }
 
-export const CAMPAIGN_DISCOUNT_TYPES = [
-  '10_once',
-  '10',
-  '20',
-  '30',
-  '40',
-  '50',
-  '60',
-  '70',
-  '80',
-  '90',
+export enum CampaignDiscountType {
+  Percentage = 'Percentage',
+  FixedAmount = 'FixedAmount',
+}
+
+export const CAMPAIGN_PERCENTAGE_DISCOUNT_VALUES = [
+  '10%',
+  '20%',
+  '50%',
+  '100%',
 ] as const;
 
-export type CampaignDiscountType = (typeof CAMPAIGN_DISCOUNT_TYPES)[number];
+export const CAMPAIGN_FIXED_AMOUNT_DISCOUNT_VALUES = [
+  '50000VND',
+  '100000VND',
+  '200000VND',
+] as const;
+
+export const CAMPAIGN_DISCOUNT_VALUES = [
+  ...CAMPAIGN_PERCENTAGE_DISCOUNT_VALUES,
+  ...CAMPAIGN_FIXED_AMOUNT_DISCOUNT_VALUES,
+] as const;
+
+export type CampaignDiscountValue = (typeof CAMPAIGN_DISCOUNT_VALUES)[number];
 
 export class CreatePromotionDto {
   @ApiProperty({
@@ -110,7 +120,7 @@ export class CreatePromotionDto {
   @MaxLength(100)
   discountType?: string;
 
-  @ApiPropertyOptional({ example: '10%OFF' })
+  @ApiPropertyOptional({ example: '10%' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
@@ -173,19 +183,22 @@ export class CreateCampaignDto {
   targetAudience!: CampaignTargetAudience;
 
   @ApiProperty({
-    enum: CAMPAIGN_DISCOUNT_TYPES,
-    example: '10',
+    enum: CampaignDiscountType,
+    example: CampaignDiscountType.Percentage,
     description:
-      'Discount dropdown value. 10_once means one-time 10%; 10,20,30... are percent options.',
+      'Discount type. Percentage uses percent dropdown values; FixedAmount uses fixed VND dropdown values.',
   })
-  @IsIn(CAMPAIGN_DISCOUNT_TYPES)
+  @IsEnum(CampaignDiscountType)
   discountType!: CampaignDiscountType;
 
-  @ApiPropertyOptional({ example: '10%OFF', maxLength: 255 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  discountValue?: string;
+  @ApiProperty({
+    enum: CAMPAIGN_DISCOUNT_VALUES,
+    example: '10%',
+    description:
+      'Locked discount dropdown. For Percentage use 10%, 20%, 50%, 100%; for FixedAmount use 50000VND, 100000VND, or 200000VND.',
+  })
+  @IsIn(CAMPAIGN_DISCOUNT_VALUES)
+  discountValue!: CampaignDiscountValue;
 
   @ApiPropertyOptional({
     example: 'Cannot be combined with other coupons.',
@@ -231,10 +244,15 @@ export class CreateAdRequestDto {
   @MaxLength(4000)
   contentJp?: string;
 
-  @ApiProperty({ example: 'Japanese customers within 5km' })
+  @ApiPropertyOptional({
+    example: 'all',
+    description:
+      'Ignored for advertisements. Advertisement target audience is fixed to all.',
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(255)
-  targetAudience!: string;
+  targetAudience?: string;
 
   @ApiProperty({
     enum: AdvertisementType,
@@ -245,12 +263,18 @@ export class CreateAdRequestDto {
   @IsEnum(AdvertisementType)
   advertisementType!: AdvertisementType;
 
-  @ApiProperty({ example: 5, minimum: 1, maximum: 100 })
+  @ApiPropertyOptional({
+    example: 5,
+    minimum: 1,
+    maximum: 100,
+    description: 'Ignored for advertisements. Distance targeting is disabled.',
+  })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(100)
-  targetRadiusKm!: number;
+  targetRadiusKm?: number;
 
   @ApiPropertyOptional({ example: 50000, minimum: 0 })
   @IsOptional()
@@ -343,7 +367,7 @@ export class UpdatePromotionDto {
   @MaxLength(100)
   discountType?: string;
 
-  @ApiPropertyOptional({ example: '20%OFF' })
+  @ApiPropertyOptional({ example: '20%' })
   @IsOptional()
   @IsString()
   @MaxLength(255)

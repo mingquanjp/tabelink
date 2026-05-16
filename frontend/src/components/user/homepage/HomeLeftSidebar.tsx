@@ -1,12 +1,25 @@
 import { Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { homepageHotRestaurants, type homepageUser } from "./homepage-data";
+import type { HomepageHotRestaurant, HomepageUser } from "./homepage-data";
 
 type HomeLeftSidebarProps = {
-  user: typeof homepageUser;
+  hotRestaurants: HomepageHotRestaurant[];
+  user: HomepageUser;
 };
 
-export function HomeLeftSidebar({ user }: HomeLeftSidebarProps) {
+function formatCount(value: number | undefined, fallback: string) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  if (value >= 1000) {
+    return `${Number((value / 1000).toFixed(1))}k`;
+  }
+
+  return String(value);
+}
+
+export function HomeLeftSidebar({ hotRestaurants, user }: HomeLeftSidebarProps) {
   return (
     <aside className="space-y-5 max-md:order-2">
       <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
@@ -16,7 +29,7 @@ export function HomeLeftSidebar({ user }: HomeLeftSidebarProps) {
             style={{ backgroundImage: `url(${user.avatarUrl})` }}
           />
           <h1 className="mt-4 font-jp text-[15px] font-bold leading-5 text-[#1a1c1b]">
-            Maki S.
+            {user.name}
           </h1>
           <p className="mt-1 font-jp text-[12px] font-medium leading-4 text-[#5a6053]">
             グルメ・エクスプローラー
@@ -24,19 +37,19 @@ export function HomeLeftSidebar({ user }: HomeLeftSidebarProps) {
           <div className="mt-5 grid grid-cols-3 border-t border-[#f0eee8] pt-4 text-center">
             <div>
               <p className="font-manrope text-[14px] font-bold text-[#1a1c1b]">
-                42
+                {formatCount(user.postCount, "42")}
               </p>
               <p className="font-jp text-[9px] text-[#5a6053]">投稿</p>
             </div>
             <div>
               <p className="font-manrope text-[14px] font-bold text-[#1a1c1b]">
-                1.2k
+                {formatCount(user.followerCount, "1.2k")}
               </p>
               <p className="font-jp text-[9px] text-[#5a6053]">フォロワー</p>
             </div>
             <div>
               <p className="font-manrope text-[14px] font-bold text-[#1a1c1b]">
-                850
+                {formatCount(user.followingCount, "850")}
               </p>
               <p className="font-jp text-[9px] text-[#5a6053]">フォロー中</p>
             </div>
@@ -50,7 +63,7 @@ export function HomeLeftSidebar({ user }: HomeLeftSidebarProps) {
             今話題のレストラン
           </h2>
           <div className="mt-4 space-y-3">
-            {homepageHotRestaurants.map((restaurant) => (
+            {hotRestaurants.map((restaurant) => (
               <div key={restaurant.name} className="flex items-center gap-3">
                 <div
                   className="size-10 shrink-0 rounded bg-cover bg-center"

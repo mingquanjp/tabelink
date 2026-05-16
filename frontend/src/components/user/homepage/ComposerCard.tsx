@@ -10,11 +10,11 @@ import {
 import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { HomepagePost, homepageUser } from "./homepage-data";
+import type { HomepagePost, HomepageUser } from "./homepage-data";
 import { HomepageAvatar } from "./HomepageAvatar";
 
 type ComposerCardProps = {
-  user: typeof homepageUser;
+  user: HomepageUser;
   onCreatePost: (post: HomepagePost) => void;
 };
 

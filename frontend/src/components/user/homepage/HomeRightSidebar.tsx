@@ -6,18 +6,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  homepageReviewers,
-  homepageTopics,
-  type HomepageRecommendation,
+import type {
+  HomepageRecommendation,
+  HomepageReviewer,
+  HomepageTopic,
 } from "./homepage-data";
 import { HomepageAvatar } from "./HomepageAvatar";
 
 type HomeRightSidebarProps = {
+  onToggleReviewerFollow: (accountId: number, isFollowing: boolean) => void;
   recommendations: HomepageRecommendation[];
+  reviewers: HomepageReviewer[];
+  topics: HomepageTopic[];
 };
 
-export function HomeRightSidebar({ recommendations }: HomeRightSidebarProps) {
+export function HomeRightSidebar({
+  onToggleReviewerFollow,
+  recommendations,
+  reviewers,
+  topics,
+}: HomeRightSidebarProps) {
   void recommendations;
 
   return (
@@ -29,7 +37,7 @@ export function HomeRightSidebar({ recommendations }: HomeRightSidebarProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 px-5 pb-5">
-          {homepageReviewers.map((reviewer) => (
+          {reviewers.map((reviewer) => (
             <div key={reviewer.handle} className="flex items-center gap-3">
               <HomepageAvatar initials={reviewer.initials} size="sm" />
               <div className="min-w-0 flex-1">
@@ -44,8 +52,16 @@ export function HomeRightSidebar({ recommendations }: HomeRightSidebarProps) {
                 size="sm"
                 variant="ghost"
                 className="h-7 px-2 font-jp text-[11px] font-bold text-[#af111c]"
+                onClick={() => {
+                  if (reviewer.accountId !== undefined) {
+                    onToggleReviewerFollow(
+                      reviewer.accountId,
+                      Boolean(reviewer.isFollowing),
+                    );
+                  }
+                }}
               >
-                フォロー
+                {reviewer.isFollowing ? "フォロー中" : "フォロー"}
               </Button>
             </div>
           ))}
@@ -65,7 +81,7 @@ export function HomeRightSidebar({ recommendations }: HomeRightSidebarProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 px-5 pb-5">
-          {homepageTopics.map((topic) => (
+          {topics.map((topic) => (
             <button
               key={topic.label}
               type="button"

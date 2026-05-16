@@ -210,6 +210,8 @@ export type HomepageFeaturedRestaurant =
   (typeof homepageFeaturedRestaurants)[number];
 export type HomepageReviewer = (typeof homepageReviewers)[number] & {
   accountId?: number;
+  followerCount?: number;
   isFollowing?: boolean;
+  nationality?: string | null;
 };
 export type HomepageTopic = (typeof homepageTopics)[number];

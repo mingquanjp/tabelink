@@ -28,7 +28,6 @@ export enum AdvertisementType {
 export enum CampaignTargetAudience {
   All = 'all',
   New = 'new',
-  Elite = 'elite',
 }
 
 export const CAMPAIGN_DISCOUNT_TYPES = [
@@ -168,7 +167,7 @@ export class CreateCampaignDto {
   @ApiProperty({
     enum: CampaignTargetAudience,
     example: CampaignTargetAudience.All,
-    description: 'Allowed values: all, new, elite.',
+    description: 'Allowed values: all, new.',
   })
   @IsEnum(CampaignTargetAudience)
   targetAudience!: CampaignTargetAudience;

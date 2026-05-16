@@ -295,6 +295,23 @@ describe('AdsService', () => {
     );
   });
 
+  it('rejects campaign updates outside the fixed target audience options', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ restaurantId: 1 }])
+      .mockResolvedValueOnce([promotionRow]);
+
+    await expect(
+      service.updatePromotion(
+        1,
+        12,
+        {
+          targetAudience: 'Japanese customers within 5km',
+        },
+        ownerUser,
+      ),
+    ).rejects.toThrow('Campaign targetAudience must be one of');
+  });
+
   it('clears advertisement-only fields when updating a campaign', async () => {
     dataSource.query
       .mockResolvedValueOnce([{ restaurantId: 1 }])
@@ -543,6 +560,26 @@ describe('AdsService', () => {
         },
       ),
     ).rejects.toThrow('endDate must be after startDate.');
+  });
+
+  it('rejects campaign creation outside the fixed target audience options', async () => {
+    dataSource.query.mockResolvedValueOnce([{ restaurantId: 1 }]);
+
+    await expect(
+      service.createPromotion(
+        1,
+        {
+          promotionType: PromotionType.Campaign,
+          titleVn: 'Autumn offer',
+          contentVn: '10% off.',
+          targetAudience: 'Japanese customers within 5km',
+          discountType: 'total-10',
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+        },
+        ownerUser,
+      ),
+    ).rejects.toThrow('Campaign targetAudience must be one of');
   });
 
   it('throws when the owner does not own the restaurant', async () => {

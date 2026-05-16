@@ -8,6 +8,7 @@ import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import {
+  CampaignTargetAudience,
   CreatePromotionDto,
   UpdatePromotionDto,
 } from './dto/create-promotion.dto';
@@ -144,6 +145,9 @@ export class AdsService {
     const targetAudience = this.optionalTrim(dto.targetAudience);
     if (!targetAudience) {
       throw new BadRequestException('Target audience is required.');
+    }
+    if (dto.promotionType === 'Campaign') {
+      this.assertCampaignTargetAudience(targetAudience);
     }
 
     const startDate = new Date(dto.startDate);
@@ -309,6 +313,9 @@ export class AdsService {
 
     if (!targetAudience) {
       throw new BadRequestException('Target audience is required.');
+    }
+    if (current.promotionType === 'Campaign') {
+      this.assertCampaignTargetAudience(targetAudience);
     }
 
     const startDate =
@@ -644,6 +651,18 @@ export class AdsService {
       parsedEndDate <= parsedStartDate
     ) {
       throw new BadRequestException('endDate must be after startDate.');
+    }
+  }
+
+  private assertCampaignTargetAudience(targetAudience: string) {
+    if (
+      !Object.values(CampaignTargetAudience).includes(
+        targetAudience as CampaignTargetAudience,
+      )
+    ) {
+      throw new BadRequestException(
+        'Campaign targetAudience must be one of: all, new, elite.',
+      );
     }
   }
 

@@ -21,6 +21,7 @@ import type { Request } from 'express';
 import type { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { GetRestaurantRouteQueryDto } from './dto/get-restaurant-route-query.dto';
+import { SearchRestaurantDto } from './dto/restaurant-map-search.dto';
 import { MapsService } from './maps.service';
 
 interface AuthenticatedRequest extends Request {
@@ -34,11 +35,27 @@ interface AuthenticatedRequest extends Request {
 @Controller('maps')
 export class MapsController {
   constructor(private readonly mapsService: MapsService) {}
+  @Get('advanced-search')
+  @ApiOperation({
+    summary: 'Search for restaurants',
+    description:
+      'Advanced search API with filters for keyword, distance, Japanese standards, dish types, and services. Returns paginated results with total count.',
+  })
+  @ApiOkResponse({
+    description: 'Paginated list of restaurants matching search criteria.',
+  })
+  searchRestaurants(
+    @Query() query: SearchRestaurantDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.mapsService.searchRestaurants(query, request.user);
+  }
 
   @Get('restaurants')
   @ApiOperation({
     summary: 'Get all active restaurants for map',
-    description: 'Returns all active restaurants with coordinates, features, and average rating for the map view.',
+    description:
+      'Returns all active restaurants with coordinates, features, and average rating for the map view.',
   })
   @ApiOkResponse({
     description: 'List of restaurants for the map.',

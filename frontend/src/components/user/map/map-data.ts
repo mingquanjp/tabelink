@@ -1,3 +1,5 @@
+import { RestaurantSearchItem } from "@/lib/api/maps/restaurant-advance-search/type";
+
 export type DistanceOption = "500m" | "1.0km" | "5km";
 export type AmenityKey = "vat" | "parking" | "privateRoom";
 
@@ -26,6 +28,41 @@ export type MapRestaurant = {
   features: string[];
 };
 
+export const mapApiToMapRestaurant = (
+  item: RestaurantSearchItem,
+): MapRestaurant => {
+  const distKm = item.distance ? item.distance / 1000 : 0;
+  let distOption: DistanceOption = "5km";
+  if (distKm <= 0.5) distOption = "500m";
+  else if (distKm <= 1.0) distOption = "1.0km";
+  return {
+    id: item.restaurantId,
+    name: item.nameJp || item.nameVn,
+    mapName: item.nameJp || item.nameVn,
+    address: item.address,
+    position: {
+      lat: item.latitude,
+      lng: item.longitude,
+    },
+    distance: item.distance ? `${distKm.toFixed(1)}km` : "---",
+    distanceValue: distOption,
+
+    rating: (item.averageRating || 4.5).toString(),
+    ratingValue: item.averageRating || 4.5,
+
+    imageUrl: item.coverImageUrl || "",
+    isVerified: item.features.some((f) => f.featureId === 1), // Giả sử featureId 1 là "Verified"
+
+    features: item.features?.map((f) => f.featureCode) || [],
+
+    // Xử lý các trường Mock mà BE chưa có hoặc UI yêu cầu đặc thù
+    badges: item.issuesVat ? ["VAT発行可"] : [],
+    amenities: item.issuesVat ? ["vat" as AmenityKey] : [],
+    cuisine: "ベトナム料理", // Mock vì UI yêu cầu string cuisine
+    hasJapaneseMenu: item.features?.some((f) => f.featureId === 3) || false,
+    hasJapaneseStaff: false,
+  };
+};
 export const currentLocation = {
   lat: 21.0166,
   lng: 105.8412,

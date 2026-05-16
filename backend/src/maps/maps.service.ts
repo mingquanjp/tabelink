@@ -1,15 +1,18 @@
 import {
-  BadRequestException,
   BadGatewayException,
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DataSource } from 'typeorm';
+import { InjectRepository } from '@nestjs/typeorm/dist/common/typeorm.decorators';
+import { DataSource, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import type { JwtPayload } from '../auth/auth.types';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import type { GetRestaurantRouteQueryDto } from './dto/get-restaurant-route-query.dto';
+import { SearchRestaurantDto } from './dto/restaurant-map-search.dto';
 
 type LatLng = {
   lat: number;
@@ -49,6 +52,8 @@ export class MapsService {
   private readonly osrmTimeoutMs: number;
 
   constructor(
+    @InjectRepository(Restaurant)
+    private readonly restaurantRepo: Repository<Restaurant>,
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
   ) {
@@ -57,104 +62,99 @@ export class MapsService {
       .replace(/\/+$/, '');
     this.osrmTimeoutMs = this.resolveTimeoutMs();
   }
+  async searchRestaurants(dto: SearchRestaurantDto, user: JwtPayload) {
+    // Implementation for searching restaurants
+    this.assertMapViewer(user);
+    const page = dto.page ?? 1;
+    const limit = dto.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const query = this.restaurantRepo
+      .createQueryBuilder('restaurant')
+      .leftJoinAndSelect('restaurant.media', 'media')
+      .leftJoinAndSelect('restaurant.restaurantBadges', 'rb')
+      .leftJoinAndSelect('rb.badge', 'badge')
+      .leftJoinAndSelect('restaurant.featureLinks', 'featureLinks')
+      .leftJoinAndSelect('featureLinks.feature', 'feature')
+      .where('restaurant.status = :status', { status: 'Active' })
+      .andWhere('restaurant.latitude IS NOT NULL')
+      .andWhere('restaurant.longitude IS NOT NULL');
+    query.addSelect((subQuery) => {
+      return subQuery
+        .select('AVG(rev.rating)', 'avgRating')
+        .from('review', 'rev') // lấy từ bảng review
+        .where('rev.restaurantid = restaurant.restaurantid')
+        .andWhere('rev.status = :revStatus', { revStatus: 'Visible' });
+    }, 'avgRating');
+
+    if (dto.keyword) {
+      query.andWhere(
+        '(restaurant.nameVn ILIKE :keyword OR restaurant.nameJp ILIKE :keyword OR restaurant.address ILIKE :keyword)',
+        { keyword: `%${dto.keyword.trim()}%` },
+      );
+    }
+    if (dto.issuesVAT !== undefined) {
+      query.andWhere('restaurant.issuesVat = :issuesVAT', {
+        issuesVAT: dto.issuesVAT,
+      });
+    }
+    if (dto.lat !== undefined && dto.lng !== undefined) {
+      const haversine = `(6371000 * acos(cos(radians(:lat)) * cos(radians(restaurant.latitude)) * cos(radians(restaurant.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(restaurant.latitude))))`;
+      query.addSelect(haversine, 'distance');
+      query.setParameters({ lat: dto.lat, lng: dto.lng });
+      if (dto.radius) {
+        query.andWhere(`${haversine} <= :radius`, { radius: dto.radius });
+      }
+      query.orderBy('distance', 'ASC');
+    } else {
+      query.orderBy('restaurant.createdAt', 'DESC');
+    }
+    if (dto.dishTypes?.length) {
+      query.andWhere(
+        `EXISTS (SELECT 1 FROM menu_item mi WHERE mi.restaurantid = restaurant.restaurantid AND mi.categoryid IN (:...dishTypes))`,
+        { dishTypes: dto.dishTypes },
+      );
+    }
+    if (dto.services?.length) {
+      query.andWhere(
+        `EXISTS (SELECT 1 FROM restaurant_feature rf WHERE rf.restaurantid = restaurant.restaurantid AND rf.featureid IN (:...services))`,
+        { services: dto.services },
+      );
+    }
+    if (dto.japaneseStandards?.length) {
+      const hasHygiene = dto.japaneseStandards.includes(-1);
+      const otherStandards = dto.japaneseStandards.filter((id) => id !== -1);
+
+      if (otherStandards.length) {
+        query.andWhere(
+          `EXISTS (SELECT 1 FROM restaurant_feature rf WHERE rf.restaurantid = restaurant.restaurantid AND rf.featureid IN (:...otherStandards))`,
+          { otherStandards },
+        );
+      }
+      if (hasHygiene) {
+        query.andWhere(
+          `EXISTS (SELECT 1 FROM review r WHERE r.restaurantid = restaurant.restaurantid AND r.status = 'Visible' GROUP BY r.restaurantid HAVING (AVG(COALESCE(r.toiletcleanliness, 0)) + AVG(COALESCE(r.dishcleanliness, 0)) + AVG(COALESCE(r.spacecleanliness, 0))) / 3.0 >= 4.0)`,
+        );
+      }
+    }
+
+    const totalCount = await query.getCount();
+    query.skip(skip).take(limit);
+    const { entities, raw } = await query.getRawAndEntities();
+    const items = entities.map((entity, index) => {
+      const rawData = raw[index];
+      const distanceMeters = rawData?.distance
+        ? parseFloat(rawData.distance)
+        : undefined;
+      const avgRating = rawData?.avgRating
+        ? Number(parseFloat(rawData.avgRating).toFixed(1))
+        : 0;
+      return this.transformToMapRestaurant(entity, distanceMeters, avgRating);
+    });
+    return { items, totalCount, page, limit };
+  }
 
   async getMapRestaurants(user: JwtPayload) {
-    this.assertMapViewer(user);
-
-    const rows = await this.dataSource.query(`
-      SELECT 
-        r.RestaurantID AS "id",
-        r.NameVN AS "name",
-        r.NameJP AS "mapName",
-        r.Address AS "address",
-        r.Latitude AS "lat",
-        r.Longitude AS "lng",
-        r.IssuesVat AS "issuesVat",
-        COALESCE(reviews."ratingValue", 0) AS "ratingValue",
-        COALESCE(reviews."reviewCount", 0) AS "reviewCount",
-        media."imageUrl",
-        COALESCE(features."features", '[]'::json) AS "features"
-      FROM RESTAURANT r
-      LEFT JOIN LATERAL (
-        SELECT
-          AVG(rev.Rating) AS "ratingValue",
-          COUNT(rev.ReviewID) AS "reviewCount"
-        FROM REVIEW rev
-        WHERE rev.RestaurantID = r.RestaurantID
-          AND rev.Status = 'Visible'
-      ) reviews ON true
-      LEFT JOIN LATERAL (
-        SELECT m.MediaURL AS "imageUrl"
-        FROM RESTAURANT_MEDIA m
-        WHERE m.RestaurantID = r.RestaurantID
-          AND m.Status = 'Approved'
-        ORDER BY
-          CASE WHEN m.MediaType = 'Cover' THEN 0 ELSE 1 END,
-          m.SortOrder ASC,
-          m.MediaID ASC
-        LIMIT 1
-      ) media ON true
-      LEFT JOIN LATERAL (
-        SELECT JSON_AGG(fm.FeatureCode ORDER BY fm.FeatureCode) AS "features"
-        FROM RESTAURANT_FEATURE rf
-        INNER JOIN FEATURE_MASTER fm ON fm.FeatureID = rf.FeatureID
-        WHERE rf.RestaurantID = r.RestaurantID
-      ) features ON true
-      WHERE r.Status = 'Active' 
-        AND r.Latitude IS NOT NULL 
-        AND r.Longitude IS NOT NULL
-      ORDER BY r.RestaurantID
-    `);
-
-    return rows.map((row: any) => {
-      const features: string[] =
-        typeof row.features === 'string'
-          ? JSON.parse(row.features)
-          : row.features || [];
-      const featureSet = new Set(features);
-      
-      const isVerified = true;
-      const hasJapaneseStaff = featureSet.has('JAPANESE_STAFF');
-      const hasJapaneseMenu = featureSet.has('JAPANESE_MENU');
-      
-      let cuisine = 'Khác';
-      const cuisineFeature = features.find(f => f.startsWith('cuisine_'));
-      if (cuisineFeature) {
-        cuisine = cuisineFeature.replace('cuisine_', '');
-      }
-
-      const amenities: string[] = [];
-      if (row.issuesVat || featureSet.has('VAT_INVOICE')) {
-        amenities.push('vat');
-      }
-      if (featureSet.has('PARKING')) {
-        amenities.push('parking');
-      }
-      if (featureSet.has('PRIVATE_ROOM')) {
-        amenities.push('privateRoom');
-      }
-
-      return {
-        id: Number(row.id),
-        name: row.name,
-        mapName: row.mapName,
-        address: row.address,
-        position: {
-          lat: Number(row.lat),
-          lng: Number(row.lng),
-        },
-        rating: Number(row.ratingValue).toFixed(1),
-        ratingValue: Number(row.ratingValue),
-        imageUrl: row.imageUrl || '',
-        isVerified,
-        hasJapaneseStaff,
-        hasJapaneseMenu,
-        cuisine,
-        amenities,
-        badges: [],
-        features,
-      };
-    });
+    return this.searchRestaurants({ page: 1, limit: 100 }, user);
   }
 
   async getRestaurantRoute(
@@ -226,9 +226,7 @@ export class MapsService {
     return row;
   }
 
-  private async resolveRouteTarget(
-    restaurantId: number,
-  ) {
+  private async resolveRouteTarget(restaurantId: number) {
     const restaurant = await this.findActiveRestaurantLocation(restaurantId);
     const destination = this.toDestinationPoint(restaurant);
 
@@ -345,5 +343,74 @@ export class MapsService {
           lng <= MAX_LNG,
       )
     );
+  }
+
+  private transformToMapRestaurant(
+    entity: Restaurant,
+    distanceMeters?: number,
+    avgRating?: number,
+  ) {
+    const featureCodes =
+      entity.featureLinks?.map((fl) => fl.feature.featureCode) || [];
+    const featureSet = new Set(featureCodes);
+
+    // Xác định Cuisine từ Features hoặc mặc định
+    let cuisine = 'ベトナム料理';
+    const cuisineTag = featureCodes.find((f) => f.startsWith('cuisine_'));
+    if (cuisineTag) cuisine = cuisineTag.replace('cuisine_', '');
+
+    // Amenities (vat, parking, privateRoom)
+    const amenities: string[] = [];
+    if (entity.issuesVat || featureSet.has('VAT_INVOICE'))
+      amenities.push('vat');
+    if (featureSet.has('PARKING')) amenities.push('parking');
+    if (featureSet.has('PRIVATE_ROOM')) amenities.push('privateRoom');
+
+    // Badges từ DB
+    const badges =
+      entity.restaurantBadges?.map((rb) => rb.badge.badgeNameJp) || [];
+    const isVerified =
+      entity.restaurantBadges?.some(
+        (rb) => rb.badge.badgeCode === 'VERIFIED',
+      ) || false;
+
+    let distanceStr = '---';
+    let distValue: '500m' | '1.0km' | '5km' = '5km';
+
+    if (distanceMeters !== undefined) {
+      if (distanceMeters < 1000) {
+        distanceStr = `${Math.round(distanceMeters)}m`;
+      } else {
+        distanceStr = `${(distanceMeters / 1000).toFixed(1)}km`;
+      }
+      if (distanceMeters <= 500) distValue = '500m';
+      else if (distanceMeters <= 1000) distValue = '1.0km';
+      else distValue = '5km';
+    }
+
+    return {
+      id: entity.restaurantId,
+      name: entity.nameVn,
+      mapName: entity.nameJp || entity.nameVn,
+      address: entity.address,
+      position: { lat: Number(entity.latitude), lng: Number(entity.longitude) },
+      distance: distanceMeters
+        ? `${(distanceMeters / 1000).toFixed(1)}km`
+        : '---',
+      distanceValue: distValue,
+
+      rating: avgRating,
+      imageUrl:
+        entity.media?.find((m) => m.mediaType === 'Cover')?.mediaUrl ||
+        entity.media?.[0]?.mediaUrl ||
+        '',
+      isVerified,
+      hasJapaneseStaff: featureSet.has('JAPANESE_STAFF'),
+      hasJapaneseMenu: featureSet.has('JAPANESE_MENU'),
+      cuisine,
+      amenities,
+      badges,
+      features: featureCodes,
+    };
   }
 }

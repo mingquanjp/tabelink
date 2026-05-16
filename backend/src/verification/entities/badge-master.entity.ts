@@ -1,4 +1,5 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { RestaurantBadge } from '../../restaurants/entities/restaurant-badge.entity';
 
 @Entity({ name: 'badge_master' })
 export class BadgeMaster {
@@ -22,4 +23,7 @@ export class BadgeMaster {
 
   @Column({ name: 'criteria', type: 'text', nullable: true })
   criteria?: string;
+
+  @OneToMany(() => RestaurantBadge, (rb) => rb.badge)
+  restaurantLinks!: RestaurantBadge[];
 }

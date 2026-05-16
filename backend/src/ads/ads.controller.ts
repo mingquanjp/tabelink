@@ -202,10 +202,7 @@ export class AdsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.adsService.createOwnerPromotion(
-      {
-        ...dto,
-        promotionType: PromotionType.Campaign,
-      },
+      this.toCampaignPromotionDto(dto),
       request.user,
     );
   }
@@ -233,10 +230,7 @@ export class AdsController {
   ) {
     return this.adsService.createPromotion(
       restaurantId,
-      {
-        ...dto,
-        promotionType: PromotionType.Campaign,
-      },
+      this.toCampaignPromotionDto(dto),
       request.user,
     );
   }
@@ -446,5 +440,33 @@ export class AdsController {
   @ApiNotFoundResponse({ description: 'Active ad not found.' })
   recordClick(@Param('adId', ParseIntPipe) adId: number) {
     return this.adsService.recordClick(adId);
+  }
+
+  private toCampaignPromotionDto(dto: CreateCampaignDto): CreatePromotionDto {
+    const discountValue =
+      dto.discountValue ?? this.toCampaignDiscountLabel(dto.discountType);
+
+    return {
+      promotionType: PromotionType.Campaign,
+      titleVn: dto.campaignName,
+      titleJp: dto.campaignName,
+      contentVn: dto.campaignDescription,
+      contentJp: dto.campaignDescription,
+      targetAudience: dto.targetAudience,
+      discountType: dto.discountType,
+      discountValue,
+      termsVn: dto.note,
+      termsJp: dto.note,
+      startDate: dto.startDate,
+      endDate: dto.endDate,
+    };
+  }
+
+  private toCampaignDiscountLabel(discountType: string) {
+    if (discountType === '10_once') {
+      return '10%OFF once';
+    }
+
+    return `${discountType}%OFF`;
   }
 }

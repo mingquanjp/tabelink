@@ -1,7 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdsController } from './ads.controller';
 import { AdsService } from './ads.service';
-import { PromotionType } from './dto/create-promotion.dto';
+import {
+  AdvertisementType,
+  CampaignTargetAudience,
+  PromotionType,
+} from './dto/create-promotion.dto';
 
 describe('AdsController', () => {
   let controller: AdsController;
@@ -126,7 +130,8 @@ describe('AdsController', () => {
       promotionType: PromotionType.Campaign,
       titleVn: 'Autumn offer',
       contentVn: '10% off.',
-      targetAudience: 'all',
+      targetAudience: CampaignTargetAudience.All,
+      discountType: 'total-10',
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
     };
@@ -152,7 +157,8 @@ describe('AdsController', () => {
       promotionType: PromotionType.Campaign,
       titleVn: 'Autumn offer',
       contentVn: '10% off.',
-      targetAudience: 'all',
+      targetAudience: CampaignTargetAudience.All,
+      discountType: 'total-10',
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
     };
@@ -169,9 +175,11 @@ describe('AdsController', () => {
 
   it('creates campaigns through the campaign popup endpoint', async () => {
     const dto = {
-      titleVn: 'Autumn offer',
-      contentVn: '10% off.',
-      targetAudience: 'all',
+      campaignName: 'Autumn offer',
+      campaignDescription: '10% off.',
+      targetAudience: CampaignTargetAudience.All,
+      discountType: '10' as const,
+      note: 'Cannot be combined with other coupons.',
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
     };
@@ -186,8 +194,18 @@ describe('AdsController', () => {
     expect(service.createPromotion).toHaveBeenCalledWith(
       1,
       {
-        ...dto,
         promotionType: PromotionType.Campaign,
+        titleVn: 'Autumn offer',
+        titleJp: 'Autumn offer',
+        contentVn: '10% off.',
+        contentJp: '10% off.',
+        targetAudience: 'all',
+        discountType: '10',
+        discountValue: '10%OFF',
+        termsVn: 'Cannot be combined with other coupons.',
+        termsJp: 'Cannot be combined with other coupons.',
+        startDate: '2026-05-20T00:00:00.000Z',
+        endDate: '2026-05-31T23:59:59.000Z',
       },
       user,
     );
@@ -195,9 +213,11 @@ describe('AdsController', () => {
 
   it('creates campaigns through the owner-context campaign popup endpoint', async () => {
     const dto = {
-      titleVn: 'Autumn offer',
-      contentVn: '10% off.',
-      targetAudience: 'all',
+      campaignName: 'Autumn offer',
+      campaignDescription: '10% off.',
+      targetAudience: CampaignTargetAudience.All,
+      discountType: '10' as const,
+      note: 'Cannot be combined with other coupons.',
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
     };
@@ -211,8 +231,18 @@ describe('AdsController', () => {
 
     expect(service.createOwnerPromotion).toHaveBeenCalledWith(
       {
-        ...dto,
         promotionType: PromotionType.Campaign,
+        titleVn: 'Autumn offer',
+        titleJp: 'Autumn offer',
+        contentVn: '10% off.',
+        contentJp: '10% off.',
+        targetAudience: 'all',
+        discountType: '10',
+        discountValue: '10%OFF',
+        termsVn: 'Cannot be combined with other coupons.',
+        termsJp: 'Cannot be combined with other coupons.',
+        startDate: '2026-05-20T00:00:00.000Z',
+        endDate: '2026-05-31T23:59:59.000Z',
       },
       user,
     );
@@ -223,6 +253,9 @@ describe('AdsController', () => {
       titleVn: 'Weekend banner',
       contentVn: 'Banner message.',
       targetAudience: 'Japanese customers within 5km',
+      advertisementType: AdvertisementType.Banner,
+      targetRadiusKm: 5,
+      discountType: 'total-10',
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
       totalCost: 50000,
@@ -250,6 +283,9 @@ describe('AdsController', () => {
       titleVn: 'Weekend banner',
       contentVn: 'Banner message.',
       targetAudience: 'Japanese customers within 5km',
+      advertisementType: AdvertisementType.Banner,
+      targetRadiusKm: 5,
+      discountType: 'total-10',
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
       totalCost: 50000,

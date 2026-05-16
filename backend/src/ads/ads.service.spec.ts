@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { AdsService } from './ads.service';
-import { PromotionType } from './dto/create-promotion.dto';
+import { AdvertisementType, PromotionType } from './dto/create-promotion.dto';
 
 describe('AdsService', () => {
   let service: AdsService;
@@ -46,6 +46,10 @@ describe('AdsService', () => {
     mediaUrl: null,
     termsVn: null,
     termsJp: null,
+    discountType: 'total-10',
+    discountValue: '10%OFF',
+    advertisementType: null,
+    targetRadiusKm: null,
     startDate: '2026-05-20T00:00:00.000Z',
     endDate: '2026-05-31T23:59:59.000Z',
     status: 'Pending',
@@ -63,6 +67,10 @@ describe('AdsService', () => {
           ...promotionRow,
           promotionId: 13,
           promotionType: 'Advertisement',
+          discountType: 'total-10',
+          discountValue: '10%OFF',
+          advertisementType: 'Banner',
+          targetRadiusKm: '5',
           impressions: '50',
           clicks: '5',
           totalCost: '50000',
@@ -82,10 +90,19 @@ describe('AdsService', () => {
       },
       items: [
         {
-          ...promotionRow,
           promotionId: 12,
           restaurantId: 1,
           createdByOwnerAccountId: 7,
+          promotionType: 'Campaign',
+          campaignName: 'Autumn offer',
+          campaignDescription: '10% off for TABELINK bookings.',
+          targetAudience: 'all',
+          discountType: 'total-10',
+          discountValue: '10%OFF',
+          note: null,
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+          status: 'Pending',
           impressions: 100,
           clicks: 10,
           totalCost: 0,
@@ -96,6 +113,10 @@ describe('AdsService', () => {
           restaurantId: 1,
           createdByOwnerAccountId: 7,
           promotionType: 'Advertisement',
+          discountType: 'total-10',
+          discountValue: '10%OFF',
+          advertisementType: 'Banner',
+          targetRadiusKm: 5,
           impressions: 50,
           clicks: 5,
           totalCost: 50000,
@@ -143,6 +164,7 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off.',
           targetAudience: 'all',
+          discountType: 'total-10',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
         },
@@ -174,6 +196,7 @@ describe('AdsService', () => {
         {
           ...promotionRow,
           titleVn: 'Updated offer',
+          titleJp: 'Updated offer',
         },
       ]);
 
@@ -188,7 +211,7 @@ describe('AdsService', () => {
     ).resolves.toMatchObject({
       promotionId: 12,
       restaurantId: 1,
-      titleVn: 'Updated offer',
+      campaignName: 'Updated offer',
     });
 
     expect(dataSource.query).toHaveBeenNthCalledWith(
@@ -227,6 +250,7 @@ describe('AdsService', () => {
         {
           ...promotionRow,
           titleVn: 'Updated autumn offer',
+          titleJp: 'Updated autumn offer',
           targetAudience: 'new',
           endDate: '2026-06-05T23:59:59.000Z',
           status: 'Pending',
@@ -246,7 +270,7 @@ describe('AdsService', () => {
       ),
     ).resolves.toMatchObject({
       promotionId: 12,
-      titleVn: 'Updated autumn offer',
+      campaignName: 'Updated autumn offer',
       targetAudience: 'new',
       status: 'Pending',
     });
@@ -280,6 +304,10 @@ describe('AdsService', () => {
           mediaUrl: null,
           termsVn: null,
           termsJp: null,
+          discountType: 'total-10',
+          discountValue: '10%OFF',
+          advertisementType: null,
+          targetRadiusKm: null,
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
           status: 'Pending',
@@ -297,6 +325,7 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off for TABELINK bookings.',
           targetAudience: 'all',
+          discountType: 'total-10',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
         },
@@ -311,14 +340,12 @@ describe('AdsService', () => {
       restaurantId: 1,
       createdByOwnerAccountId: 7,
       promotionType: 'Campaign',
+      campaignName: 'Autumn offer',
+      campaignDescription: '10% off for TABELINK bookings.',
       targetAudience: 'all',
-      titleVn: 'Autumn offer',
-      titleJp: 'Autumn offer',
-      contentVn: '10% off for TABELINK bookings.',
-      contentJp: null,
-      mediaUrl: null,
-      termsVn: null,
-      termsJp: null,
+      discountType: 'total-10',
+      discountValue: '10%OFF',
+      note: null,
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
       status: 'Pending',
@@ -337,7 +364,7 @@ describe('AdsService', () => {
       expect.stringContaining('INSERT INTO PROMOTION'),
       expect.arrayContaining([1, 7, 'Campaign', 'all']),
     );
-    expect(dataSource.query.mock.calls[1][1][13]).toBe(0);
+    expect(dataSource.query.mock.calls[1][1][17]).toBe(0);
   });
 
   it('creates a pending advertisement with a budget', async () => {
@@ -357,6 +384,10 @@ describe('AdsService', () => {
           mediaUrl: null,
           termsVn: null,
           termsJp: null,
+          discountType: 'total-10',
+          discountValue: '10%OFF',
+          advertisementType: 'Banner',
+          targetRadiusKm: '5',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-27T23:59:59.000Z',
           status: 'Pending',
@@ -374,6 +405,9 @@ describe('AdsService', () => {
         titleJp: '週末限定バナー広告',
         contentJp: '近隣ユーザーに告知します。',
         targetAudience: 'Japanese customers within 5km',
+        advertisementType: AdvertisementType.Banner,
+        targetRadiusKm: 5,
+        discountType: 'total-10',
         startDate: '2026-05-20T00:00:00.000Z',
         endDate: '2026-05-27T23:59:59.000Z',
         totalCost: 50000,
@@ -401,6 +435,7 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off.',
           targetAudience: 'all',
+          discountType: 'total-10',
           startDate: '2026-05-31T00:00:00.000Z',
           endDate: '2026-05-20T00:00:00.000Z',
         },
@@ -424,6 +459,7 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off.',
           targetAudience: 'all',
+          discountType: 'total-10',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
         },

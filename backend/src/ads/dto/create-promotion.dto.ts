@@ -3,10 +3,13 @@ import { Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
+  IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
   IsUrl,
+  Max,
   MaxLength,
   Min,
   ValidateIf,
@@ -17,92 +20,115 @@ export enum PromotionType {
   Advertisement = 'Advertisement',
 }
 
+export enum AdvertisementType {
+  Banner = 'Banner',
+  Push = 'Push',
+}
+
+export enum CampaignTargetAudience {
+  All = 'all',
+  New = 'new',
+  Elite = 'elite',
+}
+
+export const CAMPAIGN_DISCOUNT_TYPES = [
+  '10_once',
+  '10',
+  '20',
+  '30',
+  '40',
+  '50',
+  '60',
+  '70',
+  '80',
+  '90',
+] as const;
+
+export type CampaignDiscountType = (typeof CAMPAIGN_DISCOUNT_TYPES)[number];
+
 export class CreatePromotionDto {
   @ApiProperty({
     enum: PromotionType,
     example: PromotionType.Campaign,
-    description: 'Campaign is an offer/coupon; Advertisement is an ad request.',
+    description:
+      'Generic endpoint only. Screen ID10 should prefer /owner/campaigns or /owner/ads/requests.',
   })
   @IsEnum(PromotionType)
   promotionType!: PromotionType;
 
-  @ApiPropertyOptional({
-    example: 'Autumn limited set 10% off',
-    maxLength: 255,
-  })
+  @ApiPropertyOptional({ example: 'Autumn limited set 10% off' })
   @ValidateIf((dto: CreatePromotionDto) => !dto.titleJp)
   @IsString()
   @MaxLength(255)
   titleVn?: string;
 
-  @ApiPropertyOptional({
-    example: '秋の限定セット 10% OFF',
-    maxLength: 255,
-  })
+  @ApiPropertyOptional({ example: 'Autumn limited set 10% off' })
   @ValidateIf((dto: CreatePromotionDto) => !dto.titleVn)
   @IsString()
   @MaxLength(255)
   titleJp?: string;
 
-  @ApiPropertyOptional({
-    example: 'Special offer for customers who book through TABELINK.',
-    description:
-      'Vietnamese/English campaign or advertisement content. Required when contentJp is omitted.',
-  })
+  @ApiPropertyOptional({ example: 'Special offer details.' })
   @ValidateIf((dto: CreatePromotionDto) => !dto.contentJp)
   @IsString()
   @MaxLength(4000)
   contentVn?: string;
 
-  @ApiPropertyOptional({
-    example: 'TABELINKから予約したお客様向けの特別オファーです。',
-    description:
-      'Japanese campaign or advertisement content. Required when contentVn is omitted.',
-  })
+  @ApiPropertyOptional({ example: 'Special offer details.' })
   @ValidateIf((dto: CreatePromotionDto) => !dto.contentVn)
   @IsString()
   @MaxLength(4000)
   contentJp?: string;
 
-  @ApiProperty({
-    example: 'Japanese customers within 5km',
-    maxLength: 255,
-    description: 'Audience/target selected on screen ID10.',
-  })
+  @ApiProperty({ example: 'all' })
   @IsString()
   @MaxLength(255)
   targetAudience!: string;
 
-  @ApiProperty({
-    example: '2026-05-20T00:00:00.000Z',
-    description: 'Start of the campaign/ad delivery period.',
-  })
+  @ApiProperty({ example: '2026-05-20T00:00:00.000Z' })
   @IsDateString({ strict: true })
   startDate!: string;
 
-  @ApiProperty({
-    example: '2026-05-31T23:59:59.000Z',
-    description:
-      'End of the campaign/ad delivery period. Must be after startDate.',
-  })
+  @ApiProperty({ example: '2026-05-31T23:59:59.000Z' })
   @IsDateString({ strict: true })
   endDate!: string;
 
-  @ApiPropertyOptional({
-    example: 'Cannot be combined with other coupons.',
-  })
+  @ApiPropertyOptional({ example: 'Cannot be combined with other coupons.' })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   termsVn?: string;
 
-  @ApiPropertyOptional({
-    example: '他のクーポンとの併用はできません。',
-  })
+  @ApiPropertyOptional({ example: 'Cannot be combined with other coupons.' })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   termsJp?: string;
+
+  @ApiPropertyOptional({ example: '10' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  discountType?: string;
+
+  @ApiPropertyOptional({ example: '10%OFF' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  discountValue?: string;
+
+  @ApiPropertyOptional({ enum: AdvertisementType })
+  @IsOptional()
+  @IsEnum(AdvertisementType)
+  advertisementType?: AdvertisementType;
+
+  @ApiPropertyOptional({ example: 5, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  targetRadiusKm?: number;
 
   @ApiPropertyOptional({
     example: 'https://res.cloudinary.com/demo/image/upload/ad.jpg',
@@ -112,11 +138,7 @@ export class CreatePromotionDto {
   @MaxLength(2000)
   mediaUrl?: string;
 
-  @ApiPropertyOptional({
-    example: 50000,
-    minimum: 0,
-    description: 'Budget/cost estimate for Advertisement requests.',
-  })
+  @ApiPropertyOptional({ example: 50000, minimum: 0 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
@@ -125,175 +147,197 @@ export class CreatePromotionDto {
 }
 
 export class CreateCampaignDto {
-  @ApiPropertyOptional({
-    example: 'Autumn limited set 10% off',
+  @ApiProperty({
+    example: 'Autumn limited campaign',
     maxLength: 255,
+    description: 'Campaign name from screen ID10.',
   })
-  @ValidateIf((dto: CreateCampaignDto) => !dto.titleJp)
+  @IsString()
+  @MaxLength(255)
+  campaignName!: string;
+
+  @ApiProperty({
+    example: '10% discount for selected customers.',
+    maxLength: 4000,
+    description: 'Campaign description from screen ID10.',
+  })
+  @IsString()
+  @MaxLength(4000)
+  campaignDescription!: string;
+
+  @ApiProperty({
+    enum: CampaignTargetAudience,
+    example: CampaignTargetAudience.All,
+    description: 'Allowed values: all, new, elite.',
+  })
+  @IsEnum(CampaignTargetAudience)
+  targetAudience!: CampaignTargetAudience;
+
+  @ApiProperty({
+    enum: CAMPAIGN_DISCOUNT_TYPES,
+    example: '10',
+    description:
+      'Discount dropdown value. 10_once means one-time 10%; 10,20,30... are percent options.',
+  })
+  @IsIn(CAMPAIGN_DISCOUNT_TYPES)
+  discountType!: CampaignDiscountType;
+
+  @ApiPropertyOptional({ example: '10%OFF', maxLength: 255 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  discountValue?: string;
+
+  @ApiPropertyOptional({
+    example: 'Cannot be combined with other coupons.',
+    maxLength: 4000,
+    description: 'Note/caution text shown in the campaign popup.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  note?: string;
+
+  @ApiProperty({ example: '2026-05-20T00:00:00.000Z' })
+  @IsDateString({ strict: true })
+  startDate!: string;
+
+  @ApiProperty({ example: '2026-05-31T23:59:59.000Z' })
+  @IsDateString({ strict: true })
+  endDate!: string;
+}
+
+export class CreateAdRequestDto {
+  @ApiPropertyOptional({ example: 'Weekend banner ad' })
+  @ValidateIf((dto: CreateAdRequestDto) => !dto.titleJp)
   @IsString()
   @MaxLength(255)
   titleVn?: string;
 
-  @ApiPropertyOptional({
-    example: '秋の限定セット 10% OFF',
-    maxLength: 255,
-  })
-  @ValidateIf((dto: CreateCampaignDto) => !dto.titleVn)
+  @ApiPropertyOptional({ example: 'Weekend banner ad' })
+  @ValidateIf((dto: CreateAdRequestDto) => !dto.titleVn)
   @IsString()
   @MaxLength(255)
   titleJp?: string;
 
-  @ApiPropertyOptional({
-    example: 'Special offer for customers who book through TABELINK.',
-  })
-  @ValidateIf((dto: CreateCampaignDto) => !dto.contentJp)
+  @ApiPropertyOptional({ example: 'Promote a weekend limited menu.' })
+  @ValidateIf((dto: CreateAdRequestDto) => !dto.contentJp)
   @IsString()
   @MaxLength(4000)
   contentVn?: string;
 
-  @ApiPropertyOptional({
-    example: 'TABELINKから予約したお客様向けの特別オファーです。',
-  })
-  @ValidateIf((dto: CreateCampaignDto) => !dto.contentVn)
+  @ApiPropertyOptional({ example: 'Promote a weekend limited menu.' })
+  @ValidateIf((dto: CreateAdRequestDto) => !dto.contentVn)
   @IsString()
   @MaxLength(4000)
   contentJp?: string;
 
-  @ApiProperty({
-    example: 'all',
-    maxLength: 255,
-    description: 'Audience/target selected in the new campaign popup.',
-  })
+  @ApiProperty({ example: 'Japanese customers within 5km' })
   @IsString()
   @MaxLength(255)
   targetAudience!: string;
 
-  @ApiProperty({
-    example: '2026-05-20T00:00:00.000Z',
-  })
-  @IsDateString({ strict: true })
-  startDate!: string;
+  @ApiProperty({ enum: AdvertisementType, example: AdvertisementType.Banner })
+  @IsEnum(AdvertisementType)
+  advertisementType!: AdvertisementType;
 
-  @ApiProperty({
-    example: '2026-05-31T23:59:59.000Z',
-  })
-  @IsDateString({ strict: true })
-  endDate!: string;
+  @ApiProperty({ example: 5, minimum: 1, maximum: 100 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  targetRadiusKm!: number;
 
   @ApiPropertyOptional({
-    example: 'Cannot be combined with other coupons.',
+    example: '10',
+    description: 'Required for Banner ads when the discount dropdown is shown.',
   })
+  @ValidateIf(
+    (dto: CreateAdRequestDto) =>
+      dto.advertisementType === AdvertisementType.Banner,
+  )
+  @IsString()
+  @MaxLength(100)
+  discountType?: string;
+
+  @ApiPropertyOptional({ example: '10%OFF' })
   @IsOptional()
   @IsString()
-  @MaxLength(4000)
-  termsVn?: string;
+  @MaxLength(255)
+  discountValue?: string;
 
-  @ApiPropertyOptional({
-    example: '他のクーポンとの併用はできません。',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(4000)
-  termsJp?: string;
-
-  @ApiPropertyOptional({
-    example: 'https://res.cloudinary.com/demo/image/upload/campaign.jpg',
-  })
-  @IsOptional()
-  @IsUrl({ require_tld: false })
-  @MaxLength(2000)
-  mediaUrl?: string;
-}
-
-export class CreateAdRequestDto extends CreateCampaignDto {
-  @ApiProperty({
-    example: 'Japanese customers within 5km',
-    maxLength: 255,
-    description: 'Delivery target selected in the advertisement request popup.',
-  })
-  declare targetAudience: string;
-
-  @ApiPropertyOptional({
-    example: 50000,
-    minimum: 0,
-    description: 'Budget/cost estimate for the advertisement request.',
-  })
+  @ApiPropertyOptional({ example: 50000, minimum: 0 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
   totalCost?: number;
+
+  @ApiPropertyOptional({
+    example: 'https://res.cloudinary.com/demo/image/upload/ad.jpg',
+  })
+  @IsOptional()
+  @IsUrl({ require_tld: false })
+  @MaxLength(2000)
+  mediaUrl?: string;
+
+  @ApiProperty({ example: '2026-05-20T00:00:00.000Z' })
+  @IsDateString({ strict: true })
+  startDate!: string;
+
+  @ApiProperty({ example: '2026-05-27T23:59:59.000Z' })
+  @IsDateString({ strict: true })
+  endDate!: string;
 }
 
 export class UpdatePromotionDto {
-  @ApiPropertyOptional({
-    example: 'Autumn limited set 20% off',
-    maxLength: 255,
-  })
+  @ApiPropertyOptional({ example: 'Updated campaign name' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   titleVn?: string;
 
-  @ApiPropertyOptional({
-    example: '秋の限定セット 20% OFF',
-    maxLength: 255,
-  })
+  @ApiPropertyOptional({ example: 'Updated campaign name' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   titleJp?: string;
 
-  @ApiPropertyOptional({
-    example: 'Updated offer details.',
-  })
+  @ApiPropertyOptional({ example: 'Updated campaign details.' })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   contentVn?: string;
 
-  @ApiPropertyOptional({
-    example: '更新されたキャンペーン内容です。',
-  })
+  @ApiPropertyOptional({ example: 'Updated campaign details.' })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   contentJp?: string;
 
-  @ApiPropertyOptional({
-    example: 'new',
-    maxLength: 255,
-  })
+  @ApiPropertyOptional({ example: 'new' })
   @IsOptional()
   @IsString()
   @MaxLength(255)
   targetAudience?: string;
 
-  @ApiPropertyOptional({
-    example: '2026-05-20T00:00:00.000Z',
-  })
+  @ApiPropertyOptional({ example: '2026-05-20T00:00:00.000Z' })
   @IsOptional()
   @IsDateString({ strict: true })
   startDate?: string;
 
-  @ApiPropertyOptional({
-    example: '2026-06-05T23:59:59.000Z',
-  })
+  @ApiPropertyOptional({ example: '2026-06-05T23:59:59.000Z' })
   @IsOptional()
   @IsDateString({ strict: true })
   endDate?: string;
 
-  @ApiPropertyOptional({
-    example: 'Updated campaign terms.',
-  })
+  @ApiPropertyOptional({ example: 'Updated note.' })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
   termsVn?: string;
 
-  @ApiPropertyOptional({
-    example: '更新された利用条件です。',
-  })
+  @ApiPropertyOptional({ example: 'Updated note.' })
   @IsOptional()
   @IsString()
   @MaxLength(4000)
@@ -307,10 +351,32 @@ export class UpdatePromotionDto {
   @MaxLength(2000)
   mediaUrl?: string;
 
-  @ApiPropertyOptional({
-    example: 60000,
-    minimum: 0,
-  })
+  @ApiPropertyOptional({ example: '20' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  discountType?: string;
+
+  @ApiPropertyOptional({ example: '20%OFF' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  discountValue?: string;
+
+  @ApiPropertyOptional({ enum: AdvertisementType })
+  @IsOptional()
+  @IsEnum(AdvertisementType)
+  advertisementType?: AdvertisementType;
+
+  @ApiPropertyOptional({ example: 5, minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  targetRadiusKm?: number;
+
+  @ApiPropertyOptional({ example: 60000, minimum: 0 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

@@ -31,6 +31,10 @@ interface PromotionRow {
   mediaUrl: string | null;
   termsVn: string | null;
   termsJp: string | null;
+  discountType: string | null;
+  discountValue: string | null;
+  advertisementType: string | null;
+  targetRadiusKm: number | string | null;
   startDate: Date | string;
   endDate: Date | string;
   status: string;
@@ -71,6 +75,10 @@ export class AdsService {
           MediaURL AS "mediaUrl",
           TermsVN AS "termsVn",
           TermsJP AS "termsJp",
+          DiscountType AS "discountType",
+          DiscountValue AS "discountValue",
+          AdvertisementType AS "advertisementType",
+          TargetRadiusKm AS "targetRadiusKm",
           StartDate AS "startDate",
           EndDate AS "endDate",
           Status AS "status",
@@ -141,6 +149,7 @@ export class AdsService {
     const startDate = new Date(dto.startDate);
     const endDate = new Date(dto.endDate);
     this.assertValidDateRange(startDate, endDate);
+    const promotionSpecificFields = this.resolvePromotionSpecificFields(dto);
 
     const rows = await this.dataSource.query<PromotionRow[]>(
       `
@@ -156,12 +165,16 @@ export class AdsService {
           MediaURL,
           TermsVN,
           TermsJP,
+          DiscountType,
+          DiscountValue,
+          AdvertisementType,
+          TargetRadiusKm,
           StartDate,
           EndDate,
           Status,
           TotalCost
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Pending', $14)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'Pending', $18)
         RETURNING
           PromotionID AS "promotionId",
           RestaurantID AS "restaurantId",
@@ -175,6 +188,10 @@ export class AdsService {
           MediaURL AS "mediaUrl",
           TermsVN AS "termsVn",
           TermsJP AS "termsJp",
+          DiscountType AS "discountType",
+          DiscountValue AS "discountValue",
+          AdvertisementType AS "advertisementType",
+          TargetRadiusKm AS "targetRadiusKm",
           StartDate AS "startDate",
           EndDate AS "endDate",
           Status AS "status",
@@ -194,6 +211,10 @@ export class AdsService {
         this.optionalTrim(dto.mediaUrl),
         this.optionalTrim(dto.termsVn),
         this.optionalTrim(dto.termsJp),
+        promotionSpecificFields.discountType,
+        promotionSpecificFields.discountValue,
+        promotionSpecificFields.advertisementType,
+        promotionSpecificFields.targetRadiusKm,
         startDate,
         endDate,
         dto.totalCost ?? 0,
@@ -227,7 +248,13 @@ export class AdsService {
   ) {
     await this.assertOwnerRestaurant(restaurantId, user);
 
-    return this.findOwnedPromotion(restaurantId, promotionId, user.sub);
+    const row = await this.findOwnedPromotion(
+      restaurantId,
+      promotionId,
+      user.sub,
+    );
+
+    return this.toPromotionResponse(row);
   }
 
   async updateOwnerPromotion(
@@ -289,6 +316,49 @@ export class AdsService {
     const endDate =
       dto.endDate !== undefined ? new Date(dto.endDate) : current.endDate;
     this.assertValidDateRange(startDate, endDate);
+    const discountType =
+      dto.discountType !== undefined
+        ? this.optionalTrim(dto.discountType)
+        : current.discountType;
+    const discountValue =
+      dto.discountValue !== undefined
+        ? this.optionalTrim(dto.discountValue)
+        : current.discountValue;
+    const advertisementType =
+      dto.advertisementType !== undefined
+        ? dto.advertisementType
+        : current.advertisementType;
+    const targetRadiusKm =
+      dto.targetRadiusKm !== undefined
+        ? dto.targetRadiusKm
+        : current.targetRadiusKm;
+
+    if (
+      current.promotionType === 'Campaign' &&
+      (!discountType || !discountValue)
+    ) {
+      throw new BadRequestException(
+        'Campaign discountType and discountValue are required.',
+      );
+    }
+
+    if (
+      current.promotionType === 'Advertisement' &&
+      (!advertisementType ||
+        targetRadiusKm === null ||
+        targetRadiusKm === undefined)
+    ) {
+      throw new BadRequestException(
+        'Advertisement advertisementType and targetRadiusKm are required.',
+      );
+    }
+
+    const mediaUrl =
+      current.promotionType === 'Campaign'
+        ? null
+        : dto.mediaUrl !== undefined
+          ? this.optionalTrim(dto.mediaUrl)
+          : current.mediaUrl;
 
     const rows = await this.dataSource.query<PromotionRow[]>(
       `
@@ -302,9 +372,13 @@ export class AdsService {
           MediaURL = $9,
           TermsVN = $10,
           TermsJP = $11,
-          StartDate = $12,
-          EndDate = $13,
-          TotalCost = $14,
+          DiscountType = $12,
+          DiscountValue = $13,
+          AdvertisementType = $14,
+          TargetRadiusKm = $15,
+          StartDate = $16,
+          EndDate = $17,
+          TotalCost = $18,
           Status = 'Pending',
           ApprovedByAdminID = NULL
         WHERE PromotionID = $1
@@ -323,6 +397,10 @@ export class AdsService {
           MediaURL AS "mediaUrl",
           TermsVN AS "termsVn",
           TermsJP AS "termsJp",
+          DiscountType AS "discountType",
+          DiscountValue AS "discountValue",
+          AdvertisementType AS "advertisementType",
+          TargetRadiusKm AS "targetRadiusKm",
           StartDate AS "startDate",
           EndDate AS "endDate",
           Status AS "status",
@@ -339,15 +417,17 @@ export class AdsService {
         titleJp,
         contentVn,
         contentJp,
-        dto.mediaUrl !== undefined
-          ? this.optionalTrim(dto.mediaUrl)
-          : current.mediaUrl,
+        mediaUrl,
         dto.termsVn !== undefined
           ? this.optionalTrim(dto.termsVn)
           : current.termsVn,
         dto.termsJp !== undefined
           ? this.optionalTrim(dto.termsJp)
           : current.termsJp,
+        discountType,
+        discountValue,
+        advertisementType,
+        targetRadiusKm,
         startDate,
         endDate,
         dto.totalCost !== undefined ? dto.totalCost : current.totalCost,
@@ -497,6 +577,10 @@ export class AdsService {
           MediaURL AS "mediaUrl",
           TermsVN AS "termsVn",
           TermsJP AS "termsJp",
+          DiscountType AS "discountType",
+          DiscountValue AS "discountValue",
+          AdvertisementType AS "advertisementType",
+          TargetRadiusKm AS "targetRadiusKm",
           StartDate AS "startDate",
           EndDate AS "endDate",
           Status AS "status",
@@ -516,7 +600,7 @@ export class AdsService {
       throw new NotFoundException('Promotion not found for this owner.');
     }
 
-    return this.toPromotionResponse(row);
+    return row;
   }
 
   private requiredBilingualValue(preferred?: string, fallback?: string) {
@@ -551,17 +635,89 @@ export class AdsService {
     }
   }
 
+  private resolvePromotionSpecificFields(dto: CreatePromotionDto) {
+    if (dto.promotionType === 'Campaign') {
+      const discountType = this.optionalTrim(dto.discountType);
+      const discountValue =
+        this.optionalTrim(dto.discountValue) ?? discountType;
+
+      if (!discountType || !discountValue) {
+        throw new BadRequestException(
+          'Campaign discountType and discountValue are required.',
+        );
+      }
+
+      return {
+        discountType,
+        discountValue,
+        advertisementType: null,
+        targetRadiusKm: null,
+      };
+    }
+
+    const advertisementType = dto.advertisementType;
+    if (!advertisementType) {
+      throw new BadRequestException(
+        'Advertisement advertisementType is required.',
+      );
+    }
+
+    if (dto.targetRadiusKm === undefined || dto.targetRadiusKm === null) {
+      throw new BadRequestException(
+        'Advertisement targetRadiusKm is required.',
+      );
+    }
+
+    const discountType = this.optionalTrim(dto.discountType);
+    const discountValue = this.optionalTrim(dto.discountValue) ?? discountType;
+
+    if (advertisementType === 'Banner' && (!discountType || !discountValue)) {
+      throw new BadRequestException(
+        'Banner advertisement discountType and discountValue are required.',
+      );
+    }
+
+    return {
+      discountType,
+      discountValue,
+      advertisementType,
+      targetRadiusKm: dto.targetRadiusKm,
+    };
+  }
+
   private unwrapFirstRow<T>(rows: T[] | [T[], number]): T | undefined {
     const firstResult = rows[0];
     return Array.isArray(firstResult) ? firstResult[0] : firstResult;
   }
 
   private toPromotionResponse(row: PromotionRow) {
-    return {
+    const base = {
       promotionId: Number(row.promotionId),
       restaurantId: Number(row.restaurantId),
       createdByOwnerAccountId: Number(row.createdByOwnerAccountId),
       promotionType: row.promotionType,
+      startDate: row.startDate,
+      endDate: row.endDate,
+      status: row.status,
+      impressions: Number(row.impressions),
+      clicks: Number(row.clicks),
+      totalCost: Number(row.totalCost),
+    };
+
+    if (row.promotionType === 'Campaign') {
+      return {
+        ...base,
+        campaignName: row.titleJp || row.titleVn,
+        campaignDescription: row.contentJp || row.contentVn,
+        targetAudience: row.targetAudience,
+        discountType: row.discountType,
+        discountValue: row.discountValue,
+        note: row.termsJp || row.termsVn,
+      };
+    }
+
+    return {
+      ...base,
       targetAudience: row.targetAudience,
       titleVn: row.titleVn,
       titleJp: row.titleJp,
@@ -570,12 +726,13 @@ export class AdsService {
       mediaUrl: row.mediaUrl,
       termsVn: row.termsVn,
       termsJp: row.termsJp,
-      startDate: row.startDate,
-      endDate: row.endDate,
-      status: row.status,
-      impressions: Number(row.impressions),
-      clicks: Number(row.clicks),
-      totalCost: Number(row.totalCost),
+      discountType: row.discountType,
+      discountValue: row.discountValue,
+      advertisementType: row.advertisementType,
+      targetRadiusKm:
+        row.targetRadiusKm === null || row.targetRadiusKm === undefined
+          ? null
+          : Number(row.targetRadiusKm),
     };
   }
 }

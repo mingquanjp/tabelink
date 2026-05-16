@@ -67,8 +67,8 @@ export class AdsController {
             campaignDescriptionVN: 'Nội dung campaign tiếng Việt.',
             campaignDescriptionJP: 'キャンペーン内容。',
             targetAudience: 'all',
-            discountType: '10',
-            discountValue: '10%OFF',
+            discountType: 'Percentage',
+            discountValue: '10%',
             noteVN: 'Áp dụng trong thời gian campaign.',
             noteJP: 'キャンペーン期間中に適用。',
             startDate: '2026-05-01T00:00:00.000Z',
@@ -133,7 +133,7 @@ export class AdsController {
   @ApiOperation({
     summary: 'Create advertisement request from the screen ID10 ad popup',
     description:
-      'Creates a Pending Advertisement request for the owner restaurant. SNS ads and notification ads use target radius, not discount fields.',
+      'Creates a Pending Advertisement request for the owner restaurant. Ads target all users and do not use distance or discount fields.',
   })
   @ApiBody({ type: CreateAdRequestDto })
   @ApiCreatedResponse({ description: 'Pending advertisement request created.' })
@@ -151,6 +151,7 @@ export class AdsController {
       {
         ...dto,
         promotionType: PromotionType.Advertisement,
+        targetAudience: 'all',
       },
       request.user,
     );
@@ -248,9 +249,6 @@ export class AdsController {
   }
 
   private toCampaignPromotionDto(dto: CreateCampaignDto): CreatePromotionDto {
-    const discountValue =
-      dto.discountValue ?? this.toCampaignDiscountLabel(dto.discountType);
-
     return {
       promotionType: PromotionType.Campaign,
       titleVn: dto.campaignName,
@@ -259,19 +257,11 @@ export class AdsController {
       contentJp: dto.campaignDescription,
       targetAudience: dto.targetAudience,
       discountType: dto.discountType,
-      discountValue,
+      discountValue: dto.discountValue,
       termsVn: dto.note,
       termsJp: dto.note,
       startDate: dto.startDate,
       endDate: dto.endDate,
     };
-  }
-
-  private toCampaignDiscountLabel(discountType: string) {
-    if (discountType === '10_once') {
-      return '10%OFF once';
-    }
-
-    return `${discountType}%OFF`;
   }
 }

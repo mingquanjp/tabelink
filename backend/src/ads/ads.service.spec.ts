@@ -46,8 +46,8 @@ describe('AdsService', () => {
     mediaUrl: null,
     termsVn: null,
     termsJp: null,
-    discountType: 'total-10',
-    discountValue: '10%OFF',
+    discountType: 'Percentage',
+    discountValue: '10%',
     advertisementType: null,
     targetRadiusKm: null,
     startDate: '2026-05-20T00:00:00.000Z',
@@ -72,8 +72,8 @@ describe('AdsService', () => {
         campaignDescriptionVN: 'Nội dung campaign tiếng Việt.',
         campaignDescriptionJP: 'キャンペーン内容。',
         targetAudience: 'all',
-        discountType: '10',
-        discountValue: '10%OFF',
+        discountType: 'Percentage',
+        discountValue: '10%',
         noteVN: 'Áp dụng trong thời gian campaign.',
         noteJP: 'キャンペーン期間中に適用。',
         startDate: '2026-05-01T00:00:00.000Z',
@@ -96,8 +96,8 @@ describe('AdsService', () => {
           campaignDescriptionVN: 'Nội dung campaign tiếng Việt.',
           campaignDescriptionJP: 'キャンペーン内容。',
           targetAudience: 'all',
-          discountType: '10',
-          discountValue: '10%OFF',
+          discountType: 'Percentage',
+          discountValue: '10%',
           noteVN: 'Áp dụng trong thời gian campaign.',
           noteJP: 'キャンペーン期間中に適用。',
           startDate: '2026-05-01T00:00:00.000Z',
@@ -127,10 +127,10 @@ describe('AdsService', () => {
           ...promotionRow,
           promotionId: 13,
           promotionType: 'Advertisement',
-          discountType: null,
+          discountType: 'Percentage',
           discountValue: null,
           advertisementType: 'SNS',
-          targetRadiusKm: '5',
+          targetRadiusKm: null,
           impressions: '50',
           clicks: '5',
           totalCost: '50000',
@@ -157,8 +157,8 @@ describe('AdsService', () => {
           campaignName: 'Autumn offer',
           campaignDescription: '10% off for TABELINK bookings.',
           targetAudience: 'all',
-          discountType: 'total-10',
-          discountValue: '10%OFF',
+          discountType: 'Percentage',
+          discountValue: '10%',
           note: null,
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
@@ -181,7 +181,7 @@ describe('AdsService', () => {
           termsVn: null,
           termsJp: null,
           advertisementType: 'SNS',
-          targetRadiusKm: 5,
+          targetRadiusKm: null,
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
           status: 'Pending',
@@ -232,7 +232,8 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off.',
           targetAudience: 'all',
-          discountType: 'total-10',
+          discountType: 'Percentage',
+          discountValue: '10%',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
         },
@@ -417,7 +418,7 @@ describe('AdsService', () => {
       discountType: null,
       discountValue: null,
       advertisementType: 'SNS',
-      targetRadiusKm: '5',
+      targetRadiusKm: null,
       totalCost: '50000',
     };
 
@@ -428,7 +429,7 @@ describe('AdsService', () => {
         {
           ...advertisementRow,
           advertisementType: 'Notification',
-          targetRadiusKm: '10',
+          targetRadiusKm: null,
           status: 'Pending',
         },
       ]);
@@ -438,7 +439,6 @@ describe('AdsService', () => {
       13,
       {
         advertisementType: AdvertisementType.Notification,
-        targetRadiusKm: 10,
       },
       ownerUser,
     );
@@ -447,7 +447,7 @@ describe('AdsService', () => {
       promotionId: 13,
       promotionType: 'Advertisement',
       advertisementType: 'Notification',
-      targetRadiusKm: 10,
+      targetRadiusKm: null,
       status: 'Pending',
     });
     expect(result).not.toHaveProperty('discountType');
@@ -457,7 +457,7 @@ describe('AdsService', () => {
     expect(updateParams[11]).toBeNull();
     expect(updateParams[12]).toBeNull();
     expect(updateParams[13]).toBe(AdvertisementType.Notification);
-    expect(updateParams[14]).toBe(10);
+    expect(updateParams[14]).toBeNull();
   });
 
   it('creates a pending campaign for an owned restaurant', async () => {
@@ -477,8 +477,8 @@ describe('AdsService', () => {
           mediaUrl: null,
           termsVn: null,
           termsJp: null,
-          discountType: 'total-10',
-          discountValue: '10%OFF',
+          discountType: 'Percentage',
+          discountValue: '10%',
           advertisementType: null,
           targetRadiusKm: null,
           startDate: '2026-05-20T00:00:00.000Z',
@@ -498,7 +498,8 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off for TABELINK bookings.',
           targetAudience: 'all',
-          discountType: 'total-10',
+          discountType: 'Percentage',
+          discountValue: '10%',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
         },
@@ -516,8 +517,8 @@ describe('AdsService', () => {
       campaignName: 'Autumn offer',
       campaignDescription: '10% off for TABELINK bookings.',
       targetAudience: 'all',
-      discountType: 'total-10',
-      discountValue: '10%OFF',
+      discountType: 'Percentage',
+      discountValue: '10%',
       note: null,
       startDate: '2026-05-20T00:00:00.000Z',
       endDate: '2026-05-31T23:59:59.000Z',
@@ -549,7 +550,7 @@ describe('AdsService', () => {
           restaurantId: 1,
           createdByOwnerAccountId: 7,
           promotionType: 'Advertisement',
-          targetAudience: 'Japanese customers within 5km',
+          targetAudience: 'all',
           titleVn: 'Weekend banner',
           titleJp: '週末限定バナー広告',
           contentVn: null,
@@ -560,7 +561,7 @@ describe('AdsService', () => {
           discountType: null,
           discountValue: null,
           advertisementType: 'SNS',
-          targetRadiusKm: '5',
+          targetRadiusKm: null,
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-27T23:59:59.000Z',
           status: 'Pending',
@@ -577,9 +578,8 @@ describe('AdsService', () => {
         titleVn: 'Weekend banner',
         titleJp: '週末限定バナー広告',
         contentJp: '近隣ユーザーに告知します。',
-        targetAudience: 'Japanese customers within 5km',
+        targetAudience: 'all',
         advertisementType: AdvertisementType.SNS,
-        targetRadiusKm: 5,
         startDate: '2026-05-20T00:00:00.000Z',
         endDate: '2026-05-27T23:59:59.000Z',
         totalCost: 50000,
@@ -609,7 +609,7 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off.',
           targetAudience: 'all',
-          discountType: 'total-10',
+          discountValue: '10%',
           startDate: '2026-05-31T00:00:00.000Z',
           endDate: '2026-05-20T00:00:00.000Z',
         },
@@ -633,13 +633,34 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off.',
           targetAudience: 'Japanese customers within 5km',
-          discountType: 'total-10',
+          discountValue: '10%',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
         },
         ownerUser,
       ),
     ).rejects.toThrow('Campaign targetAudience must be one of');
+  });
+
+  it('rejects campaign creation outside the locked discount value options', async () => {
+    dataSource.query.mockResolvedValueOnce([{ restaurantId: 1 }]);
+
+    await expect(
+      service.createPromotion(
+        1,
+        {
+          promotionType: PromotionType.Campaign,
+          titleVn: 'Autumn offer',
+          contentVn: '10% off.',
+          targetAudience: 'all',
+          discountType: 'Percentage',
+          discountValue: '15%',
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+        },
+        ownerUser,
+      ),
+    ).rejects.toThrow('Campaign discountType and discountValue must match');
   });
 
   it('throws when the owner does not own the restaurant', async () => {
@@ -653,7 +674,7 @@ describe('AdsService', () => {
           titleVn: 'Autumn offer',
           contentVn: '10% off.',
           targetAudience: 'all',
-          discountType: 'total-10',
+          discountValue: '10%',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-31T23:59:59.000Z',
         },

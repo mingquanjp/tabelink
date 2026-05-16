@@ -551,6 +551,24 @@ CREATE TABLE PROMOTION (
     CHECK (Clicks <= Impressions),
     CHECK (DiscountType IS NULL OR BTRIM(DiscountType) <> ''),
     CHECK (DiscountValue IS NULL OR BTRIM(DiscountValue) <> ''),
+    CHECK (
+        PromotionType <> 'Campaign'
+        OR (
+            DiscountType = 'Percentage'
+            AND DiscountValue IN ('10%', '20%', '50%', '100%')
+        )
+        OR (
+            DiscountType = 'FixedAmount'
+            AND DiscountValue IN ('50000VND', '100000VND', '200000VND')
+        )
+    ),
+    CHECK (
+        PromotionType <> 'Advertisement'
+        OR (
+            TargetAudience = 'all'
+            AND TargetRadiusKm IS NULL
+        )
+    ),
     CHECK (Status NOT IN ('Active', 'Rejected', 'Ended') OR ApprovedByAdminID IS NOT NULL),
     UNIQUE (PromotionID, RestaurantID)
 );

@@ -9,6 +9,8 @@ import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
 import {
   CampaignTargetAudience,
+  CAMPAIGN_FIXED_AMOUNT_DISCOUNT_VALUES,
+  CAMPAIGN_PERCENTAGE_DISCOUNT_VALUES,
   CreatePromotionDto,
   UpdatePromotionDto,
 } from './dto/create-promotion.dto';
@@ -232,7 +234,10 @@ export class AdsService {
       throw new BadRequestException('Promotion content is required.');
     }
 
-    const targetAudience = this.optionalTrim(dto.targetAudience);
+    const targetAudience =
+      dto.promotionType === 'Advertisement'
+        ? 'all'
+        : this.optionalTrim(dto.targetAudience);
     if (!targetAudience) {
       throw new BadRequestException('Target audience is required.');
     }
@@ -397,9 +402,11 @@ export class AdsService {
     }
 
     const targetAudience =
-      dto.targetAudience !== undefined
-        ? this.optionalTrim(dto.targetAudience)
-        : current.targetAudience;
+      current.promotionType === 'Advertisement'
+        ? 'all'
+        : dto.targetAudience !== undefined
+          ? this.optionalTrim(dto.targetAudience)
+          : current.targetAudience;
 
     if (!targetAudience) {
       throw new BadRequestException('Target audience is required.');
@@ -432,7 +439,8 @@ export class AdsService {
           ? dto.advertisementType
           : current.advertisementType;
     const targetRadiusKm =
-      current.promotionType === 'Campaign'
+      current.promotionType === 'Campaign' ||
+      current.promotionType === 'Advertisement'
         ? null
         : dto.targetRadiusKm !== undefined
           ? dto.targetRadiusKm
@@ -440,21 +448,18 @@ export class AdsService {
 
     if (
       current.promotionType === 'Campaign' &&
-      (!discountType || !discountValue)
+      (!discountType ||
+        !discountValue ||
+        !this.isCampaignDiscountPair(discountType, discountValue))
     ) {
       throw new BadRequestException(
-        'Campaign discountType and discountValue are required.',
+        'Campaign discountType and discountValue must match the locked dropdown options.',
       );
     }
 
-    if (
-      current.promotionType === 'Advertisement' &&
-      (!advertisementType ||
-        targetRadiusKm === null ||
-        targetRadiusKm === undefined)
-    ) {
+    if (current.promotionType === 'Advertisement' && !advertisementType) {
       throw new BadRequestException(
-        'Advertisement advertisementType and targetRadiusKm are required.',
+        'Advertisement advertisementType is required.',
       );
     }
 
@@ -756,15 +761,34 @@ export class AdsService {
     }
   }
 
+  private isCampaignDiscountPair(discountType: string, discountValue: string) {
+    if (discountType === 'Percentage') {
+      return CAMPAIGN_PERCENTAGE_DISCOUNT_VALUES.includes(
+        discountValue as (typeof CAMPAIGN_PERCENTAGE_DISCOUNT_VALUES)[number],
+      );
+    }
+
+    if (discountType === 'FixedAmount') {
+      return CAMPAIGN_FIXED_AMOUNT_DISCOUNT_VALUES.includes(
+        discountValue as (typeof CAMPAIGN_FIXED_AMOUNT_DISCOUNT_VALUES)[number],
+      );
+    }
+
+    return false;
+  }
+
   private resolvePromotionSpecificFields(dto: CreatePromotionDto) {
     if (dto.promotionType === 'Campaign') {
       const discountType = this.optionalTrim(dto.discountType);
-      const discountValue =
-        this.optionalTrim(dto.discountValue) ?? discountType;
+      const discountValue = this.optionalTrim(dto.discountValue);
 
-      if (!discountType || !discountValue) {
+      if (
+        !discountType ||
+        !discountValue ||
+        !this.isCampaignDiscountPair(discountType, discountValue)
+      ) {
         throw new BadRequestException(
-          'Campaign discountType and discountValue are required.',
+          'Campaign discountType and discountValue must match the locked dropdown options.',
         );
       }
 
@@ -783,17 +807,11 @@ export class AdsService {
       );
     }
 
-    if (dto.targetRadiusKm === undefined || dto.targetRadiusKm === null) {
-      throw new BadRequestException(
-        'Advertisement targetRadiusKm is required.',
-      );
-    }
-
     return {
       discountType: null,
       discountValue: null,
       advertisementType,
-      targetRadiusKm: dto.targetRadiusKm,
+      targetRadiusKm: null,
     };
   }
 

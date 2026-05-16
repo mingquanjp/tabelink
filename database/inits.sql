@@ -532,7 +532,7 @@ CREATE TABLE PROMOTION (
     DiscountType VARCHAR(100),
     DiscountValue VARCHAR(255),
     AdvertisementType VARCHAR(50)
-        CHECK (AdvertisementType IS NULL OR AdvertisementType IN ('Banner', 'Push')),
+        CHECK (AdvertisementType IS NULL OR AdvertisementType IN ('SNS', 'Notification')),
     TargetRadiusKm INT
         CHECK (TargetRadiusKm IS NULL OR TargetRadiusKm BETWEEN 1 AND 100),
     StartDate TIMESTAMPTZ NOT NULL,

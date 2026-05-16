@@ -320,22 +320,26 @@ export class AdsService {
       current.promotionType === 'Advertisement'
         ? null
         : dto.discountType !== undefined
-        ? this.optionalTrim(dto.discountType)
-        : current.discountType;
+          ? this.optionalTrim(dto.discountType)
+          : current.discountType;
     const discountValue =
       current.promotionType === 'Advertisement'
         ? null
         : dto.discountValue !== undefined
-        ? this.optionalTrim(dto.discountValue)
-        : current.discountValue;
+          ? this.optionalTrim(dto.discountValue)
+          : current.discountValue;
     const advertisementType =
-      dto.advertisementType !== undefined
-        ? dto.advertisementType
-        : current.advertisementType;
+      current.promotionType === 'Campaign'
+        ? null
+        : dto.advertisementType !== undefined
+          ? dto.advertisementType
+          : current.advertisementType;
     const targetRadiusKm =
-      dto.targetRadiusKm !== undefined
-        ? dto.targetRadiusKm
-        : current.targetRadiusKm;
+      current.promotionType === 'Campaign'
+        ? null
+        : dto.targetRadiusKm !== undefined
+          ? dto.targetRadiusKm
+          : current.targetRadiusKm;
 
     if (
       current.promotionType === 'Campaign' &&
@@ -434,7 +438,11 @@ export class AdsService {
         targetRadiusKm,
         startDate,
         endDate,
-        dto.totalCost !== undefined ? dto.totalCost : current.totalCost,
+        current.promotionType === 'Campaign'
+          ? 0
+          : dto.totalCost !== undefined
+            ? dto.totalCost
+            : current.totalCost,
       ],
     );
 

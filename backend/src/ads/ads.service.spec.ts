@@ -108,13 +108,23 @@ describe('AdsService', () => {
           totalCost: 0,
         },
         {
-          ...promotionRow,
           promotionId: 13,
           restaurantId: 1,
           createdByOwnerAccountId: 7,
           promotionType: 'Advertisement',
+          targetAudience: 'all',
+          titleVn: 'Autumn offer',
+          titleJp: 'Autumn offer',
+          contentVn: '10% off for TABELINK bookings.',
+          contentJp: null,
+          mediaUrl: null,
+          termsVn: null,
+          termsJp: null,
           advertisementType: 'SNS',
           targetRadiusKm: 5,
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+          status: 'Pending',
           impressions: 50,
           clicks: 5,
           totalCost: 50000,
@@ -283,6 +293,94 @@ describe('AdsService', () => {
       expect.stringContaining('ApprovedByAdminID = NULL'),
       expect.any(Array),
     );
+  });
+
+  it('clears advertisement-only fields when updating a campaign', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ restaurantId: 1 }])
+      .mockResolvedValueOnce([promotionRow])
+      .mockResolvedValueOnce([
+        {
+          ...promotionRow,
+          advertisementType: null,
+          targetRadiusKm: null,
+          totalCost: '0',
+        },
+      ]);
+
+    await expect(
+      service.updatePromotion(
+        1,
+        12,
+        {
+          advertisementType: AdvertisementType.Notification,
+          targetRadiusKm: 10,
+          totalCost: 50000,
+        },
+        ownerUser,
+      ),
+    ).resolves.toMatchObject({
+      promotionId: 12,
+      promotionType: 'Campaign',
+      campaignName: 'Autumn offer',
+      totalCost: 0,
+    });
+
+    const updateParams = dataSource.query.mock.calls[2][1];
+    expect(updateParams[13]).toBeNull();
+    expect(updateParams[14]).toBeNull();
+    expect(updateParams[17]).toBe(0);
+  });
+
+  it('updates an advertisement from SNS to Notification', async () => {
+    const advertisementRow = {
+      ...promotionRow,
+      promotionId: 13,
+      promotionType: 'Advertisement',
+      discountType: null,
+      discountValue: null,
+      advertisementType: 'SNS',
+      targetRadiusKm: '5',
+      totalCost: '50000',
+    };
+
+    dataSource.query
+      .mockResolvedValueOnce([{ restaurantId: 1 }])
+      .mockResolvedValueOnce([advertisementRow])
+      .mockResolvedValueOnce([
+        {
+          ...advertisementRow,
+          advertisementType: 'Notification',
+          targetRadiusKm: '10',
+          status: 'Pending',
+        },
+      ]);
+
+    const result = await service.updatePromotion(
+      1,
+      13,
+      {
+        advertisementType: AdvertisementType.Notification,
+        targetRadiusKm: 10,
+      },
+      ownerUser,
+    );
+
+    expect(result).toMatchObject({
+      promotionId: 13,
+      promotionType: 'Advertisement',
+      advertisementType: 'Notification',
+      targetRadiusKm: 10,
+      status: 'Pending',
+    });
+    expect(result).not.toHaveProperty('discountType');
+    expect(result).not.toHaveProperty('discountValue');
+
+    const updateParams = dataSource.query.mock.calls[2][1];
+    expect(updateParams[11]).toBeNull();
+    expect(updateParams[12]).toBeNull();
+    expect(updateParams[13]).toBe(AdvertisementType.Notification);
+    expect(updateParams[14]).toBe(10);
   });
 
   it('creates a pending campaign for an owned restaurant', async () => {

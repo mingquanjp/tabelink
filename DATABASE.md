@@ -706,7 +706,7 @@ Lưu chiến dịch quảng cáo hoặc khuyến mãi.
 Screen ID10 dùng thêm:
 
 - `DiscountType`, `DiscountValue`: loại/nội dung giảm giá cho campaign, ví dụ `total-10`, `10%OFF`.
-- `AdvertisementType`: loại quảng cáo, `Banner` hoặc `Push`.
+- `AdvertisementType`: loại quảng cáo, `SNS` hoặc `Notification`.
 - `TargetRadiusKm`: bán kính target quảng cáo quanh nhà hàng.
 
 `Status` gồm:

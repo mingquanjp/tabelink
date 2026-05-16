@@ -1,0 +1,89 @@
+import { Flame } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  homepageReviewers,
+  homepageTopics,
+  type HomepageRecommendation,
+} from "./homepage-data";
+import { HomepageAvatar } from "./HomepageAvatar";
+
+type HomeRightSidebarProps = {
+  recommendations: HomepageRecommendation[];
+};
+
+export function HomeRightSidebar({ recommendations }: HomeRightSidebarProps) {
+  void recommendations;
+
+  return (
+    <aside className="space-y-5 max-lg:hidden">
+      <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
+        <CardHeader className="px-5 py-5">
+          <CardTitle className="font-jp text-[15px] font-bold text-[#1a1c1b]">
+            おすすめレビュアー
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 px-5 pb-5">
+          {homepageReviewers.map((reviewer) => (
+            <div key={reviewer.handle} className="flex items-center gap-3">
+              <HomepageAvatar initials={reviewer.initials} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-jp text-[13px] font-bold leading-5 text-[#1a1c1b]">
+                  {reviewer.name}
+                </p>
+                <p className="truncate font-manrope text-[11px] leading-4 text-[#7a7f74]">
+                  {reviewer.meta}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 font-jp text-[11px] font-bold text-[#af111c]"
+              >
+                フォロー
+              </Button>
+            </div>
+          ))}
+          <Button
+            variant="outline"
+            className="mt-2 h-9 w-full rounded border-[#f0eee8] bg-white font-jp text-[12px] text-[#5a6053]"
+          >
+            もっと見る
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
+        <CardHeader className="px-5 py-5">
+          <CardTitle className="font-jp text-[15px] font-bold text-[#1a1c1b]">
+            トレンド・トピック
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 px-5 pb-5">
+          {homepageTopics.map((topic) => (
+            <button
+              key={topic.label}
+              type="button"
+              className="flex w-full items-center gap-3 text-left"
+            >
+              <span className="flex size-6 shrink-0 items-center justify-center text-[#af111c]">
+                <Flame className="size-3.5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate font-jp text-[13px] font-bold text-[#1a1c1b]">
+                  {topic.label}
+                </span>
+                <span className="sr-only">{topic.count}</span>
+              </span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+    </aside>
+  );
+}

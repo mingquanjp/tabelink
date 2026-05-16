@@ -31,7 +31,6 @@ type UserHeaderProps = {
 const defaultNavItems: UserHeaderNavItem[] = [
   { label: "ホーム", href: "/user/home" },
   { label: "マップ検索", href: "/user/map" },
-  { label: "予約", href: "/user/reservations" },
   { label: "キャンペーン", href: "/user/campaigns" },
 ];
 
@@ -106,6 +105,10 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
 
   const displayName = useMemo(() => getDisplayName(session), [session]);
   const userHandle = useMemo(() => getUserHandle(session), [session]);
+
+  if (pathname.startsWith("/user/blog/create")) {
+    return null;
+  }
 
   async function handleLogout() {
     try {

@@ -67,9 +67,9 @@ describe('AdsService', () => {
           ...promotionRow,
           promotionId: 13,
           promotionType: 'Advertisement',
-          discountType: 'total-10',
-          discountValue: '10%OFF',
-          advertisementType: 'Banner',
+          discountType: null,
+          discountValue: null,
+          advertisementType: 'SNS',
           targetRadiusKm: '5',
           impressions: '50',
           clicks: '5',
@@ -113,9 +113,7 @@ describe('AdsService', () => {
           restaurantId: 1,
           createdByOwnerAccountId: 7,
           promotionType: 'Advertisement',
-          discountType: 'total-10',
-          discountValue: '10%OFF',
-          advertisementType: 'Banner',
+          advertisementType: 'SNS',
           targetRadiusKm: 5,
           impressions: 50,
           clicks: 5,
@@ -384,9 +382,9 @@ describe('AdsService', () => {
           mediaUrl: null,
           termsVn: null,
           termsJp: null,
-          discountType: 'total-10',
-          discountValue: '10%OFF',
-          advertisementType: 'Banner',
+          discountType: null,
+          discountValue: null,
+          advertisementType: 'SNS',
           targetRadiusKm: '5',
           startDate: '2026-05-20T00:00:00.000Z',
           endDate: '2026-05-27T23:59:59.000Z',
@@ -405,9 +403,8 @@ describe('AdsService', () => {
         titleJp: '週末限定バナー広告',
         contentJp: '近隣ユーザーに告知します。',
         targetAudience: 'Japanese customers within 5km',
-        advertisementType: AdvertisementType.Banner,
+        advertisementType: AdvertisementType.SNS,
         targetRadiusKm: 5,
-        discountType: 'total-10',
         startDate: '2026-05-20T00:00:00.000Z',
         endDate: '2026-05-27T23:59:59.000Z',
         totalCost: 50000,
@@ -422,6 +419,8 @@ describe('AdsService', () => {
     expect(result.status).toBe('Pending');
     expect(result.promotionType).toBe('Advertisement');
     expect(result.totalCost).toBe(50000);
+    expect(dataSource.query.mock.calls[1][1][11]).toBeNull();
+    expect(dataSource.query.mock.calls[1][1][12]).toBeNull();
   });
 
   it('rejects invalid promotion date ranges', async () => {

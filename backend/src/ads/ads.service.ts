@@ -317,11 +317,15 @@ export class AdsService {
       dto.endDate !== undefined ? new Date(dto.endDate) : current.endDate;
     this.assertValidDateRange(startDate, endDate);
     const discountType =
-      dto.discountType !== undefined
+      current.promotionType === 'Advertisement'
+        ? null
+        : dto.discountType !== undefined
         ? this.optionalTrim(dto.discountType)
         : current.discountType;
     const discountValue =
-      dto.discountValue !== undefined
+      current.promotionType === 'Advertisement'
+        ? null
+        : dto.discountValue !== undefined
         ? this.optionalTrim(dto.discountValue)
         : current.discountValue;
     const advertisementType =
@@ -668,18 +672,9 @@ export class AdsService {
       );
     }
 
-    const discountType = this.optionalTrim(dto.discountType);
-    const discountValue = this.optionalTrim(dto.discountValue) ?? discountType;
-
-    if (advertisementType === 'Banner' && (!discountType || !discountValue)) {
-      throw new BadRequestException(
-        'Banner advertisement discountType and discountValue are required.',
-      );
-    }
-
     return {
-      discountType,
-      discountValue,
+      discountType: null,
+      discountValue: null,
       advertisementType,
       targetRadiusKm: dto.targetRadiusKm,
     };
@@ -726,8 +721,6 @@ export class AdsService {
       mediaUrl: row.mediaUrl,
       termsVn: row.termsVn,
       termsJp: row.termsJp,
-      discountType: row.discountType,
-      discountValue: row.discountValue,
       advertisementType: row.advertisementType,
       targetRadiusKm:
         row.targetRadiusKm === null || row.targetRadiusKm === undefined

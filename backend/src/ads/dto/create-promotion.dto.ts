@@ -21,8 +21,8 @@ export enum PromotionType {
 }
 
 export enum AdvertisementType {
-  Banner = 'Banner',
-  Push = 'Push',
+  SNS = 'SNS',
+  Notification = 'Notification',
 }
 
 export enum CampaignTargetAudience {
@@ -237,7 +237,12 @@ export class CreateAdRequestDto {
   @MaxLength(255)
   targetAudience!: string;
 
-  @ApiProperty({ enum: AdvertisementType, example: AdvertisementType.Banner })
+  @ApiProperty({
+    enum: AdvertisementType,
+    example: AdvertisementType.SNS,
+    description:
+      'SNS is the banner/SNS advertising request. Notification sends a normal notification to users.',
+  })
   @IsEnum(AdvertisementType)
   advertisementType!: AdvertisementType;
 
@@ -247,24 +252,6 @@ export class CreateAdRequestDto {
   @Min(1)
   @Max(100)
   targetRadiusKm!: number;
-
-  @ApiPropertyOptional({
-    example: '10',
-    description: 'Required for Banner ads when the discount dropdown is shown.',
-  })
-  @ValidateIf(
-    (dto: CreateAdRequestDto) =>
-      dto.advertisementType === AdvertisementType.Banner,
-  )
-  @IsString()
-  @MaxLength(100)
-  discountType?: string;
-
-  @ApiPropertyOptional({ example: '10%OFF' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  discountValue?: string;
 
   @ApiPropertyOptional({ example: 50000, minimum: 0 })
   @IsOptional()

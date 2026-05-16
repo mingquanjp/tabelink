@@ -168,9 +168,6 @@ function CampaignCard({ campaign }: { campaign: CampaignViewModel }) {
       <CardContent className="flex min-w-0 flex-1 flex-col p-6 md:p-8">
         <div className="flex flex-col gap-5 pb-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <p className="font-jp text-xs font-medium leading-4 text-[#af111c]">
-              {campaign.category}
-            </p>
             <h2 className="pt-1 font-jp text-2xl font-medium leading-8 text-[#1a1c1b]">
               {campaign.name}
             </h2>

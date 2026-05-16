@@ -44,6 +44,27 @@ interface PromotionRow {
   totalCost: number | string;
 }
 
+interface AvailableCampaignRow {
+  promotionId: number | string;
+  restaurantId: number | string;
+  restaurantNameVN: string;
+  restaurantNameJP: string;
+  imageUrl: string | null;
+  promotionType: string;
+  campaignNameVN: string;
+  campaignNameJP: string;
+  campaignDescriptionVN: string | null;
+  campaignDescriptionJP: string | null;
+  targetAudience: string | null;
+  discountType: string | null;
+  discountValue: string | null;
+  noteVN: string | null;
+  noteJP: string | null;
+  startDate: Date | string;
+  endDate: Date | string;
+  status: string;
+}
+
 interface OwnerRestaurantRow {
   restaurantId: number | string;
 }
@@ -51,6 +72,75 @@ interface OwnerRestaurantRow {
 @Injectable()
 export class AdsService {
   constructor(private readonly dataSource: DataSource) {}
+
+  async listAvailableCampaigns() {
+    const rows = await this.dataSource.query<AvailableCampaignRow[]>(
+      `
+        SELECT
+          p.PromotionID AS "promotionId",
+          r.RestaurantID AS "restaurantId",
+          r.NameVN AS "restaurantNameVN",
+          r.NameJP AS "restaurantNameJP",
+          media.MediaURL AS "imageUrl",
+          p.PromotionType AS "promotionType",
+          p.TitleVN AS "campaignNameVN",
+          p.TitleJP AS "campaignNameJP",
+          p.ContentVN AS "campaignDescriptionVN",
+          p.ContentJP AS "campaignDescriptionJP",
+          p.TargetAudience AS "targetAudience",
+          p.DiscountType AS "discountType",
+          p.DiscountValue AS "discountValue",
+          p.TermsVN AS "noteVN",
+          p.TermsJP AS "noteJP",
+          p.StartDate AS "startDate",
+          p.EndDate AS "endDate",
+          p.Status AS "status"
+        FROM PROMOTION p
+        JOIN RESTAURANT r
+          ON r.RestaurantID = p.RestaurantID
+        LEFT JOIN LATERAL (
+          SELECT rm.MediaURL
+          FROM RESTAURANT_MEDIA rm
+          WHERE rm.RestaurantID = r.RestaurantID
+            AND rm.Status = 'Approved'
+          ORDER BY
+            CASE WHEN rm.MediaType = 'Cover' THEN 0 ELSE 1 END,
+            rm.SortOrder ASC,
+            rm.MediaID ASC
+          LIMIT 1
+        ) media ON TRUE
+        WHERE p.PromotionType = 'Campaign'
+          AND p.Status = 'Active'
+          AND p.StartDate <= CURRENT_TIMESTAMP
+          AND p.EndDate >= CURRENT_TIMESTAMP
+          AND r.Status = 'Active'
+        ORDER BY p.StartDate DESC, p.PromotionID DESC
+      `,
+    );
+
+    return {
+      items: rows.map((row) => ({
+        promotionId: Number(row.promotionId),
+        restaurantId: Number(row.restaurantId),
+        restaurantNameVN: row.restaurantNameVN,
+        restaurantNameJP: row.restaurantNameJP,
+        imageUrl: row.imageUrl,
+        promotionType: row.promotionType,
+        campaignNameVN: row.campaignNameVN,
+        campaignNameJP: row.campaignNameJP,
+        campaignDescriptionVN: row.campaignDescriptionVN,
+        campaignDescriptionJP: row.campaignDescriptionJP,
+        targetAudience: row.targetAudience,
+        discountType: row.discountType,
+        discountValue: row.discountValue,
+        noteVN: row.noteVN,
+        noteJP: row.noteJP,
+        startDate: this.toIsoString(row.startDate),
+        endDate: this.toIsoString(row.endDate),
+        status: row.status,
+      })),
+    };
+  }
 
   async listOwnerPromotions(user: JwtPayload) {
     const restaurantId = await this.resolveOwnerRestaurantId(user);
@@ -710,6 +800,12 @@ export class AdsService {
   private unwrapFirstRow<T>(rows: T[] | [T[], number]): T | undefined {
     const firstResult = rows[0];
     return Array.isArray(firstResult) ? firstResult[0] : firstResult;
+  }
+
+  private toIsoString(value: Date | string) {
+    return value instanceof Date
+      ? value.toISOString()
+      : new Date(value).toISOString();
   }
 
   private toPromotionResponse(row: PromotionRow) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createUserFeedPostComment,
   getUserFeed,
@@ -44,7 +44,7 @@ import { PostCard } from "./PostCard";
 import { PostDetailsDialog } from "./PostDetailsDialog";
 
 const fallbackRestaurantImage = homepageFeaturedRestaurants[0]?.image ?? "";
-const FEED_PAGE_SIZE = 10;
+const USER_FEED_PAGE_LIMIT = 10;
 
 function buildInitials(value: string) {
   const parts = value
@@ -64,6 +64,15 @@ function buildInitials(value: string) {
 
 function formatRating(value: number) {
   return value.toFixed(1);
+}
+
+function formatReviewerMeta(nationality: string | null, followerCount: number) {
+  const followerText =
+    followerCount >= 1000
+      ? `${Number((followerCount / 1000).toFixed(1))}k followers`
+      : `${followerCount} followers`;
+
+  return `${nationality ?? "Reviewer"} · ${followerText}`;
 }
 
 function formatPostTime(value: string) {
@@ -108,18 +117,16 @@ function mapSuggestedReviewer(
   reviewer: Awaited<ReturnType<typeof getUserHomeSuggestedReviewers>>["items"][number],
 ): HomepageReviewer {
   const name = reviewer.displayName ?? reviewer.fullName;
-  const followerText =
-    reviewer.followerCount >= 1000
-      ? `${Number((reviewer.followerCount / 1000).toFixed(1))}k followers`
-      : `${reviewer.followerCount} followers`;
 
   return {
     accountId: reviewer.accountId,
+    followerCount: reviewer.followerCount,
     name,
     handle: reviewer.handle,
     initials: buildInitials(name),
-    meta: `${reviewer.nationality ?? "Reviewer"} · ${followerText}`,
+    meta: formatReviewerMeta(reviewer.nationality, reviewer.followerCount),
     isFollowing: reviewer.isFollowing,
+    nationality: reviewer.nationality,
   };
 }
 
@@ -187,6 +194,10 @@ function mapFeedComment(comment: UserFeedComment): HomepageComment {
 }
 
 export function UserHomePageView() {
+  const feedPageRef = useRef(0);
+  const feedHasNextRef = useRef(true);
+  const feedLoadingRef = useRef(false);
+  const feedSentinelRef = useRef<HTMLDivElement | null>(null);
   const [homeUser, setHomeUser] = useState<HomepageUser>(() => homepageUser);
   const [hotRestaurants, setHotRestaurants] = useState<HomepageHotRestaurant[]>(
     () => [],
@@ -208,6 +219,7 @@ export function UserHomePageView() {
   );
   const [topics, setTopics] = useState<HomepageTopic[]>(() => []);
   const [posts, setPosts] = useState<HomepagePost[]>(() => []);
+  const [feedHasNext, setFeedHasNext] = useState(true);
   const [selectedPost, setSelectedPost] = useState<HomepagePost | null>(null);
   const [likedPostIds, setLikedPostIds] = useState<Set<number>>(
     () => new Set(),
@@ -312,27 +324,50 @@ export function UserHomePageView() {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadFeedPage = useCallback(
+    async (page: number, mode: "replace" | "append") => {
+      if (feedLoadingRef.current) {
+        return;
+      }
 
-    async function loadFeed() {
+      feedLoadingRef.current = true;
+
       try {
-        const feed = await getUserFeed({ page: 1, limit: FEED_PAGE_SIZE });
+        const feed = await getUserFeed({
+          page,
+          limit: USER_FEED_PAGE_LIMIT,
+        });
+        const nextPosts = feed.items.map(mapFeedPost);
 
-        if (cancelled) {
-          return;
-        }
+        setPosts((current) => {
+          if (mode === "replace") {
+            return nextPosts;
+          }
 
-        setPosts(feed.items.map(mapFeedPost));
-        setLikedPostIds(
-          new Set(
-            feed.items
-              .filter((post) => post.isLiked)
-              .map((post) => post.blogId),
-          ),
-        );
+          const existingPostIds = new Set(current.map((post) => post.id));
+          return [
+            ...current,
+            ...nextPosts.filter((post) => !existingPostIds.has(post.id)),
+          ];
+        });
+        setLikedPostIds((current) => {
+          const next = mode === "replace" ? new Set<number>() : new Set(current);
+
+          for (const post of feed.items) {
+            if (post.isLiked) {
+              next.add(post.blogId);
+            } else {
+              next.delete(post.blogId);
+            }
+          }
+
+          return next;
+        });
         setCommentsByPostId((current) => {
-          const next: Record<number, HomepageComment[]> = {};
+          const next =
+            mode === "replace"
+              ? ({} as Record<number, HomepageComment[]>)
+              : { ...current };
 
           for (const post of feed.items) {
             next[post.blogId] = current[post.blogId] ?? [];
@@ -340,19 +375,59 @@ export function UserHomePageView() {
 
           return next;
         });
-      } catch {
-        if (!cancelled) {
-          showErrorToast();
-        }
-      }
-    }
 
-    loadFeed();
+        feedPageRef.current = feed.pagination.page;
+        feedHasNextRef.current = feed.pagination.hasNext;
+        setFeedHasNext(feed.pagination.hasNext);
+      } catch {
+        showErrorToast();
+      } finally {
+        feedLoadingRef.current = false;
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      loadFeedPage(1, "replace");
+    }, 0);
 
     return () => {
-      cancelled = true;
+      window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [loadFeedPage]);
+
+  useEffect(() => {
+    const sentinel = feedSentinelRef.current;
+
+    if (!sentinel) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (
+          !entry?.isIntersecting ||
+          feedLoadingRef.current ||
+          !feedHasNextRef.current
+        ) {
+          return;
+        }
+
+        loadFeedPage(feedPageRef.current + 1, "append");
+      },
+      {
+        rootMargin: "240px 0px",
+      },
+    );
+
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [feedHasNext, loadFeedPage, posts.length]);
 
   function getLikeCount(post: HomepagePost) {
     return post.likes;
@@ -509,10 +584,15 @@ export function UserHomePageView() {
   }
 
   function createPost(post: HomepagePost) {
-    setPosts((current) => [post, ...current]);
+    const nextPost = {
+      ...post,
+      authorAccountId: homeUser.accountId,
+    };
+
+    setPosts((current) => [nextPost, ...current]);
     setCommentsByPostId((current) => ({
       ...current,
-      [post.id]: [],
+      [nextPost.id]: [],
     }));
   }
 
@@ -539,10 +619,47 @@ export function UserHomePageView() {
     }
   }
 
+  async function refreshSuggestedReviewers() {
+    try {
+      const response = await getUserHomeSuggestedReviewers();
+      const nextReviewers = response.items.map(mapSuggestedReviewer);
+      const nextReviewerById = new Map(
+        nextReviewers
+          .filter((reviewer) => reviewer.accountId !== undefined)
+          .map((reviewer) => [reviewer.accountId, reviewer]),
+      );
+
+      setReviewers((current) =>
+        current.map((reviewer) =>
+          reviewer.accountId === undefined
+            ? reviewer
+            : (nextReviewerById.get(reviewer.accountId) ?? reviewer),
+        ),
+      );
+      setKnownReviewerFollowIds(
+        new Set(
+          nextReviewers
+            .map((reviewer) => reviewer.accountId)
+            .filter((accountId): accountId is number => accountId !== undefined),
+        ),
+      );
+      setFollowedReviewerIds(
+        new Set(
+          nextReviewers
+            .filter((reviewer) => reviewer.isFollowing)
+            .map((reviewer) => reviewer.accountId)
+            .filter((accountId): accountId is number => accountId !== undefined),
+        ),
+      );
+    } catch {
+      showErrorToast();
+    }
+  }
+
   function updateReviewerFollowState(
     accountId: number,
     isFollowing: boolean,
-    options: { markKnown?: boolean } = {},
+    options: { followerCountDelta?: number; markKnown?: boolean } = {},
   ) {
     if (options.markKnown ?? true) {
       setKnownReviewerFollowIds((current) => new Set(current).add(accountId));
@@ -562,7 +679,29 @@ export function UserHomePageView() {
     setReviewers((current) =>
       current.map((reviewer) =>
         reviewer.accountId === accountId
-          ? { ...reviewer, isFollowing }
+          ? {
+              ...reviewer,
+              followerCount:
+                reviewer.followerCount === undefined
+                  ? reviewer.followerCount
+                  : Math.max(
+                      0,
+                      reviewer.followerCount +
+                        (options.followerCountDelta ?? 0),
+                    ),
+              isFollowing,
+              meta:
+                reviewer.followerCount === undefined
+                  ? reviewer.meta
+                  : formatReviewerMeta(
+                      reviewer.nationality ?? null,
+                      Math.max(
+                        0,
+                        reviewer.followerCount +
+                          (options.followerCountDelta ?? 0),
+                      ),
+                    ),
+            }
           : reviewer,
       ),
     );
@@ -587,6 +726,7 @@ export function UserHomePageView() {
 
     setPendingReviewerIds((current) => new Set(current).add(accountId));
     updateReviewerFollowState(accountId, nextIsFollowing, {
+      followerCountDelta: countDelta,
       markKnown: hasKnownFollowState,
     });
 
@@ -600,6 +740,7 @@ export function UserHomePageView() {
         : await followUserHomeReviewer(accountId);
 
       updateReviewerFollowState(result.accountId, result.isFollowing);
+      await refreshSuggestedReviewers();
 
       if (optimisticCount && result.isFollowing !== nextIsFollowing) {
         updateFollowingCount(result.isFollowing ? 1 : -1);
@@ -610,6 +751,7 @@ export function UserHomePageView() {
       }
     } catch {
       updateReviewerFollowState(accountId, currentIsFollowing, {
+        followerCountDelta: -countDelta,
         markKnown: hasKnownFollowState,
       });
 
@@ -745,6 +887,9 @@ export function UserHomePageView() {
               onToggleVote={togglePostVote}
             />
           ))}
+          {feedHasNext ? (
+            <div ref={feedSentinelRef} aria-hidden="true" className="h-px" />
+          ) : null}
         </section>
 
         <HomeRightSidebar

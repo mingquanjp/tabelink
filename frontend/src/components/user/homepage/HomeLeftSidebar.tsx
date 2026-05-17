@@ -37,7 +37,7 @@ export function HomeLeftSidebar({ hotRestaurants, user }: HomeLeftSidebarProps) 
           <div className="mt-5 grid grid-cols-3 border-t border-[#f0eee8] pt-4 text-center">
             <div>
               <p className="font-manrope text-[14px] font-bold text-[#1a1c1b]">
-                {formatCount(user.postCount, "42")}
+                {formatCount(user.accountId, "")}
               </p>
               <p className="font-jp text-[9px] text-[#5a6053]">投稿</p>
             </div>

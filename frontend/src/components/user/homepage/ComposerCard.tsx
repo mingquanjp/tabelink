@@ -61,6 +61,7 @@ export function ComposerCard({ user, onCreatePost }: ComposerCardProps) {
 
     onCreatePost({
       id: Date.now(),
+      authorAccountId: user.accountId,
       author: user.name,
       handle: user.handle,
       initials: user.initials,

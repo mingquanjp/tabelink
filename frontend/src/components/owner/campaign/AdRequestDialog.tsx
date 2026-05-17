@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { createOwnerAdRequest } from "@/lib/api/campaigns/API";
 import {
   OWNER_TOAST_MESSAGES,
   showErrorToast,
@@ -25,9 +26,12 @@ import {
 
 type AdRequestDialogProps = {
   trigger: ReactNode;
+  onCreated?: () => void | Promise<void>;
 };
 
 const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+const toApiStartDate = (value: string) => `${value}T00:00:00.000Z`;
+const toApiEndDate = (value: string) => `${value}T23:59:59.000Z`;
 
 const parseInputDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
@@ -66,7 +70,7 @@ function AdTypeCard({
   );
 }
 
-export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
+export function AdRequestDialog({ trigger, onCreated }: AdRequestDialogProps) {
   const [open, setOpen] = useState(false);
   const [adType, setAdType] = useState<"banner" | "push">("banner");
   const [targetKm, setTargetKm] = useState(5);
@@ -75,6 +79,7 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
   const [budget, setBudget] = useState("50000");
   const [message, setMessage] = useState("");
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const parsedBudget = useMemo(() => Number(budget || 0), [budget]);
   const canSubmit = message.trim().length > 0 && parsedBudget > 0 && startDate && endDate;
@@ -109,21 +114,35 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
     setCreativeFile(file);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit) return;
-    // Temporary client-side handling until API integration is available.
-    console.log("Ad request submitted", {
-      adType,
-      targetKm,
-      startDate,
-      endDate,
-      budget: parsedBudget,
-      message,
-      creativeFileName: creativeFile?.name ?? null,
-    });
-    showSuccessToast();
-    setOpen(false);
+    if (!canSubmit || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      await createOwnerAdRequest({
+        titleJp:
+          adType === "banner"
+            ? "Banner広告リクエスト"
+            : "Push通知リクエスト",
+        contentJp: message.trim(),
+        advertisementType: adType === "banner" ? "SNS" : "Notification",
+        targetRadiusKm: targetKm,
+        totalCost: parsedBudget,
+        startDate: toApiStartDate(startDate),
+        endDate: toApiEndDate(endDate),
+      });
+      showSuccessToast();
+      resetForm();
+      setOpen(false);
+      await onCreated?.();
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -309,7 +328,7 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
             </Button>
             <Button
               type="submit"
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
               className="h-auto gap-2 rounded-md bg-[linear-gradient(168deg,var(--primary)_0%,var(--primary-bright)_100%)] px-8 py-2.5 font-jp text-sm font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]"
             >
               <Send className="h-4 w-4" />

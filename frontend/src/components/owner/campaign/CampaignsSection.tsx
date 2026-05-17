@@ -1,128 +1,26 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-
-type CampaignAction = {
-  label: string;
-  variant: "secondary" | "outline";
-  className: string;
-};
+import type { OwnerPromotion } from "@/lib/api/campaigns/type";
 
 type CampaignMetric = {
   label: string;
   value: string;
 };
 
-type CampaignItem = {
-  status: string;
-  statusVariant: "active" | "ended";
-  schedule: string;
-  title: string;
-  description: string;
-  usageLabel: string;
-  usageValue: string;
-  usageValueClassName: string;
-  cardClassName: string;
-  actionButtons: CampaignAction[];
-  metrics: CampaignMetric[];
+type CampaignsSectionProps = {
+  items: OwnerPromotion[];
+  isLoading?: boolean;
+  errorMessage?: string | null;
+  onRetry?: () => void | Promise<void>;
 };
 
-const campaignItems: CampaignItem[] = [
-  {
-    status: "実施中",
-    statusVariant: "active",
-    schedule: "終了まであと 5日",
-    title: "春の桜お任せキャンペーン",
-    description: "ランチタイム限定、ドリンク1杯無料。春の味覚を楽しむ特別メニュー。",
-    usageLabel: "利用率",
-    usageValue: "84%",
-    usageValueClassName: "text-[var(--primary)]",
-    cardClassName: "border border-transparent bg-card shadow-[0px_1px_2px_#0000000d]",
-    actionButtons: [
-      {
-        label: "編集",
-        variant: "secondary",
-        className:
-          "bg-[var(--surface-mist)] text-[var(--ink-900)] hover:bg-[color-mix(in_oklab,var(--surface-mist),black_4%)]",
-      },
-      {
-        label: "分析データ",
-        variant: "outline",
-        className:
-          "border-[color-mix(in_oklab,var(--primary),transparent_80%)] text-[var(--primary)] hover:bg-[color-mix(in_oklab,var(--primary),transparent_95%)]",
-      },
-    ],
-    metrics: [
-      { label: "リーチ数", value: "12,400" },
-      { label: "利用数", value: "452" },
-      { label: "コンバージョン", value: "3.6%" },
-      { label: "獲得利益", value: "¥452,000" },
-    ],
-  },
-  {
-    status: "実施中",
-    statusVariant: "active",
-    schedule: "終了まであと 14日",
-    title: "ディナー限定日本酒ペアリング",
-    description: "ハノイ厳選の銘酒と創作和食の絶妙なハーモニーを特別価格で。",
-    usageLabel: "利用率",
-    usageValue: "62%",
-    usageValueClassName: "text-[var(--primary)]",
-    cardClassName: "border border-transparent bg-card shadow-[0px_1px_2px_#0000000d]",
-    actionButtons: [
-      {
-        label: "編集",
-        variant: "secondary",
-        className:
-          "bg-[var(--surface-mist)] text-[var(--ink-900)] hover:bg-[color-mix(in_oklab,var(--surface-mist),black_4%)]",
-      },
-      {
-        label: "分析データ",
-        variant: "outline",
-        className:
-          "border-[color-mix(in_oklab,var(--primary),transparent_80%)] text-[var(--primary)] hover:bg-[color-mix(in_oklab,var(--primary),transparent_95%)]",
-      },
-    ],
-    metrics: [
-      { label: "リーチ数", value: "8,920" },
-      { label: "利用数", value: "214" },
-      { label: "コンバージョン", value: "2.4%" },
-      { label: "獲得利益", value: "¥321,000" },
-    ],
-  },
-  {
-    status: "終了済み",
-    statusVariant: "ended",
-    schedule: "2024/03/15 終了",
-    title: "週末ファミリーバーベキュー",
-    description: "お子様連れのお客様に特製デザートをプレゼント。",
-    usageLabel: "最終利用率",
-    usageValue: "98%",
-    usageValueClassName: "text-[var(--ink-600)]",
-    cardClassName:
-      "border border-dashed border-[color-mix(in_oklab,var(--primary),transparent_85%)] bg-[linear-gradient(0deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.5)_100%),linear-gradient(0deg,var(--surface-mist)_0%,var(--surface-mist)_100%)]",
-    actionButtons: [
-      {
-        label: "詳細表示",
-        variant: "secondary",
-        className:
-          "bg-[color-mix(in_oklab,var(--surface-mist),black_4%)] text-[var(--ink-900)] hover:bg-[color-mix(in_oklab,var(--surface-mist),black_8%)]",
-      },
-      {
-        label: "再開する",
-        variant: "outline",
-        className:
-          "border-[color-mix(in_oklab,var(--primary),transparent_85%)] text-[var(--ink-600)] hover:bg-white/70",
-      },
-    ],
-    metrics: [
-      { label: "リーチ数", value: "15,300" },
-      { label: "利用数", value: "892" },
-      { label: "コンバージョン", value: "5.8%" },
-      { label: "獲得利益", value: "¥1,120,000" },
-    ],
-  },
-];
+const numberFormatter = new Intl.NumberFormat("en");
+const currencyFormatter = new Intl.NumberFormat("ja-JP", {
+  style: "currency",
+  currency: "JPY",
+  maximumFractionDigits: 0,
+});
 
 function BurgerIllustration() {
   return (
@@ -146,7 +44,129 @@ function BurgerIllustration() {
   );
 }
 
-export function CampaignsSection() {
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
+function getScheduleLabel(item: OwnerPromotion) {
+  if (item.status === "Ended") {
+    return `${formatDate(item.endDate)} 終了`;
+  }
+
+  const endTime = new Date(item.endDate).getTime();
+  const now = Date.now();
+  const remainingDays = Math.max(
+    0,
+    Math.ceil((endTime - now) / (1000 * 60 * 60 * 24))
+  );
+
+  return `終了まであと ${remainingDays}日`;
+}
+
+function getStatusLabel(status: OwnerPromotion["status"]) {
+  const labels: Record<OwnerPromotion["status"], string> = {
+    Active: "実施中",
+    Pending: "承認待ち",
+    Rejected: "差戻し",
+    Ended: "終了済み",
+  };
+
+  return labels[status] ?? status;
+}
+
+function getStatusBadgeClassName(status: OwnerPromotion["status"]) {
+  const classNames: Record<OwnerPromotion["status"], string> = {
+    Active: "bg-[#dcfce7] text-[#15803d] hover:bg-[#dcfce7]",
+    Pending:
+      "bg-[color-mix(in_oklab,var(--ink-600),transparent_86%)] text-(--ink-600) hover:bg-[color-mix(in_oklab,var(--ink-600),transparent_86%)]",
+    Rejected: "bg-[#fee2e2] text-[#b91c1c] hover:bg-[#fee2e2]",
+    Ended:
+      "bg-[color-mix(in_oklab,var(--ink-600),transparent_80%)] text-(--ink-600) hover:bg-[color-mix(in_oklab,var(--ink-600),transparent_80%)]",
+  };
+
+  return classNames[status] ?? classNames.Ended;
+}
+
+function getAudienceLabel(value: string | null) {
+  const labels: Record<string, string> = {
+    all: "すべてのお客様",
+    new: "新規のお客様",
+  };
+
+  return value ? labels[value] ?? value : "すべてのお客様";
+}
+
+function getAdvertisementTypeLabel(value: string | null) {
+  const labels: Record<string, string> = {
+    SNS: "バナー広告",
+    Notification: "プッシュ通知",
+  };
+
+  return value ? labels[value] ?? value : "広告";
+}
+
+function getDiscountLabel(discountType: string | null, discountValue: string | null) {
+  if (!discountType || !discountValue) {
+    return "-";
+  }
+
+  if (discountType === "Percentage") {
+    return `${discountValue}割引`;
+  }
+
+  if (discountType === "FixedAmount") {
+    return `${discountValue.replace("VND", "")}VND割引`;
+  }
+
+  return `${discountType} ${discountValue}`;
+}
+
+function getTitle(item: OwnerPromotion) {
+  if (item.promotionType === "Campaign") {
+    return item.campaignName;
+  }
+
+  return item.titleJp || item.titleVn || "広告リクエスト";
+}
+
+function getDescription(item: OwnerPromotion) {
+  if (item.promotionType === "Campaign") {
+    return item.campaignDescription || item.note || "";
+  }
+
+  return item.contentJp || item.contentVn || item.termsJp || item.termsVn || "";
+}
+
+function getMetrics(item: OwnerPromotion): CampaignMetric[] {
+  const ctr =
+    item.impressions > 0
+      ? `${((item.clicks / item.impressions) * 100).toFixed(1)}%`
+      : "0%";
+
+  const typeLabel =
+    item.promotionType === "Campaign"
+      ? getDiscountLabel(item.discountType, item.discountValue)
+      : getAdvertisementTypeLabel(item.advertisementType);
+
+  return [
+    { label: "種類", value: typeLabel },
+    { label: "リーチ数", value: numberFormatter.format(item.impressions) },
+    { label: "利用数", value: numberFormatter.format(item.clicks) },
+    { label: "広告費", value: currencyFormatter.format(item.totalCost) },
+    { label: "CTR", value: ctr },
+  ];
+}
+
+export function CampaignsSection({
+  items,
+  isLoading,
+  errorMessage,
+  onRetry,
+}: CampaignsSectionProps) {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -154,76 +174,111 @@ export function CampaignsSection() {
           有効なキャンペーン
         </h2>
       </div>
-      <div className="flex flex-col gap-4">
-        {campaignItems.map((campaign) => (
-          <Card key={campaign.title} className={`rounded-lg ${campaign.cardClassName}`}>
-            <CardContent className="p-6">
-              <article className="flex flex-col gap-6 lg:flex-row lg:items-center">
-                <div className="shrink-0">
-                  <BurgerIllustration />
-                </div>
-                <div className="flex min-w-0 flex-1 flex-col gap-3">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                          className={`rounded-sm px-2 py-0.5 font-jp text-[10px] font-medium leading-[15px] shadow-none hover:bg-current ${
-                            campaign.statusVariant === "active"
-                              ? "bg-[color-mix(in_oklab,var(--ink-600),transparent_90%)] text-(--ink-600)"
-                              : "bg-[color-mix(in_oklab,var(--ink-600),transparent_80%)] text-(--ink-600)"
-                          }`}
-                        >
-                          {campaign.status}
-                        </Badge>
-                        <span className="font-jp text-xs font-medium leading-4 text-(--ink-600)">
-                          {campaign.schedule}
-                        </span>
+
+      {isLoading ? (
+        <Card className="rounded-lg border border-transparent bg-card shadow-[0px_1px_2px_#0000000d]">
+          <CardContent className="p-6 text-sm font-medium text-(--ink-600)">
+            Loading promotions...
+          </CardContent>
+        </Card>
+      ) : errorMessage ? (
+        <Card className="rounded-lg border border-destructive/20 bg-card shadow-[0px_1px_2px_#0000000d]">
+          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm font-medium text-destructive">{errorMessage}</p>
+            {onRetry ? (
+              <Button type="button" variant="outline" onClick={() => void onRetry()}>
+                Retry
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : items.length === 0 ? (
+        <Card className="rounded-lg border border-dashed border-[color-mix(in_oklab,var(--primary),transparent_85%)] bg-[linear-gradient(0deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.5)_100%),linear-gradient(0deg,var(--surface-mist)_0%,var(--surface-mist)_100%)]">
+          <CardContent className="p-6 text-sm font-medium text-(--ink-600)">
+            まだキャンペーンまたは広告リクエストはありません。
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-4">
+          {items.map((campaign) => (
+            <Card
+              key={campaign.promotionId}
+              className={`rounded-lg ${
+                campaign.status === "Ended"
+                  ? "border border-dashed border-[color-mix(in_oklab,var(--primary),transparent_85%)] bg-[linear-gradient(0deg,rgba(255,255,255,0.5)_0%,rgba(255,255,255,0.5)_100%),linear-gradient(0deg,var(--surface-mist)_0%,var(--surface-mist)_100%)]"
+                  : "border border-transparent bg-card shadow-[0px_1px_2px_#0000000d]"
+              }`}
+            >
+              <CardContent className="p-6">
+                <article className="flex flex-col gap-6 lg:flex-row lg:items-center">
+                  <div className="shrink-0">
+                    {campaign.promotionType === "Advertisement" && campaign.mediaUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={campaign.mediaUrl}
+                        alt=""
+                        className="h-32 w-48 rounded object-cover"
+                      />
+                    ) : (
+                      <BurgerIllustration />
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-3">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            className={`rounded-sm px-2 py-0.5 font-jp text-[10px] font-medium leading-[15px] shadow-none ${getStatusBadgeClassName(campaign.status)}`}
+                          >
+                            {getStatusLabel(campaign.status)}
+                          </Badge>
+                          <span className="font-jp text-xs font-medium leading-4 text-(--ink-600)">
+                            {getScheduleLabel(campaign)}
+                          </span>
+                        </div>
+                        <h3 className="pt-1 font-jp text-xl font-medium leading-7 text-(--ink-900)">
+                          {getTitle(campaign)}
+                        </h3>
+                        <p className="line-clamp-2 font-jp text-sm font-medium leading-5 text-(--ink-600)">
+                          {getDescription(campaign)}
+                        </p>
                       </div>
-                      <h3 className="pt-1 font-jp text-xl font-medium leading-7 text-(--ink-900)">
-                        {campaign.title}
-                      </h3>
-                      <p className="font-jp text-sm font-medium leading-5 text-(--ink-600)">
-                        {campaign.description}
-                      </p>
+                      <div className="shrink-0 text-left lg:text-right">
+                        <p className="font-jp text-xs font-medium leading-4 text-(--ink-600)">
+                          対象ユーザー
+                        </p>
+                        <p className="font-manrope text-lg font-bold leading-7 text-[var(--primary)]">
+                          {getAudienceLabel(campaign.targetAudience)}
+                        </p>
+                      </div>
                     </div>
-                    <div className="shrink-0 text-left lg:text-right">
-                      <p className="font-jp text-xs font-medium leading-4 text-(--ink-600)">
-                        {campaign.usageLabel}
-                      </p>
-                      <p className={`font-manrope text-lg font-bold leading-7 ${campaign.usageValueClassName}`}>
-                        {campaign.usageValue}
-                      </p>
+                    <div className="grid grid-cols-2 gap-4 border-t border-border pt-2 md:grid-cols-5">
+                      {getMetrics(campaign).map((metric) => (
+                        <div key={metric.label} className="flex flex-col gap-[0.5px]">
+                          <span className="font-jp text-[10px] font-medium leading-[15px] tracking-[0.5px] text-(--ink-600)">
+                            {metric.label}
+                          </span>
+                          <span className="font-manrope text-sm font-bold leading-5 text-(--ink-900)">
+                            {metric.value}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4 border-t border-border pt-2 md:grid-cols-4">
-                    {campaign.metrics.map((metric) => (
-                      <div key={metric.label} className="flex flex-col gap-[0.5px]">
-                        <span className="font-jp text-[10px] font-medium leading-[15px] tracking-[0.5px] text-(--ink-600)">
-                          {metric.label}
-                        </span>
-                        <span className="font-manrope text-sm font-bold leading-5 text-(--ink-900)">
-                          {metric.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-col gap-2">
-                  {campaign.actionButtons.map((action) => (
+                  <div className="flex shrink-0 flex-col gap-2">
                     <Button
-                      key={action.label}
-                      variant={action.variant}
-                      className={`h-auto w-32 rounded-sm px-0 py-2 font-jp text-xs font-medium leading-4 ${action.className}`}
+                      variant="secondary"
+                      className="h-auto w-32 rounded-sm bg-[var(--surface-mist)] px-0 py-2 font-jp text-xs font-medium leading-4 text-[var(--ink-900)] hover:bg-[color-mix(in_oklab,var(--surface-mist),black_4%)]"
                     >
-                      {action.label}
+                      詳細表示
                     </Button>
-                  ))}
-                </div>
-              </article>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                  </div>
+                </article>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </section>
   );
 }

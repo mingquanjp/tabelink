@@ -333,6 +333,53 @@ describe('RestaurantsService', () => {
     dataSource.query
       .mockResolvedValueOnce([
         {
+          totalCount: '3',
+          activeCount: '2',
+          recommendedForJpCount: '1',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          categoryId: 100,
+          restaurantId: 1,
+          categoryCode: 'starter',
+          categoryNameVn: 'Khai vi',
+          categoryNameJp: 'スターター',
+          sortOrder: 1,
+          itemCount: '1',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          itemId: 10,
+          restaurantId: 1,
+          categoryId: 100,
+          categoryCode: 'starter',
+          categoryNameVn: 'Khai vi',
+          categoryNameJp: 'スターター',
+          categorySortOrder: 1,
+          nameVn: 'Pho bo',
+          nameJp: 'Pho bo JP',
+          price: '85000.00',
+          descriptionVn: null,
+          descriptionJp: null,
+          imageUrl: 'https://example.com/pho.jpg',
+          isRecommendedForJp: true,
+          isActive: true,
+          criteria: [
+            {
+              criterionId: 1,
+              criterionName: '辛さ',
+              ratingLevel: 2,
+              sortOrder: 0,
+            },
+          ],
+          createdAt: '2026-05-01T00:00:00.000Z',
+          updatedAt: '2026-05-02T00:00:00.000Z',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
           promotionId: 20,
           restaurantId: 1,
           promotionType: 'Campaign',
@@ -401,6 +448,33 @@ describe('RestaurantsService', () => {
         nameVn: 'Bun Cha Sakura',
         coverImageUrl: 'https://example.com/cover.jpg',
       },
+      menu: {
+        count: 3,
+        activeCount: 2,
+        recommendedForJpCount: 1,
+        categories: [
+          {
+            categoryId: 100,
+            categoryCode: 'starter',
+          },
+        ],
+        items: [
+          {
+            itemId: 10,
+            categoryId: 100,
+            price: 85000,
+            isRecommendedForJp: true,
+            criteria: [
+              {
+                criterionId: 1,
+                criterionName: '辛さ',
+                ratingLevel: 2,
+                sortOrder: 0,
+              },
+            ],
+          },
+        ],
+      },
       promotions: {
         count: 1,
         items: [
@@ -433,7 +507,7 @@ describe('RestaurantsService', () => {
         where: { restaurantId: 1, status: 'Active' },
       }),
     );
-    expect(dataSource.query).toHaveBeenCalledTimes(4);
+    expect(dataSource.query).toHaveBeenCalledTimes(7);
     expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining("Status = 'Active'"),
       [1],
@@ -442,6 +516,15 @@ describe('RestaurantsService', () => {
 
   it('allows guest users to view restaurant detail but disables review submission', async () => {
     dataSource.query
+      .mockResolvedValueOnce([
+        {
+          totalCount: '0',
+          activeCount: '0',
+          recommendedForJpCount: '0',
+        },
+      ])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         {

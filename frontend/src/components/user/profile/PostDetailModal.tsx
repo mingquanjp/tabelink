@@ -1,0 +1,248 @@
+"use client";
+
+/* eslint-disable @next/next/no-img-element */
+import {
+  Bookmark,
+  Heart,
+  MessageSquare,
+  Send,
+  Share2,
+  Star,
+  X,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { profileSummary, type FoodReport } from "./profile-data";
+
+type PostDetailModalProps = {
+  report: FoodReport | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+const reviewerAvatar =
+  "https://www.figma.com/api/mcp/asset/26cc8dae-7295-4a23-9a91-6f2a9e9f96de";
+const reviewerAvatarAlt =
+  "https://www.figma.com/api/mcp/asset/60fcdd85-addd-4413-a5c7-f58ec6cf07fb";
+
+const ratingRows = [
+  { label: "味", value: 5 },
+  { label: "衛生面", value: 4 },
+  { label: "サービス", value: 5 },
+];
+
+const comments = [
+  {
+    author: "Maki S.",
+    time: "1時間前",
+    avatar: reviewerAvatar,
+    body: "本当にスープが澄んでいて美味しいですよね。私もリピーターです！",
+  },
+  {
+    author: "Chef Sato",
+    time: "30分前",
+    avatar: reviewerAvatarAlt,
+    body: "ここの麺の腰はハノイでもトップクラスですね。",
+  },
+];
+
+function RatingDots({ value }: { value: number }) {
+  return (
+    <div className="flex items-center justify-center gap-0.5">
+      {Array.from({ length: 5 }, (_, index) => (
+        <Star
+          key={index}
+          className={`size-3 ${index < value ? "fill-[#af111c] text-[#af111c]" : "fill-[#e2e3e0] text-[#e2e3e0]"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+export function PostDetailModal({
+  report,
+  open,
+  onOpenChange,
+}: PostDetailModalProps) {
+  if (!report) {
+    return null;
+  }
+
+  const postImage = report.detailImageUrl ?? report.imageUrl;
+  const title =
+    report.title ??
+    "地元の人に愛される名店 / Một cửa hàng nổi tiếng được người dân địa phương yêu thích";
+  const tags = report.tags ?? ["#HanoiDining", "#PhoLover"];
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="grid h-[min(82vh,760px)] w-[min(1120px,calc(100vw-48px))] max-w-none grid-cols-[minmax(0,1.5fr)_460px] overflow-hidden rounded-2xl border-0 bg-white p-0 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] max-lg:h-[calc(100vh-32px)] max-lg:grid-cols-1">
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+
+        <div className="flex min-h-0 items-center justify-center overflow-hidden bg-black max-lg:h-[44vh]">
+          <img
+            src={postImage}
+            alt=""
+            className="h-full w-full object-contain"
+            draggable={false}
+          />
+        </div>
+
+        <section className="flex min-h-0 flex-col bg-white">
+          <header className="flex shrink-0 items-center gap-5 border-b border-[rgba(228,190,186,0.1)] py-4 pl-4 pr-16">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="size-10 shrink-0 overflow-hidden rounded-xl shadow-[0_0_0_2px_rgba(175,17,28,0.05)]">
+                <img
+                  src={profileSummary.avatarUrl}
+                  alt=""
+                  className="size-full object-cover"
+                  draggable={false}
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="font-manrope text-sm font-bold leading-5 text-[#1a1c1b]">
+                  Tanaka K.
+                </p>
+                <p className="font-jp text-[10px] font-medium leading-[15px] text-[#5a6053]">
+                  ハノイ在住者 • 2時間前
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              className="shrink-0 rounded-xl border-2 border-[#af111c] px-8 py-2 font-jp text-xs font-medium leading-4 text-[#af111c]"
+            >
+              フォロー
+            </button>
+          </header>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-sm bg-[rgba(223,229,212,0.3)] px-2 py-0.5 font-manrope text-[10px] font-bold uppercase leading-[15px] text-[#5a6053]"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <h2 className="font-jp text-lg font-bold leading-[25px] text-[#1a1c1b]">
+                {title}
+              </h2>
+
+              <p className="font-jp text-sm font-medium leading-[22.75px] text-[#5b403d]">
+                {report.description} Không gian sạch sẽ, món ăn rất ngon!
+              </p>
+
+              <div className="grid grid-cols-3 gap-3 border-y border-[rgba(228,190,186,0.1)] py-4">
+                {ratingRows.map((item) => (
+                  <div key={item.label} className="flex flex-col gap-1">
+                    <span className="text-center font-jp text-[10px] font-medium uppercase leading-[15px] text-[#5a6053]">
+                      {item.label}
+                    </span>
+                    <RatingDots value={item.value} />
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-6 pb-4">
+                {comments.map((comment) => (
+                  <div key={comment.author} className="flex gap-3">
+                    <div className="size-8 shrink-0 overflow-hidden rounded-xl bg-[#dfe5d4]">
+                      <img
+                        src={comment.avatar}
+                        alt=""
+                        className="size-full object-cover"
+                        draggable={false}
+                      />
+                    </div>
+                    <div className="rounded-bl-2xl rounded-br-2xl rounded-tr-2xl bg-[#f4f4f1] p-3">
+                      <p className="font-manrope text-xs font-bold leading-4 text-[#1a1c1b]">
+                        {comment.author}
+                        <span className="pl-2 font-jp text-[9px] font-medium uppercase text-[#5a6053]">
+                          {comment.time}
+                        </span>
+                      </p>
+                      <p className="mt-1 font-jp text-xs font-medium leading-[19.5px] text-[#5b403d]">
+                        {comment.body}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <footer className="shrink-0 border-t border-[rgba(228,190,186,0.1)] bg-white px-4 py-4">
+            <div className="flex items-center justify-between px-2">
+              <div className="flex items-center gap-6">
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-[#5a6053]"
+                >
+                  <Heart className="size-5" />
+                  <span className="font-manrope text-xs font-bold">128</span>
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 text-[#5a6053]"
+                >
+                  <MessageSquare className="size-5" />
+                  <span className="font-manrope text-xs font-bold">14</span>
+                </button>
+                <button type="button" className="text-[#5a6053]">
+                  <Share2 className="size-5" />
+                </button>
+              </div>
+              <button type="button" className="text-[#5a6053]">
+                <Bookmark className="size-5" />
+              </button>
+            </div>
+
+            <div className="mt-4 flex items-center gap-3">
+              <div className="size-8 shrink-0 overflow-hidden rounded-xl bg-[#dfe5d4]">
+                <img
+                  src={reviewerAvatar}
+                  alt=""
+                  className="size-full object-cover"
+                  draggable={false}
+                />
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <input
+                  className="h-10 w-full rounded-xl bg-[#f4f4f1] py-2 pl-4 pr-20 font-jp text-xs font-medium text-[#1a1c1b] outline-none placeholder:text-[rgba(90,96,83,0.5)]"
+                  placeholder="コメントを追加..."
+                />
+                <button
+                  type="button"
+                  className="absolute right-4 top-1/2 flex -translate-y-1/2 items-center gap-1 font-jp text-xs font-medium leading-4 text-[#af111c]"
+                >
+                  投稿する
+                  <Send className="size-3" />
+                </button>
+              </div>
+            </div>
+          </footer>
+        </section>
+
+        <DialogClose asChild>
+          <button
+            type="button"
+            aria-label="Close post detail"
+            className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-xl bg-black/10 text-[#1a1c1b] backdrop-blur-sm transition-colors hover:bg-black/15"
+          >
+            <X className="size-5" />
+          </button>
+        </DialogClose>
+      </DialogContent>
+    </Dialog>
+  );
+}

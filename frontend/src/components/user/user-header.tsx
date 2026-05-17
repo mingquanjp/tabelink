@@ -195,7 +195,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
 
               <DropdownMenuItem
                 className="mb-1 flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
-                onSelect={() => router.push("/user/home")}
+                onSelect={() => router.push("/user/profile")}
               >
                 <UserRound className="size-4" strokeWidth={2} />
                 プロフィールを表示

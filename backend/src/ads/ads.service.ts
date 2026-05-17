@@ -368,6 +368,71 @@ export class AdsService {
     return this.updatePromotion(restaurantId, promotionId, dto, user);
   }
 
+  async endOwnerPromotion(promotionId: number, user: JwtPayload) {
+    const restaurantId = await this.resolveOwnerRestaurantId(user);
+
+    return this.endPromotion(restaurantId, promotionId, user);
+  }
+
+  async endPromotion(
+    restaurantId: number,
+    promotionId: number,
+    user: JwtPayload,
+  ) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+
+    const current = await this.findOwnedPromotion(
+      restaurantId,
+      promotionId,
+      user.sub,
+    );
+
+    if (current.status !== 'Active') {
+      throw new BadRequestException('Only active promotions can be ended.');
+    }
+
+    const rows = await this.dataSource.query<PromotionRow[]>(
+      `
+        UPDATE PROMOTION
+        SET Status = 'Ended'
+        WHERE PromotionID = $1
+          AND RestaurantID = $2
+          AND CreatedByOwnerAccountID = $3
+        RETURNING
+          PromotionID AS "promotionId",
+          RestaurantID AS "restaurantId",
+          CreatedByOwnerAccountID AS "createdByOwnerAccountId",
+          PromotionType AS "promotionType",
+          TargetAudience AS "targetAudience",
+          TitleVN AS "titleVn",
+          TitleJP AS "titleJp",
+          ContentVN AS "contentVn",
+          ContentJP AS "contentJp",
+          MediaURL AS "mediaUrl",
+          TermsVN AS "termsVn",
+          TermsJP AS "termsJp",
+          DiscountType AS "discountType",
+          DiscountValue AS "discountValue",
+          AdvertisementType AS "advertisementType",
+          TargetRadiusKm AS "targetRadiusKm",
+          StartDate AS "startDate",
+          EndDate AS "endDate",
+          Status AS "status",
+          Impressions AS "impressions",
+          Clicks AS "clicks",
+          TotalCost AS "totalCost"
+      `,
+      [promotionId, restaurantId, user.sub],
+    );
+
+    const row = this.unwrapFirstRow(rows);
+    if (!row) {
+      throw new NotFoundException('Promotion not found for this owner.');
+    }
+
+    return this.toPromotionResponse(row);
+  }
+
   async updatePromotion(
     restaurantId: number,
     promotionId: number,

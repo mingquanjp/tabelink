@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createUserFeedPostComment,
   getUserFeed,
@@ -25,7 +25,6 @@ import {
 import { showErrorToast } from "@/lib/app-toast";
 import {
   homepageFeaturedRestaurants,
-  homepagePosts,
   homepageRecommendations,
   homepageUser,
   type HomepageComment,
@@ -146,6 +145,7 @@ function mapAdvertisedRestaurant(
 ): HomepageFeaturedRestaurant {
   return {
     id: restaurant.promotionId,
+    restaurantId: restaurant.restaurantId,
     name: restaurant.restaurantNameJP || restaurant.restaurantNameVN,
     eyebrow: "Sponsored",
     description: restaurant.contentJP ?? restaurant.contentVN ?? "",
@@ -240,7 +240,6 @@ export function UserHomePageView() {
   const [commentsByPostId, setCommentsByPostId] = useState<
     Record<number, HomepageComment[]>
   >(() => ({}));
-  const featuredPost = useMemo(() => homepagePosts[0], []);
 
   useEffect(() => {
     let cancelled = false;
@@ -867,8 +866,6 @@ export function UserHomePageView() {
           <FeaturedPostCard
             activeIndex={featuredIndex}
             items={featuredRestaurants}
-            post={featuredPost}
-            onOpen={openPostDetail}
             onSelectNext={selectNextFeaturedRestaurant}
             onSelectPrevious={selectPreviousFeaturedRestaurant}
           />

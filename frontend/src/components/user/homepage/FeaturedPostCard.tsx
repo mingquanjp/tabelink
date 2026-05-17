@@ -1,30 +1,27 @@
+"use client";
+
 import { ChevronLeft, ChevronRight, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type {
-  HomepageFeaturedRestaurant,
-  HomepagePost,
-} from "./homepage-data";
+import type { HomepageFeaturedRestaurant } from "./homepage-data";
+import { useRouter } from "next/navigation";
 
 type FeaturedPostCardProps = {
   activeIndex: number;
   items: HomepageFeaturedRestaurant[];
-  onOpen: (post: HomepagePost) => void;
   onSelectNext: () => void;
   onSelectPrevious: () => void;
-  post: HomepagePost;
 };
 
 export function FeaturedPostCard({
   activeIndex,
   items,
-  onOpen,
   onSelectNext,
   onSelectPrevious,
-  post,
 }: FeaturedPostCardProps) {
   const restaurant = items[activeIndex] ?? items[0];
   const selectedIndex = items[activeIndex] ? activeIndex : 0;
+  const router = useRouter();
 
   if (!restaurant) {
     return null;
@@ -71,7 +68,7 @@ export function FeaturedPostCard({
                 className="relative block h-[380px] w-full overflow-hidden bg-cover bg-center text-left"
                 style={{ backgroundImage: `url(${item.image})` }}
                 aria-label={`${item.name} の詳細を見る`}
-                onClick={() => onOpen(post)}
+                onClick={() => router.push(`/user/restaurants/${item.restaurantId}`)}
               >
                 <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                 <span className="absolute bottom-6 left-6 right-6">
@@ -96,7 +93,9 @@ export function FeaturedPostCard({
                     type="button"
                     size="sm"
                     className="h-8 rounded-full bg-[#f6dbdc] px-4 font-jp text-[12px] text-[#af111c] hover:bg-[#efd0d2]"
-                    onClick={() => onOpen(post)}
+                    onClick={() =>
+                      router.push(`/user/restaurants/${item.restaurantId}`)
+                    }
                   >
                     詳細を見る
                   </Button>

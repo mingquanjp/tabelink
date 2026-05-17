@@ -116,6 +116,7 @@ export const homepageHotRestaurants = [
 export const homepageFeaturedRestaurants = [
   {
     id: 1,
+    restaurantId: 1,
     name: "サクラ・ガーデン・ハノイ",
     eyebrow: "New Open",
     description:
@@ -126,6 +127,7 @@ export const homepageFeaturedRestaurants = [
   },
   {
     id: 2,
+    restaurantId: 2,
     name: "四季彩ダイニング",
     eyebrow: "Chef's Pick",
     description:
@@ -136,6 +138,7 @@ export const homepageFeaturedRestaurants = [
   },
   {
     id: 3,
+    restaurantId: 3,
     name: "カフェ・ル・モンド",
     eyebrow: "Local Favorite",
     description:
@@ -146,6 +149,7 @@ export const homepageFeaturedRestaurants = [
   },
   {
     id: 4,
+    restaurantId: 4,
     name: "ベップ・ニャー・サイゴン",
     eyebrow: "Weekend Special",
     description:

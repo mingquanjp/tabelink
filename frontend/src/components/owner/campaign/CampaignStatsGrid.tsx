@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import type { OwnerPromotionsSummary } from "@/lib/api/campaigns/type";
 
 type CampaignStat = {
   title: string;
@@ -8,38 +9,104 @@ type CampaignStat = {
   active: boolean;
 };
 
-const campaignStats: CampaignStat[] = [
-  {
-    title: "有効なキャンペーン",
-    value: "12",
-    subtext: "+2 今月",
-    subtextClassName: "text-[var(--ink-600)]",
-    active: true,
-  },
-  {
-    title: "総リーチ数",
-    value: "45.2K",
-    subtext: "↑12%",
-    subtextClassName: "text-[var(--ink-600)]",
-    active: false,
-  },
-  {
-    title: "キャンペーン利用数",
-    value: "1,284",
-    subtext: "先月比 +156",
-    subtextClassName: "text-[var(--ink-600)]",
-    active: false,
-  },
-  {
-    title: "広告ROI",
-    value: "4.8x",
-    subtext: "良好",
-    subtextClassName: "text-[var(--ink-600)]",
-    active: false,
-  },
-];
+const defaultSummary: OwnerPromotionsSummary = {
+  activeCount: 0,
+  pendingCount: 0,
+  advertisementCount: 0,
+  campaignCount: 0,
+  totalImpressions: 0,
+  totalClicks: 0,
+};
 
-export function CampaignStatsGrid() {
+const compactNumber = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function formatCountChange(diff: number, withPrefix = false) {
+  const sign = diff > 0 ? "+" : "";
+  const value = `${sign}${compactNumber.format(diff)}`;
+
+  return withPrefix ? `前月比 ${value}` : value;
+}
+
+function formatRateChange(diff: number, withPrefix = false) {
+  const sign = diff > 0 ? "+" : "";
+  const value = `${sign}${diff.toFixed(1)}%`;
+
+  return withPrefix ? `前月比 ${value}` : value;
+}
+
+function changeClassName(diff: number) {
+  if (diff > 0) {
+    return "text-[#15803d]";
+  }
+
+  if (diff < 0) {
+    return "text-[#d32f2f]";
+  }
+
+  return "text-[var(--ink-600)]";
+}
+
+function buildCampaignStats(summary: OwnerPromotionsSummary): CampaignStat[] {
+  const ctr =
+    summary.totalImpressions > 0
+      ? `${((summary.totalClicks / summary.totalImpressions) * 100).toFixed(1)}%`
+      : "0%";
+  const monthChange = summary.monthOverMonth?.change ?? {
+    activeCount: 0,
+    totalImpressions: 0,
+    campaignClicks: 0,
+    ctr: 0,
+  };
+  const percentChange = summary.monthOverMonth?.percentChange ?? {
+    activeCount: 0,
+    totalImpressions: 0,
+    campaignClicks: 0,
+  };
+
+  return [
+    {
+      title: "有効なキャンペーン",
+      value: String(summary.activeCount),
+      subtext: formatCountChange(monthChange.activeCount),
+      subtextClassName: changeClassName(monthChange.activeCount),
+      active: true,
+    },
+    {
+      title: "総リーチ数",
+      value: compactNumber.format(summary.totalImpressions),
+      subtext: formatRateChange(percentChange.totalImpressions),
+      subtextClassName: changeClassName(percentChange.totalImpressions),
+      active: false,
+    },
+    {
+      title: "キャンペーン利用数",
+      value: compactNumber.format(summary.totalClicks),
+      subtext: formatCountChange(monthChange.campaignClicks, true),
+      subtextClassName: changeClassName(monthChange.campaignClicks),
+      active: false,
+    },
+    {
+      title: "広告CTR",
+      value: ctr,
+      subtext: formatRateChange(monthChange.ctr),
+      subtextClassName: changeClassName(monthChange.ctr),
+      active: false,
+    },
+  ];
+}
+
+type CampaignStatsGridProps = {
+  summary?: OwnerPromotionsSummary;
+};
+
+export function CampaignStatsGrid({
+  summary = defaultSummary,
+}: CampaignStatsGridProps) {
+  const campaignStats = buildCampaignStats(summary);
+
   return (
     <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
       {campaignStats.map((stat) => (
@@ -57,7 +124,9 @@ export function CampaignStatsGrid() {
               <span className="font-brand text-3xl font-extrabold leading-9 text-(--ink-900)">
                 {stat.value}
               </span>
-              <span className={`font-manrope text-sm font-bold leading-5 ${stat.subtextClassName}`}>
+              <span
+                className={`font-manrope text-sm font-bold leading-5 ${stat.subtextClassName}`}
+              >
                 {stat.subtext}
               </span>
             </div>

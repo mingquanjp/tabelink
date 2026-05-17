@@ -15,21 +15,43 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { showSuccessToast } from "@/lib/app-toast";
+import { createOwnerCampaign } from "@/lib/api/campaigns/API";
+import {
+  OWNER_TOAST_MESSAGES,
+  showErrorToast,
+  showSuccessToast,
+} from "@/lib/app-toast";
 
 type CampaignRequestDialogProps = {
   trigger: ReactNode;
+  onCreated?: () => void | Promise<void>;
 };
 
 const audienceOptions = [
   { value: "all", label: "すべてのお客様 (All)" },
   { value: "new", label: "新規のお客様 (New)" },
-  { value: "elite", label: "優待会員 (Elite)" },
-];
+] as const;
+
+const discountOptions = [
+  { value: "percentage-10", label: "合計金額から 10% OFF", discountType: "Percentage", discountValue: "10%" },
+  { value: "percentage-20", label: "合計金額から 20% OFF", discountType: "Percentage", discountValue: "20%" },
+  { value: "percentage-50", label: "合計金額から 50% OFF", discountType: "Percentage", discountValue: "50%" },
+  { value: "fixed-50000", label: "合計金額から 50,000VND 割引", discountType: "FixedAmount", discountValue: "50000VND" },
+  { value: "fixed-100000", label: "合計金額から 100,000VND 割引", discountType: "FixedAmount", discountValue: "100000VND" },
+] as const;
 
 const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+const toApiStartDate = (value: string) => `${value}T00:00:00.000Z`;
+const toApiEndDate = (value: string) => `${value}T23:59:59.000Z`;
 
 const parseInputDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
@@ -38,22 +60,29 @@ const parseInputDate = (value: string) => {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 };
 
-export function CampaignRequestDialog({ trigger }: CampaignRequestDialogProps) {
+export function CampaignRequestDialog({
+  trigger,
+  onCreated,
+}: CampaignRequestDialogProps) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [audience, setAudience] = useState("all");
-  const [discountType, setDiscountType] = useState("total-10");
+  const [audience, setAudience] = useState<(typeof audienceOptions)[number]["value"]>("all");
+  const [discountType, setDiscountType] = useState<string>(
+    discountOptions[0].value
+  );
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const canSubmit = name.trim().length > 0 && description.trim().length > 0 && startDate && endDate;
+  const canSubmit =
+    name.trim().length > 0 && description.trim().length > 0 && startDate && endDate;
 
   const resetForm = () => {
     setName("");
     setDescription("");
     setAudience("all");
-    setDiscountType("total-10");
+    setDiscountType(discountOptions[0].value);
     setStartDate("");
     setEndDate("");
   };
@@ -63,20 +92,37 @@ export function CampaignRequestDialog({ trigger }: CampaignRequestDialogProps) {
     setOpen(false);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit) return;
-    // Temporary client-side handling until API integration is available.
-    console.log("Campaign request created", {
-      name,
-      description,
-      audience,
-      discountType,
-      startDate,
-      endDate,
-    });
-    showSuccessToast();
-    setOpen(false);
+    if (!canSubmit || isSubmitting) return;
+
+    const selectedDiscount =
+      discountOptions.find((option) => option.value === discountType) ??
+      discountOptions[0];
+
+    try {
+      setIsSubmitting(true);
+      await createOwnerCampaign({
+        campaignName: name.trim(),
+        campaignDescription: description.trim(),
+        targetAudience: audience,
+        discountType: selectedDiscount.discountType,
+        discountValue: selectedDiscount.discountValue,
+        note: "Cannot be combined with other coupons.",
+        startDate: toApiStartDate(startDate),
+        endDate: toApiEndDate(endDate),
+      });
+      showSuccessToast();
+      resetForm();
+      setOpen(false);
+      await onCreated?.();
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -99,7 +145,9 @@ export function CampaignRequestDialog({ trigger }: CampaignRequestDialogProps) {
 
         <form className="space-y-8 p-8" onSubmit={handleSubmit}>
           <section className="space-y-3">
-            <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">キャンペーン名</Label>
+            <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
+              キャンペーン名
+            </Label>
             <Input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -109,7 +157,9 @@ export function CampaignRequestDialog({ trigger }: CampaignRequestDialogProps) {
           </section>
 
           <section className="space-y-3">
-            <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">説明</Label>
+            <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
+              説明
+            </Label>
             <Textarea
               value={description}
               onChange={(event) => setDescription(event.target.value)}
@@ -120,13 +170,18 @@ export function CampaignRequestDialog({ trigger }: CampaignRequestDialogProps) {
 
           <section className="grid grid-cols-1 gap-8 md:grid-cols-2">
             <div className="space-y-4">
-              <p className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">ターゲット層</p>
-              <RadioGroup value={audience} onValueChange={setAudience} className="space-y-2">
+              <p className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
+                ターゲット層
+              </p>
+              <RadioGroup
+                value={audience}
+                onValueChange={(value) => setAudience(value as typeof audience)}
+                className="space-y-2"
+              >
                 {audienceOptions.map((option) => (
                   <Label
                     key={option.value}
                     htmlFor={`audience-${option.value}`}
-                    onClick={() => setAudience(option.value)}
                     className="flex w-full cursor-pointer items-center gap-3 rounded px-3 py-3"
                   >
                     <RadioGroupItem
@@ -143,20 +198,36 @@ export function CampaignRequestDialog({ trigger }: CampaignRequestDialogProps) {
             </div>
 
             <div className="space-y-4">
-              <p className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">適用条件</p>
+              <p className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
+                適用条件
+              </p>
               <div className="rounded-lg bg-(--surface-mist) p-4">
                 <div className="mb-4 flex items-center gap-2">
                   <Tag className="h-3 w-3 text-[#5b403d]" />
-                  <p className="font-jp text-xs font-medium tracking-[-0.6px] text-[#5b403d]">割引タイプ</p>
+                  <p className="font-jp text-xs font-medium tracking-[-0.6px] text-[#5b403d]">
+                    割引タイプ
+                  </p>
                 </div>
                 <Select value={discountType} onValueChange={setDiscountType}>
-                  <SelectTrigger className="h-11 w-full rounded border-none bg-white px-3 font-jp text-sm text-(--ink-900)">
+                  <SelectTrigger className="h-11 w-full rounded-md border border-[#e2e3e0] bg-white px-3 font-jp text-sm font-medium text-(--ink-900) shadow-none hover:border-[color-mix(in_oklab,var(--primary),transparent_55%)] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklab,var(--primary),transparent_78%)]">
                     <SelectValue placeholder="割引タイプを選択" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="total-10">合計金額から 10% OFF</SelectItem>
-                    <SelectItem value="total-20">合計金額から 20% OFF</SelectItem>
-                    <SelectItem value="free-drink">ドリンク1杯無料</SelectItem>
+                  <SelectContent
+                    align="start"
+                    className="min-w-[var(--radix-select-trigger-width)] rounded-md border border-[#e2e3e0] bg-white p-1 shadow-lg"
+                    position="popper"
+                  >
+                    <SelectGroup>
+                      {discountOptions.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={option.value}
+                          className="rounded px-3 py-2 font-jp text-sm font-medium text-(--ink-900) focus:bg-(--surface-mist)"
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <p className="mt-3 font-jp text-[10px] font-medium leading-4 text-(--ink-600)">
@@ -167,84 +238,74 @@ export function CampaignRequestDialog({ trigger }: CampaignRequestDialogProps) {
           </section>
 
           <section className="space-y-4">
-            <p className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">開催期間</p>
+            <p className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
+              開催期間
+            </p>
             <div className="flex items-center gap-4">
-              <div className="relative flex-1">
-                <Input
-                  value={startDate}
-                  onChange={(event) => setStartDate(event.target.value)}
-                  placeholder="yyyy-mm-dd"
-                  className="h-auto rounded bg-[#eeeeeb] py-3 pl-4 pr-11 font-manrope text-base font-normal text-(--ink-900)"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="開始日を選択"
-                      className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-(--ink-600)"
-                    >
-                      <CalendarDays className="h-4 w-4" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={parseInputDate(startDate)}
-                      onSelect={(date) => setStartDate(date ? toInputDate(date) : "")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <DateInput value={startDate} onChange={setStartDate} label="開始日を選択" />
               <span className="text-(--ink-900)">〜</span>
-              <div className="relative flex-1">
-                <Input
-                  value={endDate}
-                  onChange={(event) => setEndDate(event.target.value)}
-                  placeholder="yyyy-mm-dd"
-                  className="h-auto rounded bg-[#eeeeeb] py-3 pl-4 pr-11 font-manrope text-base font-normal text-(--ink-900)"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <button
-                      type="button"
-                      aria-label="終了日を選択"
-                      className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-(--ink-600)"
-                    >
-                      <CalendarDays className="h-4 w-4" />
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent align="start" className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={parseInputDate(endDate)}
-                      onSelect={(date) => setEndDate(date ? toInputDate(date) : "")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <DateInput value={endDate} onChange={setEndDate} label="終了日を選択" />
             </div>
           </section>
-        
 
-        <footer className="flex items-center justify-end gap-4 pb-4 pt-6">
-          <Button
-            type="button"
-            onClick={handleCancel}
-            variant="outline"
-            className="h-auto rounded px-8 py-3 font-jp text-base font-medium text-(--ink-600)"
-          >
-            キャンセル
-          </Button>
-          <Button
-            type="submit"
-            disabled={!canSubmit}
-            className="h-auto rounded bg-primary px-12 py-3 font-jp text-base font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]"
-          >
-            作成
-          </Button>
-        </footer>
+          <footer className="flex items-center justify-end gap-4 pb-4 pt-6">
+            <Button
+              type="button"
+              onClick={handleCancel}
+              variant="outline"
+              className="h-auto rounded px-8 py-3 font-jp text-base font-medium text-(--ink-600)"
+            >
+              キャンセル
+            </Button>
+            <Button
+              type="submit"
+              disabled={!canSubmit || isSubmitting}
+              className="h-auto rounded bg-primary px-12 py-3 font-jp text-base font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]"
+            >
+              {isSubmitting ? "作成中..." : "作成"}
+            </Button>
+          </footer>
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function DateInput({
+  value,
+  onChange,
+  label,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+}) {
+  return (
+    <div className="relative flex-1">
+      <Input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="yyyy-mm-dd"
+        className="h-auto rounded bg-[#eeeeeb] py-3 pl-4 pr-11 font-manrope text-base font-normal text-(--ink-900)"
+      />
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={label}
+            className="absolute right-3 top-1/2 z-10 -translate-y-1/2 text-(--ink-600)"
+          >
+            <CalendarDays className="h-4 w-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto p-0">
+          <Calendar
+            mode="single"
+            selected={parseInputDate(value)}
+            onSelect={(date) => onChange(date ? toInputDate(date) : "")}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
 }

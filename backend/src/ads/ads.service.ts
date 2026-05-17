@@ -12,6 +12,7 @@ import {
   CAMPAIGN_FIXED_AMOUNT_DISCOUNT_VALUES,
   CAMPAIGN_PERCENTAGE_DISCOUNT_VALUES,
   CreatePromotionDto,
+  PromotionType,
   UpdatePromotionDto,
 } from './dto/create-promotion.dto';
 
@@ -213,6 +214,7 @@ export class AdsService {
           0,
         ),
         totalClicks: items.reduce((sum, item) => sum + item.clicks, 0),
+        monthOverMonth: this.buildOwnerPromotionMonthOverMonth(items),
       },
       items,
     };
@@ -235,13 +237,13 @@ export class AdsService {
     }
 
     const targetAudience =
-      dto.promotionType === 'Advertisement'
+      dto.promotionType === PromotionType.Advertisement
         ? 'all'
         : this.optionalTrim(dto.targetAudience);
     if (!targetAudience) {
       throw new BadRequestException('Target audience is required.');
     }
-    if (dto.promotionType === 'Campaign') {
+    if (dto.promotionType === PromotionType.Campaign) {
       this.assertCampaignTargetAudience(targetAudience);
     }
 
@@ -364,6 +366,71 @@ export class AdsService {
     const restaurantId = await this.resolveOwnerRestaurantId(user);
 
     return this.updatePromotion(restaurantId, promotionId, dto, user);
+  }
+
+  async endOwnerPromotion(promotionId: number, user: JwtPayload) {
+    const restaurantId = await this.resolveOwnerRestaurantId(user);
+
+    return this.endPromotion(restaurantId, promotionId, user);
+  }
+
+  async endPromotion(
+    restaurantId: number,
+    promotionId: number,
+    user: JwtPayload,
+  ) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+
+    const current = await this.findOwnedPromotion(
+      restaurantId,
+      promotionId,
+      user.sub,
+    );
+
+    if (current.status !== 'Active') {
+      throw new BadRequestException('Only active promotions can be ended.');
+    }
+
+    const rows = await this.dataSource.query<PromotionRow[]>(
+      `
+        UPDATE PROMOTION
+        SET Status = 'Ended'
+        WHERE PromotionID = $1
+          AND RestaurantID = $2
+          AND CreatedByOwnerAccountID = $3
+        RETURNING
+          PromotionID AS "promotionId",
+          RestaurantID AS "restaurantId",
+          CreatedByOwnerAccountID AS "createdByOwnerAccountId",
+          PromotionType AS "promotionType",
+          TargetAudience AS "targetAudience",
+          TitleVN AS "titleVn",
+          TitleJP AS "titleJp",
+          ContentVN AS "contentVn",
+          ContentJP AS "contentJp",
+          MediaURL AS "mediaUrl",
+          TermsVN AS "termsVn",
+          TermsJP AS "termsJp",
+          DiscountType AS "discountType",
+          DiscountValue AS "discountValue",
+          AdvertisementType AS "advertisementType",
+          TargetRadiusKm AS "targetRadiusKm",
+          StartDate AS "startDate",
+          EndDate AS "endDate",
+          Status AS "status",
+          Impressions AS "impressions",
+          Clicks AS "clicks",
+          TotalCost AS "totalCost"
+      `,
+      [promotionId, restaurantId, user.sub],
+    );
+
+    const row = this.unwrapFirstRow(rows);
+    if (!row) {
+      throw new NotFoundException('Promotion not found for this owner.');
+    }
+
+    return this.toPromotionResponse(row);
   }
 
   async updatePromotion(
@@ -778,7 +845,7 @@ export class AdsService {
   }
 
   private resolvePromotionSpecificFields(dto: CreatePromotionDto) {
-    if (dto.promotionType === 'Campaign') {
+    if (dto.promotionType === PromotionType.Campaign) {
       const discountType = this.optionalTrim(dto.discountType);
       const discountValue = this.optionalTrim(dto.discountValue);
 
@@ -824,6 +891,120 @@ export class AdsService {
     return value instanceof Date
       ? value.toISOString()
       : new Date(value).toISOString();
+  }
+
+  private isPromotionInMonth(
+    item: { startDate: Date | string },
+    monthOffset: number,
+  ) {
+    const startDate =
+      item.startDate instanceof Date
+        ? item.startDate
+        : new Date(item.startDate);
+    if (Number.isNaN(startDate.getTime())) {
+      return false;
+    }
+
+    const targetDate = new Date();
+    targetDate.setMonth(targetDate.getMonth() + monthOffset);
+
+    return (
+      startDate.getFullYear() === targetDate.getFullYear() &&
+      startDate.getMonth() === targetDate.getMonth()
+    );
+  }
+
+  private buildOwnerPromotionMonthOverMonth(
+    items: Array<{
+      status: string;
+      promotionType: string;
+      startDate: Date | string;
+      impressions: number;
+      clicks: number;
+    }>,
+  ) {
+    const activeCount = (monthOffset: number) =>
+      items.filter(
+        (item) =>
+          item.status === 'Active' &&
+          this.isPromotionInMonth(item, monthOffset),
+      ).length;
+
+    const totalImpressions = (monthOffset: number) =>
+      items
+        .filter((item) => this.isPromotionInMonth(item, monthOffset))
+        .reduce((sum, item) => sum + item.impressions, 0);
+
+    const campaignClicks = (monthOffset: number) =>
+      items
+        .filter(
+          (item) =>
+            item.promotionType === 'Campaign' &&
+            this.isPromotionInMonth(item, monthOffset),
+        )
+        .reduce((sum, item) => sum + item.clicks, 0);
+
+    const ctr = (monthOffset: number) => {
+      const impressions = totalImpressions(monthOffset);
+      const clicks = items
+        .filter((item) => this.isPromotionInMonth(item, monthOffset))
+        .reduce((sum, item) => sum + item.clicks, 0);
+
+      return impressions > 0
+        ? Number(((clicks / impressions) * 100).toFixed(1))
+        : 0;
+    };
+
+    const currentMonth = {
+      activeCount: activeCount(0),
+      totalImpressions: totalImpressions(0),
+      campaignClicks: campaignClicks(0),
+      ctr: ctr(0),
+    };
+    const previousMonth = {
+      activeCount: activeCount(-1),
+      totalImpressions: totalImpressions(-1),
+      campaignClicks: campaignClicks(-1),
+      ctr: ctr(-1),
+    };
+    const percentChange = (
+      currentValue: number,
+      previousValue: number,
+    ): number =>
+      previousValue > 0
+        ? Number(
+            (((currentValue - previousValue) / previousValue) * 100).toFixed(1),
+          )
+        : currentValue > 0
+          ? 100
+          : 0;
+
+    return {
+      currentMonth,
+      previousMonth,
+      change: {
+        activeCount: currentMonth.activeCount - previousMonth.activeCount,
+        totalImpressions:
+          currentMonth.totalImpressions - previousMonth.totalImpressions,
+        campaignClicks:
+          currentMonth.campaignClicks - previousMonth.campaignClicks,
+        ctr: Number((currentMonth.ctr - previousMonth.ctr).toFixed(1)),
+      },
+      percentChange: {
+        activeCount: percentChange(
+          currentMonth.activeCount,
+          previousMonth.activeCount,
+        ),
+        totalImpressions: percentChange(
+          currentMonth.totalImpressions,
+          previousMonth.totalImpressions,
+        ),
+        campaignClicks: percentChange(
+          currentMonth.campaignClicks,
+          previousMonth.campaignClicks,
+        ),
+      },
+    };
   }
 
   private toPromotionResponse(row: PromotionRow) {

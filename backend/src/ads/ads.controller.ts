@@ -9,12 +9,16 @@ import {
   Patch,
   Post,
   Req,
+  UploadedFile,
+  UseInterceptors,
   UseGuards,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -33,6 +37,8 @@ import {
   PromotionType,
   UpdatePromotionDto,
 } from './dto/create-promotion.dto';
+import { AdsMediaService } from './ads-media.service';
+import { UploadedAdMediaFile } from './ads-media-upload.types';
 import { AdsService } from './ads.service';
 
 interface AuthenticatedRequest extends Request {
@@ -42,7 +48,10 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('ads')
 @Controller()
 export class AdsController {
-  constructor(private readonly adsService: AdsService) {}
+  constructor(
+    private readonly adsService: AdsService,
+    private readonly adsMediaService: AdsMediaService,
+  ) {}
 
   @Get('campaigns')
   @ApiOperation({
@@ -157,6 +166,63 @@ export class AdsController {
     );
   }
 
+  @Post('owner/ads/uploads')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 5 * 1024 * 1024,
+      },
+    }),
+  )
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Upload advertisement creative image',
+    description:
+      'Uploads one advertisement creative image for screen ID10 ad request popup. Use mediaUrl in POST /owner/ads/requests.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'JPG, PNG, or WEBP image. Max 5MB.',
+        },
+      },
+    },
+  })
+  @ApiCreatedResponse({
+    description: 'Advertisement image uploaded.',
+    schema: {
+      example: {
+        mediaUrl:
+          'https://res.cloudinary.com/demo/image/upload/v123/tabelink/restaurants/1/ads/banner.jpg',
+        publicId: 'tabelink/restaurants/1/ads/banner',
+        width: 1200,
+        height: 700,
+        bytes: 245678,
+        format: 'jpg',
+        originalName: 'banner.jpg',
+      },
+    },
+  })
+  @ApiBadRequestResponse({ description: 'Invalid or missing image file.' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({
+    description: 'Only restaurant owners can upload advertisement images.',
+  })
+  @ApiNotFoundResponse({ description: 'Restaurant not found for this owner.' })
+  uploadOwnerAdImage(
+    @UploadedFile() file: UploadedAdMediaFile | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.adsMediaService.upload(file, request.user);
+  }
+
   @Get('owner/promotions/:promotionId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
@@ -200,6 +266,30 @@ export class AdsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.adsService.updateOwnerPromotion(promotionId, dto, request.user);
+  }
+
+  @Patch('owner/promotions/:promotionId/end')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'End an active campaign or advertisement',
+    description:
+      'Owner-context stop action for screen ID10. Active promotions are changed to Ended.',
+  })
+  @ApiOkResponse({ description: 'Promotion ended.' })
+  @ApiBadRequestResponse({
+    description: 'Only active promotions can be ended.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({
+    description: 'Only restaurant owners can end promotions.',
+  })
+  @ApiNotFoundResponse({ description: 'Promotion not found for this owner.' })
+  endOwnerPromotion(
+    @Param('promotionId', ParseIntPipe) promotionId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.adsService.endOwnerPromotion(promotionId, request.user);
   }
 
   @Post('ads/:adId/impressions')

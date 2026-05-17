@@ -24,6 +24,8 @@ import {
 import { HomepageAvatar } from "./HomepageAvatar";
 import { RatingDots } from "./RatingDots";
 
+const COMMENT_PREVIEW_LIMIT = 3;
+
 type PostDetailsDialogProps = {
   canFollowAuthor: boolean;
   comments: HomepageComment[];
@@ -67,6 +69,19 @@ export function PostDetailsDialog({
   onToggleVote,
 }: PostDetailsDialogProps) {
   const [commentText, setCommentText] = useState("");
+  const [expandedCommentsPostId, setExpandedCommentsPostId] = useState<
+    number | null
+  >(null);
+
+  const showAllComments = post?.id === expandedCommentsPostId;
+
+  const visibleComments = showAllComments
+    ? comments
+    : comments.slice(0, COMMENT_PREVIEW_LIMIT);
+  const hiddenCommentCount = Math.max(
+    0,
+    comments.length - visibleComments.length,
+  );
 
   async function handleSubmitComment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,6 +109,7 @@ export function PostDetailsDialog({
       onOpenChange={(open) => {
         if (!open) {
           setCommentText("");
+          setExpandedCommentsPostId(null);
         }
 
         onOpenChange(open);
@@ -110,7 +126,7 @@ export function PostDetailsDialog({
               className="bg-[#080808] bg-cover bg-center"
               style={{ backgroundImage: `url(${post.image})` }}
             />
-            <aside className="flex min-h-0 flex-col bg-white">
+            <aside className="relative flex min-h-0 flex-col bg-white">
               <div className="flex items-center justify-between gap-3 border-b border-[#f0eee8] px-5 py-4">
                 <div className="flex min-w-0 items-center gap-3">
                   <HomepageAvatar initials={post.initials} size="sm" />
@@ -154,7 +170,7 @@ export function PostDetailsDialog({
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 py-5">
+              <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
                 <div className="flex flex-wrap gap-2">
                   {post.tags.map((tag) => (
                     <Badge
@@ -188,24 +204,41 @@ export function PostDetailsDialog({
                   ))}
                 </div>
 
-                <div className="mt-5 space-y-3">
-                  {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-2">
+                <div
+                  className={`mt-5 space-y-3 ${
+                    showAllComments
+                      ? "max-h-[240px] overflow-y-auto overscroll-contain pr-1"
+                      : "overflow-hidden"
+                  }`}
+                >
+                  {visibleComments.map((comment) => (
+                    <div key={comment.id} className="flex min-w-0 gap-2">
                       <HomepageAvatar initials={comment.initials} size="sm" />
-                      <div className="rounded-lg bg-[#f4f4f1] px-3 py-2">
+                      <div className="min-w-0 rounded-lg bg-[#f4f4f1] px-3 py-2">
                         <p className="font-jp text-[11px] font-bold leading-4 text-[#1a1c1b]">
                           {comment.name}
                         </p>
-                        <p className="mt-1 font-jp text-[11px] font-medium leading-5 text-[#5a6053]">
+                        <p className="mt-1 break-words font-jp text-[11px] font-medium leading-5 text-[#5a6053]">
                           {comment.text}
                         </p>
                       </div>
                     </div>
                   ))}
+                  {hiddenCommentCount > 0 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 px-0 font-jp text-[11px] font-semibold text-[#af111c] hover:bg-transparent hover:text-[#8f0e17]"
+                      onClick={() => setExpandedCommentsPostId(post.id)}
+                    >
+                      さらに{hiddenCommentCount}件のコメントを表示
+                    </Button>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="border-t border-[#f0eee8] px-5 py-4">
+              <div className="sticky bottom-0 z-10 shrink-0 border-t border-[#f0eee8] bg-white px-5 py-4">
                 <div className="mb-3 flex items-center justify-between text-[#5a6053]">
                   <div className="flex items-center gap-4">
                     <button
@@ -236,19 +269,6 @@ export function PostDetailsDialog({
                       {isShared ? "共有済み" : "共有"}
                     </button>
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Save post"
-                    aria-pressed={isSaved}
-                    className={`transition-colors ${
-                      isSaved ? "text-[#af111c]" : "text-[#5a6053]"
-                    }`}
-                    onClick={() => onToggleSave(post.id)}
-                  >
-                    <Bookmark
-                      className={`size-4 ${isSaved ? "fill-[#af111c]" : ""}`}
-                    />
-                  </button>
                 </div>
                 <form
                   className="flex items-center gap-2"

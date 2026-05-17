@@ -508,14 +508,6 @@ export function UserHomePageView() {
     }
   }
 
-  function createPost(post: HomepagePost) {
-    setPosts((current) => [post, ...current]);
-    setCommentsByPostId((current) => ({
-      ...current,
-      [post.id]: [],
-    }));
-  }
-
   function updateFollowingCount(delta: number) {
     setHomeUser((current) => {
       if (current.followingCount === undefined) {
@@ -721,7 +713,7 @@ export function UserHomePageView() {
         <HomeLeftSidebar hotRestaurants={hotRestaurants} user={homeUser} />
 
         <section className="min-w-0 space-y-5">
-          <ComposerCard user={homeUser} onCreatePost={createPost} />
+          <ComposerCard user={homeUser} />
           <FeaturedPostCard
             activeIndex={featuredIndex}
             items={featuredRestaurants}

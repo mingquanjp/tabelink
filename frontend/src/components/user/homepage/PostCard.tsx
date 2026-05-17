@@ -56,9 +56,6 @@ export function PostCard({
             </p>
           </div>
         </div>
-        <Button variant="ghost" size="icon-sm" aria-label="More options">
-          <MoreHorizontal className="size-4" />
-        </Button>
       </CardHeader>
 
       <button
@@ -135,17 +132,6 @@ export function PostCard({
               {isShared ? "共有済み" : ""}
             </button>
           </div>
-          <button
-            type="button"
-            aria-label="Save post"
-            aria-pressed={isSaved}
-            className={`transition-colors ${
-              isSaved ? "text-[#af111c]" : "text-[#5a6053]"
-            }`}
-            onClick={() => onToggleSave(post.id)}
-          >
-            <Bookmark className={`size-4 ${isSaved ? "fill-[#af111c]" : ""}`} />
-          </button>
         </div>
       </CardContent>
     </Card>

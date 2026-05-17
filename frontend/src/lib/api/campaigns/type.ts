@@ -127,3 +127,30 @@ export type CreateOwnerAdRequest = {
   startDate: string;
   endDate: string;
 };
+
+export type UpdateOwnerPromotionRequest = {
+  titleVn?: string;
+  titleJp?: string;
+  contentVn?: string;
+  contentJp?: string;
+  targetAudience?: "all" | "new" | string;
+  discountType?: "Percentage" | "FixedAmount" | string;
+  discountValue?: string;
+  termsVn?: string;
+  termsJp?: string;
+  advertisementType?: "SNS" | "Notification" | string;
+  totalCost?: number;
+  mediaUrl?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
+export type UploadOwnerAdImageResponse = {
+  mediaUrl: string;
+  publicId: string;
+  width: number;
+  height: number;
+  bytes: number;
+  format: string;
+  originalName: string;
+};

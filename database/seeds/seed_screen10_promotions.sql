@@ -59,9 +59,7 @@ ON CONFLICT (PromotionID) DO UPDATE SET
     TotalCost = EXCLUDED.TotalCost;
 
 SELECT setval(
-    pg_get_serial_sequence('PROMOTION', 'promotionid'),
-    GREATEST(
-        COALESCE((SELECT MAX(PromotionID) FROM PROMOTION), 1),
-        COALESCE((SELECT last_value FROM PROMOTION_promotionid_seq), 1)
-    )
+    pg_get_serial_sequence('promotion', 'promotionid'),
+    GREATEST(COALESCE((SELECT MAX(PromotionID) FROM PROMOTION), 0), 1),
+    COALESCE((SELECT MAX(PromotionID) FROM PROMOTION), 0) > 0
 );

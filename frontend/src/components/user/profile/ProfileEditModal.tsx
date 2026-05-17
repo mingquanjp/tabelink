@@ -1,20 +1,20 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { Camera, ChevronDown, X } from "lucide-react";
 import {
   Dialog,
   DialogClose,
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { changeUserPassword, updateUserProfile } from "@/lib/api/user-profile/API";
+import { UserProfileResponse } from "@/lib/api/user-profile/type";
+import { Camera, ChevronDown, X } from "lucide-react";
 
 type ProfileEditModalProps = {
   open: boolean;
-  avatarUrl: string;
-  name: string;
-  description: string;
   onOpenChange: (open: boolean) => void;
+  profile: UserProfileResponse;
 };
 
 function FieldLabel({ children }: { children: string }) {
@@ -27,10 +27,12 @@ function FieldLabel({ children }: { children: string }) {
 
 function TextField({
   label,
+  name,
   defaultValue,
   type = "text",
 }: {
   label: string;
+  name: string;
   defaultValue: string;
   type?: string;
 }) {
@@ -38,6 +40,7 @@ function TextField({
     <div className="flex flex-col gap-2">
       <FieldLabel>{label}</FieldLabel>
       <input
+        name={name}
         type={type}
         defaultValue={defaultValue}
         className="h-12 rounded-md bg-[#e2e3e0] px-4 font-jp text-base font-medium leading-6 text-[#1a1c1b] outline-none transition-colors focus:bg-[#d9dbd8]"
@@ -77,11 +80,38 @@ function SelectField({
 
 export function ProfileEditModal({
   open,
-  avatarUrl,
-  name,
-  description,
   onOpenChange,
+  profile
 }: ProfileEditModalProps) {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const formData = new FormData(e.target as HTMLFormElement);
+
+    try {
+      // 1. Cập nhật thông tin profile
+      await updateUserProfile({
+        fullName: formData.get("fullName") as string,
+        nationality: formData.get("nationality") as string,
+        gender: formData.get("gender") as string,
+        purpose: formData.get("purpose") as string,
+      });
+
+      const newPass = formData.get("newPassword") as string;
+      if (newPass && newPass !== "••••••••") {
+        await changeUserPassword({
+          currentPassword: formData.get("currentPassword") as string,
+          newPassword: newPass,
+          confirmPassword: formData.get("confirmPassword") as string,
+        });
+      }
+      alert("プロフィールを更新しました。");
+      onOpenChange(false);
+      window.location.reload();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "プロフィールの更新に失敗しました。");
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[calc(100vh-48px)] w-[560px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-lg border-0 bg-[#f9f9f6] p-0 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)]">
@@ -107,12 +137,7 @@ export function ProfileEditModal({
                 type="button"
                 className="group relative size-20 shrink-0 overflow-hidden rounded-xl shadow-[0_4px_6px_-1px_rgba(0,0,0,0.1),0_2px_4px_-2px_rgba(0,0,0,0.1)]"
               >
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="size-full object-cover"
-                  draggable={false}
-                />
+                <img src={profile.avatarUrl ?? "/default-avatar.png"} className="size-20 rounded-xl object-cover" draggable={false} />
                 <span className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
                   <Camera className="size-4 text-white" />
                 </span>
@@ -132,13 +157,14 @@ export function ProfileEditModal({
             </div>
 
             <div className="flex flex-col gap-5">
-              <TextField label="名前" defaultValue={name} />
+              <TextField label="名前" name="fullName" defaultValue={profile.fullName} />
 
               <div className="flex flex-col gap-2">
                 <FieldLabel>自己紹介</FieldLabel>
                 <textarea
-                  defaultValue={description}
-                  className="min-h-[96px] resize-none rounded-md bg-[#e2e3e0] px-4 py-3 font-jp text-base font-medium leading-6 text-[#1a1c1b] outline-none transition-colors focus:bg-[#d9dbd8]"
+                  name="purpose" // QUAN TRỌNG
+                  defaultValue={profile.purpose ?? ""}
+                  className="min-h-[96px] rounded-md bg-[#e2e3e0] px-4 py-3 outline-none"
                 />
               </div>
 
@@ -161,19 +187,17 @@ export function ProfileEditModal({
                 </p>
               </div>
 
-              <TextField
-                label="現在のパスワード"
-                defaultValue="••••••••"
-                type="password"
-              />
+              <TextField label="現在のパスワード" name="currentPassword" type="password" defaultValue="" />
               <TextField
                 label="新しいパスワード"
-                defaultValue="••••••••"
+                name="newPassword"
+                defaultValue=""
                 type="password"
               />
               <TextField
                 label="新しいパスワードを再入力"
-                defaultValue="••••••••"
+                name="confirmPassword"
+                defaultValue=""
                 type="password"
               />
             </div>
@@ -188,7 +212,7 @@ export function ProfileEditModal({
                 </button>
               </DialogClose>
               <button
-                type="button"
+                type="submit"
                 className="h-12 rounded-md bg-[linear-gradient(168deg,#af111c_0%,#d32f31_100%)] font-jp text-sm font-medium leading-5 text-white shadow-[0_10px_15px_-3px_rgba(175,17,28,0.2),0_4px_6px_-4px_rgba(175,17,28,0.2)]"
                 onClick={() => onOpenChange(false)}
               >

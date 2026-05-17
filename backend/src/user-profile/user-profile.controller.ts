@@ -24,6 +24,15 @@ interface AuthenticatedRequest extends Request {
 @Controller('user-profile')
 export class UserProfileController {
   constructor(private readonly userProfileService: UserProfileService) {}
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  async getMyProfile(@Req() req: AuthenticatedRequest) {
+    const userId = req.user.sub; // ID lấy từ token
+    const profile = await this.userProfileService.getProfile(userId, userId);
+    const blogs = await this.userProfileService.getUserBlogs(userId);
+    return { ...profile, blogs };
+  }
 
   @Get(':accountId')
   @UseGuards(JwtAuthGuard)

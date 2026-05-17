@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import { createOwnerAdRequest } from "@/lib/api/campaigns/API";
 import {
@@ -73,7 +72,6 @@ function AdTypeCard({
 export function AdRequestDialog({ trigger, onCreated }: AdRequestDialogProps) {
   const [open, setOpen] = useState(false);
   const [adType, setAdType] = useState<"banner" | "push">("banner");
-  const [targetKm, setTargetKm] = useState(5);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [budget, setBudget] = useState("50000");
@@ -86,7 +84,6 @@ export function AdRequestDialog({ trigger, onCreated }: AdRequestDialogProps) {
 
   const resetForm = () => {
     setAdType("banner");
-    setTargetKm(5);
     setStartDate("");
     setEndDate("");
     setBudget("50000");
@@ -127,7 +124,6 @@ export function AdRequestDialog({ trigger, onCreated }: AdRequestDialogProps) {
             : "Push通知リクエスト",
         contentJp: message.trim(),
         advertisementType: adType === "banner" ? "SNS" : "Notification",
-        targetRadiusKm: targetKm,
         totalCost: parsedBudget,
         startDate: toApiStartDate(startDate),
         endDate: toApiEndDate(endDate),
@@ -189,30 +185,7 @@ export function AdRequestDialog({ trigger, onCreated }: AdRequestDialogProps) {
             </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="font-jp text-xs font-medium tracking-[0.6px] text-(--ink-600)">
-                配信ターゲット範囲 (KM)
-              </p>
-              <div className="flex items-center gap-4 pt-1">
-                <Slider
-                  value={[targetKm]}
-                  min={1}
-                  max={20}
-                  step={1}
-                  onValueChange={(value) => setTargetKm(value[0] ?? 5)}
-                  className="flex-1"
-                />
-                <span className="font-brand text-[28px] font-bold leading-7 text-(--ink-900)">
-                  {targetKm}km
-                </span>
-              </div>
-              <div className="flex justify-between font-jp text-[10px] font-medium leading-[15px] text-(--ink-600)">
-                <span>店舗周辺</span>
-                <span>広域エリア</span>
-              </div>
-            </div>
-
+          <section className="grid grid-cols-1 gap-8">
             <div className="space-y-3">
               <p className="font-jp text-xs font-medium tracking-[0.6px] text-(--ink-600)">予算と期間</p>
               <div className="flex items-center gap-2 rounded-lg bg-[color-mix(in_oklab,var(--ink-600),transparent_94%)] p-2">

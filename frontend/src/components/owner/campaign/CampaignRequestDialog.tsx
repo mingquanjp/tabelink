@@ -15,7 +15,14 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { createOwnerCampaign } from "@/lib/api/campaigns/API";
 import {
@@ -202,15 +209,25 @@ export function CampaignRequestDialog({
                   </p>
                 </div>
                 <Select value={discountType} onValueChange={setDiscountType}>
-                  <SelectTrigger className="h-11 w-full rounded border-none bg-white px-3 font-jp text-sm text-(--ink-900)">
+                  <SelectTrigger className="h-11 w-full rounded-md border border-[#e2e3e0] bg-white px-3 font-jp text-sm font-medium text-(--ink-900) shadow-none hover:border-[color-mix(in_oklab,var(--primary),transparent_55%)] focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklab,var(--primary),transparent_78%)]">
                     <SelectValue placeholder="割引タイプを選択" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {discountOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
+                  <SelectContent
+                    align="start"
+                    className="min-w-[var(--radix-select-trigger-width)] rounded-md border border-[#e2e3e0] bg-white p-1 shadow-lg"
+                    position="popper"
+                  >
+                    <SelectGroup>
+                      {discountOptions.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={option.value}
+                          className="rounded px-3 py-2 font-jp text-sm font-medium text-(--ink-900) focus:bg-(--surface-mist)"
+                        >
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
                 <p className="mt-3 font-jp text-[10px] font-medium leading-4 text-(--ink-600)">

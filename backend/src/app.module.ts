@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { AdsModule } from './ads/ads.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BlogsModule } from './blogs/blogs.module';
 import { FeedModule } from './feed/feed.module';
@@ -13,6 +13,7 @@ import { MenusModule } from './menus/menus.module';
 import { RestaurantsModule } from './restaurants/restaurants.module';
 import { TablesModule } from './tables/tables.module';
 import { UserHomeModule } from './user-home/user-home.module';
+import { UserProfileModule } from './user-profile/user-profile.module';
 import { VerificationModule } from './verification/verification.module';
 
 @Module({
@@ -44,6 +45,7 @@ import { VerificationModule } from './verification/verification.module';
     UserHomeModule,
     VerificationModule,
     AnalyticsModule,
+    UserProfileModule,
   ],
   controllers: [AppController],
   providers: [AppService],

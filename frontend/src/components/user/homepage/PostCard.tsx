@@ -42,6 +42,8 @@ export function PostCard({
   onToggleSave,
   onToggleVote,
 }: PostCardProps) {
+  const isVideo = post.mediaType === "Video";
+
   return (
     <Card className="gap-0 rounded-lg border-[#e7e5df] bg-white py-0 shadow-none">
       <CardHeader className="flex-row items-center justify-between gap-3 px-4 py-4">
@@ -58,13 +60,25 @@ export function PostCard({
         </div>
       </CardHeader>
 
-      <button
-        type="button"
-        className="block h-[328px] w-full bg-[#1a1c1b] bg-cover bg-center text-left max-sm:h-[240px]"
-        style={{ backgroundImage: `url(${post.image})` }}
-        aria-label={`${post.title} の詳細を見る`}
-        onClick={() => onOpen(post)}
-      />
+      {isVideo ? (
+        <div className="h-[328px] w-full bg-[#1a1c1b] max-sm:h-[240px]">
+          <video
+            className="h-full w-full object-contain"
+            controls
+            playsInline
+            preload="metadata"
+            src={post.image}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          className="block h-[328px] w-full bg-[#1a1c1b] bg-cover bg-center text-left max-sm:h-[240px]"
+          style={{ backgroundImage: `url(${post.image})` }}
+          aria-label={`${post.title} の詳細を見る`}
+          onClick={() => onOpen(post)}
+        />
+      )}
 
       <CardContent className="flex flex-col gap-4 px-4 py-4">
         <div className="flex flex-wrap gap-2">

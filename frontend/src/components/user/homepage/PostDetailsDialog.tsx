@@ -70,6 +70,7 @@ export function PostDetailsDialog({
   onToggleSave,
   onToggleVote,
 }: PostDetailsDialogProps) {
+  const isVideo = post?.mediaType === "Video";
   const [commentText, setCommentText] = useState("");
   const [expandedCommentsPostId, setExpandedCommentsPostId] = useState<
     number | null
@@ -124,10 +125,22 @@ export function PostDetailsDialog({
         </DialogDescription>
         {post ? (
           <div className="grid h-full grid-cols-[minmax(0,1.5fr)_420px]">
-            <div
-              className="bg-[#080808] bg-cover bg-center"
-              style={{ backgroundImage: `url(${post.image})` }}
-            />
+            <div className="bg-[#080808]">
+              {isVideo ? (
+                <video
+                  className="h-full w-full object-contain"
+                  controls
+                  playsInline
+                  preload="metadata"
+                  src={post.image}
+                />
+              ) : (
+                <div
+                  className="h-full bg-cover bg-center"
+                  style={{ backgroundImage: `url(${post.image})` }}
+                />
+              )}
+            </div>
             <aside className="relative flex min-h-0 flex-col bg-white">
               <div className="flex items-center justify-between gap-3 border-b border-[#f0eee8] px-5 py-4">
                 <div className="flex min-w-0 items-center gap-3">

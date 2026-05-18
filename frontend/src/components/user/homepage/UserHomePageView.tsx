@@ -158,7 +158,9 @@ function mapAdvertisedRestaurant(
 }
 
 function mapFeedPost(post: UserFeedPost): HomepagePost {
-  const image = resolveApiUrl(post.media[0]?.mediaUrl) ?? fallbackRestaurantImage;
+  const primaryMedia =
+    post.media.find((media) => media.mediaType === "Video") ?? post.media[0];
+  const image = resolveApiUrl(primaryMedia?.mediaUrl) ?? fallbackRestaurantImage;
   const title = post.title ?? post.content.slice(0, 80);
 
   return {
@@ -173,6 +175,7 @@ function mapFeedPost(post: UserFeedPost): HomepagePost {
     title,
     body: post.content,
     image,
+    mediaType: primaryMedia?.mediaType,
     tags: post.hashtags.map((tag) =>
       tag.name.startsWith("#") ? tag.name : `#${tag.name}`,
     ),

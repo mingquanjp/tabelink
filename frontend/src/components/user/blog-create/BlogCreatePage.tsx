@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/client";
@@ -51,6 +52,7 @@ function uniqueTagLabels(values: string[]) {
 }
 
 export function BlogCreatePage() {
+  const router = useRouter();
   const [ratings, setRatings] =
     useState<Record<RatingKey, number>>(defaultRatings);
   const [restaurantQuery, setRestaurantQuery] = useState("");
@@ -194,6 +196,8 @@ export function BlogCreatePage() {
       });
 
       toast.success("フードレポートを公開しました。");
+      router.push("/user/home");
+      router.refresh();
     } catch (error) {
       toast.error(
         error instanceof ApiError

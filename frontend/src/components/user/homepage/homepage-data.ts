@@ -196,8 +196,10 @@ export const homepageComments = [
   },
 ];
 
+export type HomepageMediaType = "Photo" | "Video";
 export type HomepagePost = (typeof homepagePosts)[number] & {
   authorAccountId?: number;
+  mediaType?: HomepageMediaType;
 };
 export type HomepageComment = (typeof homepageComments)[number] & {
   authorAccountId?: number;

@@ -214,6 +214,7 @@ export type HomepageFeaturedRestaurant =
   (typeof homepageFeaturedRestaurants)[number];
 export type HomepageReviewer = (typeof homepageReviewers)[number] & {
   accountId?: number;
+  avatarUrl?: string | null;
   followerCount?: number;
   isFollowing?: boolean;
   nationality?: string | null;

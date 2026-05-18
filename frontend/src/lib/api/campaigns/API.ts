@@ -53,6 +53,13 @@ export function endOwnerPromotion(promotionId: number) {
   });
 }
 
+export function resumeOwnerPromotion(promotionId: number) {
+  return apiRequest<OwnerPromotion>(`/owner/promotions/${promotionId}/resume`, {
+    method: "PATCH",
+    auth: true,
+  });
+}
+
 export function updateOwnerPromotion(
   promotionId: number,
   body: UpdateOwnerPromotionRequest

@@ -12,7 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { AdRequestDialog } from "@/components/owner/campaign/AdRequestDialog";
 import { CampaignRequestDialog } from "@/components/owner/campaign/CampaignRequestDialog";
-import { endOwnerPromotion } from "@/lib/api/campaigns/API";
+import {
+  endOwnerPromotion,
+  resumeOwnerPromotion,
+} from "@/lib/api/campaigns/API";
 import type { OwnerPromotion } from "@/lib/api/campaigns/type";
 import {
   OWNER_TOAST_MESSAGES,
@@ -185,6 +188,9 @@ export function CampaignsSection({
   onRetry,
 }: CampaignsSectionProps) {
   const [endingPromotionId, setEndingPromotionId] = useState<number | null>(null);
+  const [resumingPromotionId, setResumingPromotionId] = useState<number | null>(
+    null
+  );
   const [promotionToEnd, setPromotionToEnd] = useState<OwnerPromotion | null>(
     null
   );
@@ -205,8 +211,19 @@ export function CampaignsSection({
     }
   };
 
-  const handleResumePromotion = () => {
-    showErrorToast("再開機能は準備中です");
+  const handleResumePromotion = async (promotion: OwnerPromotion) => {
+    try {
+      setResumingPromotionId(promotion.promotionId);
+      await resumeOwnerPromotion(promotion.promotionId);
+      showSuccessToast("キャンペーンを再開しました");
+      await onRetry?.();
+    } catch (error) {
+      showErrorToast(
+        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
+      );
+    } finally {
+      setResumingPromotionId(null);
+    }
   };
 
   const renderActionButtons = (promotion: OwnerPromotion) => {
@@ -258,10 +275,11 @@ export function CampaignsSection({
         <Button
           type="button"
           variant="outline"
-          onClick={handleResumePromotion}
+          disabled={resumingPromotionId === promotion.promotionId}
+          onClick={() => void handleResumePromotion(promotion)}
           className="h-auto w-32 rounded-sm border-[color-mix(in_oklab,var(--primary),transparent_85%)] px-0 py-2 font-jp text-xs font-medium leading-4 text-(--ink-600) hover:bg-white/70"
         >
-          再開する
+          {resumingPromotionId === promotion.promotionId ? "再開中..." : "再開する"}
         </Button>
       );
     }

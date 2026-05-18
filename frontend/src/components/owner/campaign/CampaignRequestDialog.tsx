@@ -51,8 +51,10 @@ const discountOptions = [
   { value: "percentage-10", label: "合計金額から 10% OFF", discountType: "Percentage", discountValue: "10%" },
   { value: "percentage-20", label: "合計金額から 20% OFF", discountType: "Percentage", discountValue: "20%" },
   { value: "percentage-50", label: "合計金額から 50% OFF", discountType: "Percentage", discountValue: "50%" },
+  { value: "percentage-100", label: "合計金額から 100% OFF", discountType: "Percentage", discountValue: "100%" },
   { value: "fixed-50000", label: "合計金額から 50,000VND 割引", discountType: "FixedAmount", discountValue: "50000VND" },
   { value: "fixed-100000", label: "合計金額から 100,000VND 割引", discountType: "FixedAmount", discountValue: "100000VND" },
+  { value: "fixed-200000", label: "合計金額から 200,000VND 割引", discountType: "FixedAmount", discountValue: "200000VND" },
 ] as const;
 
 const toInputDate = (date: Date) => date.toISOString().slice(0, 10);

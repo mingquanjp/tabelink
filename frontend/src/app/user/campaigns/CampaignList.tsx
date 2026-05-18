@@ -2,17 +2,17 @@
 
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { ChevronDown, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { UserCampaign } from "@/lib/api/campaigns/type";
 
 const ALL_VALUE = "__all__";
@@ -22,8 +22,13 @@ const DISCOUNT_TYPE_LABELS: Record<string, string> = {
   FixedAmount: "定額割引",
 };
 const TARGET_AUDIENCE_LABELS: Record<string, string> = {
-  new: "新規ユーザー",
+  all: "全ユーザー対象",
+  new: "新規ユーザー対象",
 };
+const TARGET_FILTER_OPTIONS = [
+  TARGET_AUDIENCE_LABELS.all,
+  TARGET_AUDIENCE_LABELS.new,
+];
 
 type FilterKey = "category" | "benefit" | "target";
 
@@ -59,10 +64,42 @@ function pickText(primary: string | null | undefined, fallback: string | null | 
   return primary?.trim() || fallback?.trim() || "";
 }
 
-function uniqueOptions(values: string[]) {
-  return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
+function uniqueOptions(
+  values: string[],
+  compare: (a: string, b: string) => number = (a, b) =>
     a.localeCompare(b, "ja"),
+) {
+  return Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
+    compare(a, b),
   );
+}
+
+function compareBenefitOptions(a: string, b: string) {
+  const parseBenefit = (value: string) => {
+    const numericValue = Number(value.replace(/[^\d.]/g, ""));
+
+    if (value.includes("%")) {
+      return { group: 0, numericValue };
+    }
+
+    if (/vnd/i.test(value)) {
+      return { group: 1, numericValue };
+    }
+
+    return { group: 2, numericValue: Number.POSITIVE_INFINITY };
+  };
+  const first = parseBenefit(a);
+  const second = parseBenefit(b);
+
+  if (first.group !== second.group) {
+    return first.group - second.group;
+  }
+
+  if (first.numericValue !== second.numericValue) {
+    return first.numericValue - second.numericValue;
+  }
+
+  return a.localeCompare(b, "ja");
 }
 
 function formatDateRange(startDate: string, endDate: string) {
@@ -86,11 +123,7 @@ function formatDiscountType(discountType: string | null) {
 }
 
 function formatTargetAudience(targetAudience: string | null) {
-  if (!targetAudience || targetAudience === "all") {
-    return "すべて";
-  }
-
-  return TARGET_AUDIENCE_LABELS[targetAudience] ?? targetAudience;
+  return TARGET_AUDIENCE_LABELS[targetAudience ?? "all"] ?? targetAudience ?? "ALL";
 }
 
 function toCampaignViewModel(campaign: UserCampaign): CampaignViewModel {
@@ -125,24 +158,36 @@ function FilterSelect({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const selectedLabel = value === ALL_VALUE ? "すべて" : value;
+
   return (
     <div className="flex flex-col gap-2">
       <span className="font-jp text-xs font-medium uppercase leading-4 tracking-wide text-[#5a6053]">
         {label}
       </span>
-      <Select value={value} onValueChange={onChange}>
-        <SelectTrigger className="h-9 w-full rounded-sm border-[#e2e3e0] bg-white px-3 font-jp text-sm font-medium leading-5 text-[#1a1c1b] shadow-none focus-visible:border-[#af111c] focus-visible:ring-0">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent className="rounded-sm border-[#e2e3e0] bg-white font-jp text-sm text-[#1a1c1b]">
-          <SelectItem value={ALL_VALUE}>すべて</SelectItem>
-          {options.map((option) => (
-            <SelectItem key={option} value={option}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-9 w-full items-center justify-between rounded-sm border border-[#e2e3e0] bg-white px-3 font-jp text-sm font-medium leading-5 text-[#1a1c1b] shadow-none outline-none transition-colors hover:border-[#d5b0ad] focus-visible:border-[#af111c] focus-visible:ring-2 focus-visible:ring-[#af111c]/15"
+          >
+            <span className="truncate">{selectedLabel}</span>
+            <ChevronDown className="size-4 shrink-0 text-[#5a6053]" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="rounded-sm border-[#e2e3e0] bg-white font-jp text-sm text-[#1a1c1b]">
+          <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
+            <DropdownMenuRadioItem value={ALL_VALUE}>
+              すべて
+            </DropdownMenuRadioItem>
+            {options.map((option) => (
+              <DropdownMenuRadioItem key={option} value={option}>
+                {option}
+              </DropdownMenuRadioItem>
+            ))}
+          </DropdownMenuRadioGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
@@ -236,6 +281,19 @@ export function CampaignList({
     () => campaigns.map(toCampaignViewModel),
     [campaigns],
   );
+  const benefitOptions = useMemo(() => {
+    const sourceCampaigns =
+      draftFilters.category === ALL_VALUE
+        ? campaignCards
+        : campaignCards.filter(
+            (campaign) => campaign.category === draftFilters.category,
+          );
+
+    return uniqueOptions(
+      sourceCampaigns.map((campaign) => campaign.badge),
+      compareBenefitOptions,
+    );
+  }, [campaignCards, draftFilters.category]);
   const filterConfigs = useMemo<FilterConfig[]>(
     () => [
       {
@@ -246,19 +304,15 @@ export function CampaignList({
       {
         key: "benefit",
         label: "特典内容",
-        options: uniqueOptions(campaignCards.map((campaign) => campaign.badge)),
+        options: benefitOptions,
       },
       {
         key: "target",
         label: "対象ユーザー",
-        options: uniqueOptions(
-          campaignCards
-            .map((campaign) => campaign.target)
-            .filter((target) => target !== "すべて"),
-        ),
+        options: TARGET_FILTER_OPTIONS,
       },
     ],
-    [campaignCards],
+    [benefitOptions, campaignCards],
   );
   const filteredCampaigns = useMemo(
     () =>
@@ -272,10 +326,28 @@ export function CampaignList({
   );
 
   function updateDraftFilter(key: FilterKey, value: string) {
-    setDraftFilters((current) => ({
-      ...current,
-      [key]: value,
-    }));
+    setDraftFilters((current) => {
+      if (key !== "category") {
+        return {
+          ...current,
+          [key]: value,
+        };
+      }
+
+      const shouldResetBenefit =
+        current.benefit !== ALL_VALUE &&
+        !campaignCards.some(
+          (campaign) =>
+            campaign.badge === current.benefit &&
+            (value === ALL_VALUE || campaign.category === value),
+        );
+
+      return {
+        ...current,
+        category: value,
+        benefit: shouldResetBenefit ? ALL_VALUE : current.benefit,
+      };
+    });
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

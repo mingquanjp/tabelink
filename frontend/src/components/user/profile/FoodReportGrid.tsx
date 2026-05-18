@@ -1,6 +1,6 @@
 "use client";
 
-import { getUserFeedPostDetail } from "@/lib/api/user-feed/API";
+import { createUserFeedPostComment, getUserFeedPostDetail, likeUserFeedPost, unlikeUserFeedPost } from "@/lib/api/user-feed/API";
 import { UserFeedPostDetail } from "@/lib/api/user-feed/type";
 import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
 import { UserBlogItem } from "@/lib/api/user-profile/type";
@@ -8,22 +8,44 @@ import { useEffect, useState } from "react";
 import { PostDetailsDialog } from "../homepage/PostDetailsDialog";
 import { FoodReportCard } from "./FoodReportCard";
 
-export function FoodReportGrid({ blogs }: { blogs: UserBlogItem[] }) {
+type FoodReportGridProps = {
+  blogs: UserBlogItem[];
+  isFollowingAuthor: boolean;
+  onFollowToggle: () => void;
+};
+
+export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle }: FoodReportGridProps) {
   const [selectedBlogId, setSelectedBlogId] = useState<number | null>(null);
   const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
-  //  Dữ liệu chi tiết khi chọn bài blog
+  // useEffect(() => {
+  //   if (selectedBlogId) {
+  //     getUserFeedPostDetail(selectedBlogId)
+  //       .then((res) => setDetail(res))
+  //       .catch((err) => console.error("API Detail Error:", err));
+  //   } else {
+  //     setDetail(null);
+  //   }
+  // }, [selectedBlogId]);
   useEffect(() => {
     if (selectedBlogId) {
-      getUserFeedPostDetail(selectedBlogId)
-        .then((res) => setDetail(res))
-        .catch((err) => console.error("API Detail Error:", err));
+      refreshDetail(selectedBlogId);
     } else {
       setDetail(null);
     }
   }, [selectedBlogId]);
 
-  // Hàm chuyển đổi dữ liệu sang định dạng của PostDetailsDialog
+  const refreshDetail = async (id: number) => {
+    try {
+      const updated = await getUserFeedPostDetail(id);
+      setDetail(updated);
+    } catch (err) {
+      console.error("Refresh detail error:", err);
+    }
+  };
+
+  // Chuyển đổi dữ liệu sang định dạng của PostDetailsDialog
   const mapDetailToHomepagePost = (d: UserFeedPostDetail | null) => {
     if (!d) return null;
     return {
@@ -70,18 +92,46 @@ export function FoodReportGrid({ blogs }: { blogs: UserBlogItem[] }) {
           commentCount={detail?.commentCount || 0}
           likeCount={detail?.likeCount || 0}
           isLiked={detail?.isLiked || false}
-          // isAuthorFollowing={detail?.isAuthorFollowing || false}
-          onToggleAuthorFollow={async (accountId, currentIsFollowing) => {
-            if (currentIsFollowing) await unfollowUserHomeReviewer(accountId);
-            else await followUserHomeReviewer(accountId);
-            const updated = await getUserFeedPostDetail(selectedBlogId);
-            setDetail(updated);
+          isAuthorFollowing={isFollowingAuthor}
+          isAuthorFollowPending={isFollowLoading}
+          onToggleAuthorFollow={async (accountId) => {
+            if (isFollowLoading) return;
+            setIsFollowLoading(true);
+            try {
+              // Gọi API (reuse từ user-home)
+              if (isFollowingAuthor) await unfollowUserHomeReviewer(accountId);
+              else await followUserHomeReviewer(accountId);
+              onFollowToggle();
+            } catch (err) {
+              alert("Follow operation failed");
+            } finally {
+              setIsFollowLoading(false);
+            }
           }}
-          onToggleVote={async (id) => console.log("Like:", id)}
-          onAddComment={async (id, txt) => { console.log(txt); return true; }}
-          canFollowAuthor={true}
+
+          // XỬ LÝ LIKE (VOTE)
+          onToggleVote={async (blogId) => {
+            try {
+              if (detail?.isLiked) await unlikeUserFeedPost(blogId);
+              else await likeUserFeedPost(blogId);
+              await refreshDetail(blogId); // Update like count và icon
+            } catch (err) {
+              console.error("Like error:", err);
+            }
+          }}
+          // XỬ LÝ COMMENT
+          onAddComment={async (blogId, text) => {
+            try {
+              await createUserFeedPostComment(blogId, { content: text });
+              await refreshDetail(blogId); // Update danh sách comment mới
+              return true;
+            } catch (err) {
+              console.error("Comment error:", err);
+              return false;
+            }
+          }}
+          canFollowAuthor={!detail?.isLiked}
           currentUserInitials="ME"
-          isAuthorFollowPending={false}
           isSaved={false}
           isShared={false}
           onShare={() => { }}

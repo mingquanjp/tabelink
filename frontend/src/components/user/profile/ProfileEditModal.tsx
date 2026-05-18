@@ -99,10 +99,10 @@ export function ProfileEditModal({
     const formElement = e.currentTarget as HTMLFormElement;
     const rawFormData = new FormData(formElement);
 
-    console.log("Dữ liệu gửi đi:");
-    for (let [key, value] of rawFormData.entries()) {
-      console.log(`${key}:`, value);
-    }
+    // console.log("Dữ liệu gửi đi:");
+    // for (let [key, value] of rawFormData.entries()) {
+    //   console.log(`${key}:`, value);
+    // }
     try {
       const textData: UpdateProfileTextRequest = {
         fullName: rawFormData.get("fullName") as string,
@@ -128,14 +128,15 @@ export function ProfileEditModal({
       onOpenChange(false);
       toast.success("プロフィールを更新しました。");
     } catch (err: any) {
-      toast.error(err.message || "変更は失敗しました");
+      toast.error(
+        err?.response?.data?.message || "変更に失敗しました。");
     }
   };
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file)); // Tạo link xem trước
+      setPreviewUrl(URL.createObjectURL(file));
     }
   };
   return (

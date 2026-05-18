@@ -14,9 +14,10 @@ type FoodReportGridProps = {
   blogs: UserBlogItem[];
   isFollowingAuthor: boolean;
   onFollowToggle: () => void;
+  isMyProfile: boolean;
 };
 
-export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle }: FoodReportGridProps) {
+export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyProfile }: FoodReportGridProps) {
   const [selectedBlogId, setSelectedBlogId] = useState<number | null>(null);
   const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
@@ -99,11 +100,11 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle }: Foo
           isLiked={detail?.isLiked || false}
           isAuthorFollowing={isFollowingAuthor}
           isAuthorFollowPending={isFollowLoading}
+          canFollowAuthor={!isMyProfile}
           onToggleAuthorFollow={async (accountId) => {
             if (isFollowLoading) return;
             setIsFollowLoading(true);
             try {
-              // Gọi API (reuse từ user-home)
               if (isFollowingAuthor) await unfollowUserHomeReviewer(accountId);
               else await followUserHomeReviewer(accountId);
               onFollowToggle();
@@ -135,7 +136,6 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle }: Foo
               return false;
             }
           }}
-          canFollowAuthor={!detail?.isLiked}
           currentUserInitials="ME"
           isSaved={false}
           isShared={false}

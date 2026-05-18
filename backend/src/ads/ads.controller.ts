@@ -92,6 +92,23 @@ export class AdsController {
     return this.adsService.listAvailableCampaigns();
   }
 
+  @Get('user/notifications')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'List active push notifications for users',
+    description:
+      'Returns active Notification advertisement promotions for the user notification bell.',
+  })
+  @ApiOkResponse({ description: 'Active push notification list.' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({
+    description: 'Only users can view notifications.',
+  })
+  listUserNotifications(@Req() request: AuthenticatedRequest) {
+    return this.adsService.listUserNotifications(request.user);
+  }
+
   @Get('owner/promotions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')

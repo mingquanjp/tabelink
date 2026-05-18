@@ -15,6 +15,7 @@ import {
   Share2,
   X
 } from "lucide-react";
+import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import {
   type HomepageComment,
@@ -132,7 +133,7 @@ export function PostDetailsDialog({
                   <div className="min-w-0">
                     <p className="truncate font-jp text-[14px] font-semibold leading-5 text-[#1a1c1b]"
                     >
-                      {post.author}
+                      <Link href={`/user/profile/${post.authorAccountId}`}>{post.author}</Link>
                     </p>
                     <p className="font-manrope text-[11px] leading-4 text-[#7a7f74]">
                       {post.time}

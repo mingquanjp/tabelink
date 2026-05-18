@@ -140,23 +140,25 @@ export function PostDetailsDialog({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    aria-pressed={isAuthorFollowing}
-                    disabled={!canFollowAuthor || isAuthorFollowPending}
-                    size="sm"
-                    variant="outline"
-                    className="h-8 rounded-full border-[#af111c] px-4 font-jp text-[11px] font-semibold text-[#af111c] hover:bg-[#af111c0d]"
-                    onClick={() => {
-                      if (post.authorAccountId) {
-                        onToggleAuthorFollow(
-                          post.authorAccountId,
-                          isAuthorFollowing,
-                        );
-                      }
-                    }}
-                  >
-                    {isAuthorFollowing ? "フォロー中" : "フォロー"}
-                  </Button>
+                  {canFollowAuthor &&
+                    <Button
+                      aria-pressed={isAuthorFollowing}
+                      disabled={!canFollowAuthor || isAuthorFollowPending}
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-full border-[#af111c] px-4 font-jp text-[11px] font-semibold text-[#af111c] hover:bg-[#af111c0d]"
+                      onClick={() => {
+                        if (post.authorAccountId) {
+                          onToggleAuthorFollow(
+                            post.authorAccountId,
+                            isAuthorFollowing,
+                          );
+                        }
+                      }}
+                    >
+                      {isAuthorFollowing ? "フォロー中" : "フォロー"}
+                    </Button>
+                  }
                   <DialogClose asChild>
                     <Button
                       variant="secondary"

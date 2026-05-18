@@ -27,7 +27,14 @@ export function UserProfileView({ accountId }: { accountId: number }) {
         />
         <ProfileTabs />
         <FoodReportGrid
-          blogs={data.blogs} />
+          blogs={data.blogs}
+          isFollowingAuthor={data.isFollowing}
+          isMyProfile={data.isMyProfile}
+          onFollowToggle={() => setData((prev) => prev ? {
+            ...prev, isFollowing: !prev.isFollowing,
+            followerCount: prev.isFollowing ? prev.followerCount - 1 : prev.followerCount + 1
+          } : prev)}
+        />
       </div>
     </main>
   );

@@ -61,3 +61,15 @@ export async function apiRequest<T>(
 
   return response.json() as Promise<T>;
 }
+
+export function resolveApiUrl(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    return new URL(value, API_URL).toString();
+  }
+}

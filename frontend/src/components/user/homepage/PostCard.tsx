@@ -48,7 +48,7 @@ export function PostCard({
     <Card className="gap-0 rounded-lg border-[#e7e5df] bg-white py-0 shadow-none">
       <CardHeader className="flex-row items-center justify-between gap-3 px-4 py-4">
         <div className="flex min-w-0 items-center gap-3">
-          <HomepageAvatar initials={post.initials} />
+          <HomepageAvatar avatarUrl={post.avatarUrl} initials={post.initials} />
           <div className="min-w-0">
             <CardTitle className="truncate font-jp text-[14px] font-semibold leading-5 text-[#1a1c1b]">
               {post.author}

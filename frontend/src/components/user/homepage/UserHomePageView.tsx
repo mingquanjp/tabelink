@@ -13,6 +13,7 @@ import type {
   UserFeedComment,
   UserFeedPost,
 } from "@/lib/api/user-feed/type";
+import { resolveApiUrl } from "@/lib/api/client";
 import {
   followUserHomeReviewer,
   getUserHomeAdvertisedRestaurants,
@@ -96,7 +97,7 @@ function mapHomeProfile(profile: Awaited<ReturnType<typeof getUserHomeProfile>>)
     name,
     handle: profile.handle,
     initials: buildInitials(name),
-    avatarUrl: profile.avatarUrl ?? homepageUser.avatarUrl,
+    avatarUrl: resolveApiUrl(profile.avatarUrl) ?? homepageUser.avatarUrl,
     followerCount: profile.followerCount,
     followingCount: profile.followingCount,
   };
@@ -107,7 +108,7 @@ function mapHotRestaurant(
 ): HomepageHotRestaurant {
   return {
     name: restaurant.nameJP || restaurant.nameVN,
-    image: restaurant.heroImageUrl ?? fallbackRestaurantImage,
+    image: resolveApiUrl(restaurant.heroImageUrl) ?? fallbackRestaurantImage,
     rating: formatRating(restaurant.averageRating),
   };
 }
@@ -122,7 +123,7 @@ function mapSuggestedReviewer(
     followerCount: reviewer.followerCount,
     name,
     handle: reviewer.handle,
-    avatarUrl: reviewer.avatarUrl,
+    avatarUrl: resolveApiUrl(reviewer.avatarUrl),
     initials: buildInitials(name),
     meta: formatReviewerMeta(reviewer.nationality, reviewer.followerCount),
     isFollowing: reviewer.isFollowing,
@@ -150,7 +151,7 @@ function mapAdvertisedRestaurant(
     name: restaurant.restaurantNameJP || restaurant.restaurantNameVN,
     eyebrow: "Sponsored",
     description: restaurant.contentJP ?? restaurant.contentVN ?? "",
-    image: restaurant.heroImageUrl ?? fallbackRestaurantImage,
+    image: resolveApiUrl(restaurant.heroImageUrl) ?? fallbackRestaurantImage,
     rating: formatRating(restaurant.averageRating),
     reviewCount: String(restaurant.reviewCount),
   };
@@ -159,7 +160,7 @@ function mapAdvertisedRestaurant(
 function mapFeedPost(post: UserFeedPost): HomepagePost {
   const primaryMedia =
     post.media.find((media) => media.mediaType === "Video") ?? post.media[0];
-  const image = primaryMedia?.mediaUrl ?? fallbackRestaurantImage;
+  const image = resolveApiUrl(primaryMedia?.mediaUrl) ?? fallbackRestaurantImage;
   const title = post.title ?? post.content.slice(0, 80);
 
   return {
@@ -168,6 +169,7 @@ function mapFeedPost(post: UserFeedPost): HomepagePost {
     author: post.author.name,
     handle: post.author.handle,
     initials: buildInitials(post.author.name),
+    avatarUrl: resolveApiUrl(post.author.avatarUrl),
     time: formatPostTime(post.createdAt),
     restaurant: "TABELINK Community",
     title,
@@ -194,6 +196,7 @@ function mapFeedComment(comment: UserFeedComment): HomepageComment {
     name: comment.author.name,
     text: comment.content,
     initials: buildInitials(comment.author.name),
+    avatarUrl: resolveApiUrl(comment.author.avatarUrl),
   };
 }
 
@@ -564,10 +567,11 @@ export function UserHomePageView() {
           ...(current[postId] ?? []),
           {
             id: String(result.commentId),
-            authorAccountId: undefined,
+            authorAccountId: homeUser.accountId,
             name: homeUser.name,
             text: result.content,
             initials: homeUser.initials,
+            avatarUrl: homeUser.avatarUrl,
           },
         ],
       }));
@@ -911,6 +915,7 @@ export function UserHomePageView() {
             selectedPost.authorAccountId !== homeUser.accountId,
         )}
         currentUserInitials={homeUser.initials}
+        currentUserAvatarUrl={homeUser.avatarUrl}
         onAddComment={addPostComment}
         onToggleAuthorFollow={togglePostAuthorFollow}
         onOpenChange={(open) => {

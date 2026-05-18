@@ -15,6 +15,7 @@ import {
   Share2,
   X
 } from "lucide-react";
+import Link from "next/link";
 import { type FormEvent, useState } from "react";
 import {
   type HomepageComment,
@@ -29,6 +30,7 @@ type PostDetailsDialogProps = {
   canFollowAuthor: boolean;
   comments: HomepageComment[];
   commentCount: number;
+  currentUserAvatarUrl?: string | null;
   currentUserInitials: string;
   isAuthorFollowing: boolean;
   isAuthorFollowPending: boolean;
@@ -52,6 +54,7 @@ export function PostDetailsDialog({
   canFollowAuthor,
   comments,
   commentCount,
+  currentUserAvatarUrl,
   currentUserInitials,
   isAuthorFollowing,
   isAuthorFollowPending,
@@ -141,11 +144,15 @@ export function PostDetailsDialog({
             <aside className="relative flex min-h-0 flex-col bg-white">
               <div className="flex items-center justify-between gap-3 border-b border-[#f0eee8] px-5 py-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  <HomepageAvatar initials={post.initials} size="sm" />
+                  <HomepageAvatar
+                    avatarUrl={post.avatarUrl}
+                    initials={post.initials}
+                    size="sm"
+                  />
                   <div className="min-w-0">
                     <p className="truncate font-jp text-[14px] font-semibold leading-5 text-[#1a1c1b]"
                     >
-                      {post.author}
+                      <Link href={`/user/profile/${post.authorAccountId}`}>{post.author}</Link>
                     </p>
                     <p className="font-manrope text-[11px] leading-4 text-[#7a7f74]">
                       {post.time}
@@ -153,23 +160,25 @@ export function PostDetailsDialog({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button
-                    aria-pressed={isAuthorFollowing}
-                    disabled={!canFollowAuthor || isAuthorFollowPending}
-                    size="sm"
-                    variant="outline"
-                    className="h-8 rounded-full border-[#af111c] px-4 font-jp text-[11px] font-semibold text-[#af111c] hover:bg-[#af111c0d]"
-                    onClick={() => {
-                      if (post.authorAccountId) {
-                        onToggleAuthorFollow(
-                          post.authorAccountId,
-                          isAuthorFollowing,
-                        );
-                      }
-                    }}
-                  >
-                    {isAuthorFollowing ? "フォロー中" : "フォロー"}
-                  </Button>
+                  {canFollowAuthor &&
+                    <Button
+                      aria-pressed={isAuthorFollowing}
+                      disabled={!canFollowAuthor || isAuthorFollowPending}
+                      size="sm"
+                      variant="outline"
+                      className="h-8 rounded-full border-[#af111c] px-4 font-jp text-[11px] font-semibold text-[#af111c] hover:bg-[#af111c0d]"
+                      onClick={() => {
+                        if (post.authorAccountId) {
+                          onToggleAuthorFollow(
+                            post.authorAccountId,
+                            isAuthorFollowing,
+                          );
+                        }
+                      }}
+                    >
+                      {isAuthorFollowing ? "フォロー中" : "フォロー"}
+                    </Button>
+                  }
                   <DialogClose asChild>
                     <Button
                       variant="secondary"
@@ -225,7 +234,11 @@ export function PostDetailsDialog({
                 >
                   {visibleComments.map((comment) => (
                     <div key={comment.id} className="flex min-w-0 gap-2">
-                      <HomepageAvatar initials={comment.initials} size="sm" />
+                      <HomepageAvatar
+                        avatarUrl={comment.avatarUrl}
+                        initials={comment.initials}
+                        size="sm"
+                      />
                       <div className="min-w-0 rounded-lg bg-[#f4f4f1] px-3 py-2">
                         <p className="font-jp text-[11px] font-bold leading-4 text-[#1a1c1b]">
                           {comment.name}
@@ -284,7 +297,11 @@ export function PostDetailsDialog({
                   className="flex items-center gap-2"
                   onSubmit={handleSubmitComment}
                 >
-                  <HomepageAvatar initials={currentUserInitials} size="sm" />
+                  <HomepageAvatar
+                    avatarUrl={currentUserAvatarUrl}
+                    initials={currentUserInitials}
+                    size="sm"
+                  />
                   <input
                     className="h-9 min-w-0 flex-1 rounded-full bg-[#f4f4f1] px-3 font-jp text-[11px] font-medium text-[#1a1c1b] outline-none placeholder:text-[#9a9f93] focus:ring-2 focus:ring-[#af111c33]"
                     maxLength={240}

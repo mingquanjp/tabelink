@@ -6,7 +6,7 @@ import { FoodReportGrid } from "./FoodReportGrid";
 import { ProfileHeaderSection } from "./ProfileHeaderSection";
 import { ProfileTabs } from "./ProfileTabs";
 
-export function UserProfileView({ accountId }: { accountId: number }) {
+export function UserProfileView({ accountId }: { accountId?: number }) {
   const [data, setData] = useState<UserProfileResponse | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -18,6 +18,24 @@ export function UserProfileView({ accountId }: { accountId: number }) {
 
   if (loading) return <div>読み込み中......</div>;
   if (!data) return <div>ユーザーが見つかりません</div>;
+  function handleFollowToggle() {
+    setData((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const isFollowing = !current.isFollowing;
+
+      return {
+        ...current,
+        isFollowing,
+        followerCount: isFollowing
+          ? current.followerCount + 1
+          : Math.max(0, current.followerCount - 1),
+      };
+    });
+  }
+
   return (
     <main className="min-h-[calc(100vh-80px)] bg-[#f9f9f6] text-[#1a1c1b]">
       <div className="mx-auto w-full max-w-[1024px] px-6 pb-24">
@@ -27,7 +45,14 @@ export function UserProfileView({ accountId }: { accountId: number }) {
         />
         <ProfileTabs />
         <FoodReportGrid
-          blogs={data.blogs} />
+          blogs={data.blogs}
+          isFollowingAuthor={data.isFollowing}
+          isMyProfile={data.isMyProfile}
+          onFollowToggle={() => setData((prev) => prev ? {
+            ...prev, isFollowing: !prev.isFollowing,
+            followerCount: prev.isFollowing ? prev.followerCount - 1 : prev.followerCount + 1
+          } : prev)}
+        />
       </div>
     </main>
   );

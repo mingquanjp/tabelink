@@ -41,7 +41,7 @@ export class UserProfileService {
           if (error) return reject(error);
           if (!result)
             return reject(
-              new Error('Cloudinary upload failed: Result is undefined'),
+              new Error('Cloudinary からの応答がありませんでした。'),
             );
           resolve(result);
         },
@@ -72,7 +72,7 @@ export class UserProfileService {
       `,
       [targetAccountId, currentUserId],
     );
-    if (rows.rowCount === 0) {
+    if (!rows.length) {
       throw new NotFoundException('ユーザーが存在しません。');
     }
     const row = rows[0];
@@ -128,7 +128,7 @@ export class UserProfileService {
       [avatarUrl, userId],
     );
 
-    return { message: 'ファイルがアップロードされました。', avatarUrl };
+    return { message: 'プロフィール画像をアップロードしました。', avatarUrl };
   }
   async updateProfileText(userId: number, dto: UpdateProfileTextDto) {
     await this.dataSource.query(
@@ -143,23 +143,8 @@ export class UserProfileService {
       `,
       [dto.fullName, dto.gender, dto.nationality, dto.purpose, userId],
     );
-    return { message: 'ファイルが更新されました。' };
+    return { message: 'プロフィールが更新されました。' };
   }
-
-  // await this.dataSource.query(
-  //   `
-  //   UPDATE CUSTOMER_PROFILE
-  //   SET
-  //     FullName = COALESCE($1, FullName),
-  //     DisplayName = COALESCE($2, DisplayName),
-  //     Gender = COALESCE($3, Gender),
-  //     Nationality = COALESCE($4, Nationality),
-  //     Purpose = COALESCE($5, Purpose),
-  //     AvatarURL = COALESCE($6, AvatarURL)
-  //   WHERE AccountID = $7
-  //   `,
-  //   [fullName, displayName, gender, nationality, purpose, avatarUrl, userId],
-  // );
 
   //  Thay đổi mật khẩu
   async changePassword(userId: number, dto: ChangePasswordDto) {

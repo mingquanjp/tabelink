@@ -157,7 +157,8 @@ function mapAdvertisedRestaurant(
 }
 
 function mapFeedPost(post: UserFeedPost): HomepagePost {
-  const primaryMedia = post.media[0];
+  const primaryMedia =
+    post.media.find((media) => media.mediaType === "Video") ?? post.media[0];
   const image = primaryMedia?.mediaUrl ?? fallbackRestaurantImage;
   const title = post.title ?? post.content.slice(0, 80);
 

@@ -35,7 +35,7 @@ export function HomeRightSidebar({
     : reviewers.slice(0, 2);
 
   return (
-    <aside className="space-y-5 max-lg:hidden">
+    <aside className="sticky top-28 self-start space-y-5 max-lg:hidden">
       <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
         <CardHeader className="px-5 pb-0 pt-5">
           <CardTitle className="font-jp text-[15px] font-bold text-[#1a1c1b]">

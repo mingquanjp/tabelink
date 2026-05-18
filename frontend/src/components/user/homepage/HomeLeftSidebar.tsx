@@ -21,7 +21,7 @@ function formatCount(value: number | undefined, fallback: string) {
 
 export function HomeLeftSidebar({ hotRestaurants, user }: HomeLeftSidebarProps) {
   return (
-    <aside className="space-y-5 max-md:order-2">
+    <aside className="space-y-5 max-md:order-2 lg:sticky lg:top-28 lg:self-start">
       <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
         <CardContent className="px-6 py-6 text-center">
           <div

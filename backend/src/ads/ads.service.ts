@@ -68,6 +68,20 @@ interface AvailableCampaignRow {
   status: string;
 }
 
+interface UserNotificationRow {
+  notificationId: number | string;
+  restaurantId: number | string;
+  restaurantNameVN: string;
+  restaurantNameJP: string;
+  titleVn: string;
+  titleJp: string;
+  messageVn: string | null;
+  messageJp: string | null;
+  mediaUrl: string | null;
+  startDate: Date | string;
+  endDate: Date | string;
+}
+
 interface OwnerRestaurantRow {
   restaurantId: number | string;
 }
@@ -141,6 +155,57 @@ export class AdsService {
         startDate: this.toIsoString(row.startDate),
         endDate: this.toIsoString(row.endDate),
         status: row.status,
+      })),
+    };
+  }
+
+  async listUserNotifications(user: JwtPayload) {
+    if (user.role !== AuthRole.User) {
+      throw new ForbiddenException('Only users can view notifications.');
+    }
+
+    const rows = await this.dataSource.query<UserNotificationRow[]>(
+      `
+        SELECT
+          p.PromotionID AS "notificationId",
+          r.RestaurantID AS "restaurantId",
+          r.NameVN AS "restaurantNameVN",
+          r.NameJP AS "restaurantNameJP",
+          p.TitleVN AS "titleVn",
+          p.TitleJP AS "titleJp",
+          p.ContentVN AS "messageVn",
+          p.ContentJP AS "messageJp",
+          p.MediaURL AS "mediaUrl",
+          p.StartDate AS "startDate",
+          p.EndDate AS "endDate"
+        FROM PROMOTION p
+        JOIN RESTAURANT r
+          ON r.RestaurantID = p.RestaurantID
+        WHERE p.PromotionType = 'Advertisement'
+          AND p.AdvertisementType = 'Notification'
+          AND p.Status = 'Active'
+          AND p.StartDate <= CURRENT_TIMESTAMP
+          AND p.EndDate >= CURRENT_TIMESTAMP
+          AND r.Status = 'Active'
+        ORDER BY p.StartDate DESC, p.PromotionID DESC
+        LIMIT 20
+      `,
+    );
+
+    return {
+      unreadCount: rows.length,
+      items: rows.map((row) => ({
+        notificationId: Number(row.notificationId),
+        restaurantId: Number(row.restaurantId),
+        restaurantNameVN: row.restaurantNameVN,
+        restaurantNameJP: row.restaurantNameJP,
+        titleVn: row.titleVn,
+        titleJp: row.titleJp,
+        messageVn: row.messageVn,
+        messageJp: row.messageJp,
+        mediaUrl: row.mediaUrl,
+        startDate: this.toIsoString(row.startDate),
+        endDate: this.toIsoString(row.endDate),
       })),
     };
   }

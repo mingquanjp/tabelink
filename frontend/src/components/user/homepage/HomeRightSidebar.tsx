@@ -45,8 +45,11 @@ export function HomeRightSidebar({
         <CardContent className="space-y-4 px-5 pb-5">
           {visibleReviewers.map((reviewer) => (
             <div key={reviewer.handle} className="flex items-center gap-3">
-              <HomepageAvatar initials={reviewer.initials} size="sm" />
-
+              <HomepageAvatar
+                avatarUrl={reviewer.avatarUrl}
+                initials={reviewer.initials}
+                size="sm"
+              />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-jp text-[13px] font-bold leading-5 text-[#1a1c1b]">
                   {/* {reviewer.name} */}

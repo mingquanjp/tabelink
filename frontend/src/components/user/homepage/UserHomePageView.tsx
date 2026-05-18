@@ -122,6 +122,7 @@ function mapSuggestedReviewer(
     followerCount: reviewer.followerCount,
     name,
     handle: reviewer.handle,
+    avatarUrl: reviewer.avatarUrl,
     initials: buildInitials(name),
     meta: formatReviewerMeta(reviewer.nationality, reviewer.followerCount),
     isFollowing: reviewer.isFollowing,

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Bell, LogOut, Menu, UserRound, X } from "lucide-react";
 import { logoutAccount } from "@/lib/api/auth/API";
+import { getUserNotifications } from "@/lib/api/notifications/API";
 import {
   clearAuthSessionCache,
   getAuthSession,
@@ -12,6 +13,7 @@ import {
 } from "@/lib/api/auth/session";
 import type { MeResponse } from "@/lib/api/auth/type";
 import { removeSessionCacheByPrefix } from "@/lib/api/cache";
+import type { UserNotification } from "@/lib/api/notifications/type";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +35,7 @@ const defaultNavItems: UserHeaderNavItem[] = [
   { label: "マップ検索", href: "/user/map" },
   { label: "キャンペーン", href: "/user/campaigns" },
 ];
+const readNotificationsStoragePrefix = "tabelink:user:read-notifications:";
 
 function getDisplayName(session: MeResponse | null) {
   const profile = session?.profile;
@@ -77,11 +80,58 @@ function getUserHandle(session: MeResponse | null) {
   return `@${email.split("@")[0]}`;
 }
 
+function pickText(primary: string | null | undefined, fallback: string | null | undefined) {
+  return primary?.trim() || fallback?.trim() || "";
+}
+
+function formatNotificationDate(value: string) {
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
+function readStoredNotificationIds(accountId: number) {
+  if (typeof window === "undefined") {
+    return new Set<number>();
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(
+      `${readNotificationsStoragePrefix}${accountId}`,
+    );
+    const ids = rawValue ? (JSON.parse(rawValue) as unknown) : [];
+
+    return new Set(
+      Array.isArray(ids)
+        ? ids.filter((id): id is number => typeof id === "number")
+        : [],
+    );
+  } catch {
+    return new Set<number>();
+  }
+}
+
+function writeStoredNotificationIds(accountId: number, ids: Set<number>) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    `${readNotificationsStoragePrefix}${accountId}`,
+    JSON.stringify(Array.from(ids)),
+  );
+}
+
 export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState<MeResponse | null>(
     () => readCachedAuthSession() ?? null,
+  );
+  const [notifications, setNotifications] = useState<UserNotification[]>([]);
+  const [readNotificationIds, setReadNotificationIds] = useState<Set<number>>(
+    () => new Set(),
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -103,8 +153,67 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadNotifications() {
+      if (session?.account.role !== "User") {
+        setNotifications([]);
+        setReadNotificationIds(new Set());
+        return;
+      }
+
+      try {
+        const data = await getUserNotifications();
+
+        if (!cancelled) {
+          setNotifications(data.items);
+        }
+      } catch {
+        if (!cancelled) {
+          setNotifications([]);
+        }
+      }
+    }
+
+    void loadNotifications();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.account.role]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const accountId = session?.account.accountId;
+
+    void Promise.resolve().then(() => {
+      if (cancelled) {
+        return;
+      }
+
+      if (!accountId || session?.account.role !== "User") {
+        setReadNotificationIds(new Set());
+        return;
+      }
+
+      setReadNotificationIds(readStoredNotificationIds(accountId));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.account.accountId, session?.account.role]);
+
   const displayName = useMemo(() => getDisplayName(session), [session]);
   const userHandle = useMemo(() => getUserHandle(session), [session]);
+  const unreadCount = useMemo(
+    () =>
+      notifications.filter(
+        (notification) => !readNotificationIds.has(notification.notificationId),
+      ).length,
+    [notifications, readNotificationIds],
+  );
 
   if (pathname.startsWith("/user/blog/create")) {
     return null;
@@ -121,6 +230,25 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
       router.replace("/login");
       router.refresh();
     }
+  }
+
+  function markNotificationAsRead(notificationId: number) {
+    const accountId = session?.account.accountId;
+
+    setReadNotificationIds((current) => {
+      if (current.has(notificationId)) {
+        return current;
+      }
+
+      const next = new Set(current);
+      next.add(notificationId);
+
+      if (accountId) {
+        writeStoredNotificationIds(accountId, next);
+      }
+
+      return next;
+    });
   }
 
   return (
@@ -162,13 +290,108 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
         </nav>
 
         <div className="hidden items-center gap-4 lg:flex">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="inline-flex items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900"
-          >
-            <Bell size={20} strokeWidth={2} />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Notifications"
+                className="relative inline-flex items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900"
+              >
+                <Bell size={20} strokeWidth={2} />
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#af111c] px-1 text-center font-manrope text-[10px] font-bold leading-4 text-white">
+                    {Math.min(unreadCount, 9)}
+                  </span>
+                ) : null}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-80 rounded-none border border-[#e2e3e0] bg-white p-0 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
+            >
+              <div className="border-b border-[#eeeeeb] px-4 py-3">
+                <p className="font-jp text-sm font-semibold text-[#1a1c1b]">
+                  通知
+                </p>
+              </div>
+              {notifications.length > 0 ? (
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.map((notification) => {
+                    const isRead = readNotificationIds.has(
+                      notification.notificationId,
+                    );
+                    const title =
+                      pickText(notification.titleJp, notification.titleVn) ||
+                      "レストランからのお知らせ";
+                    const message = pickText(
+                      notification.messageJp,
+                      notification.messageVn,
+                    );
+                    const restaurantName =
+                      pickText(
+                        notification.restaurantNameJP,
+                        notification.restaurantNameVN,
+                      ) || "Restaurant";
+
+                    return (
+                      <DropdownMenuItem
+                        key={notification.notificationId}
+                        className={`block cursor-pointer rounded-none px-4 py-3 focus:bg-[#af111c0d] ${
+                          isRead ? "bg-white opacity-70" : "bg-[#af111c05]"
+                        }`}
+                        onSelect={() => {
+                          markNotificationAsRead(notification.notificationId);
+                          router.push(
+                            `/user/restaurants/${notification.restaurantId}`,
+                          );
+                        }}
+                      >
+                        <div className="flex gap-3">
+                          {notification.mediaUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={notification.mediaUrl}
+                              alt=""
+                              className="h-12 w-12 shrink-0 rounded object-cover"
+                            />
+                          ) : (
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-[#f4f4f1] text-[#af111c]">
+                              <Bell size={18} strokeWidth={2} />
+                            </div>
+                          )}
+                          <div className="min-w-0">
+                            <div className="flex min-w-0 items-center gap-2">
+                              {!isRead ? (
+                                <span className="h-2 w-2 shrink-0 rounded-full bg-[#af111c]" />
+                              ) : null}
+                              <p className="truncate font-jp text-sm font-semibold text-[#1a1c1b]">
+                                {title}
+                              </p>
+                            </div>
+                            <p className="truncate pt-0.5 font-jp text-xs text-[#5a6053]">
+                              {restaurantName}
+                            </p>
+                            {message ? (
+                              <p className="line-clamp-2 pt-1 font-jp text-xs leading-5 text-[#5a6053]">
+                                {message}
+                              </p>
+                            ) : null}
+                            <p className="pt-1 font-manrope text-[10px] font-semibold text-[#8f6f6c]">
+                              {formatNotificationDate(notification.startDate)}
+                            </p>
+                          </div>
+                        </div>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-4 py-8 text-center font-jp text-sm text-[#5a6053]">
+                  新しい通知はありません。
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

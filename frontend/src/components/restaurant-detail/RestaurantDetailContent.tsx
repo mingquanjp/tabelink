@@ -12,7 +12,6 @@ import {
   Send,
   Star,
   Ticket,
-  Utensils,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
@@ -24,9 +23,10 @@ import {
   readCachedAuthSession,
 } from "@/lib/api/auth/session";
 import type { MeResponse } from "@/lib/api/auth/type";
-import { fallbackGalleryImages, restaurantDetailPhotos } from "./restaurant-detail-assets";
+import { fallbackGalleryImages } from "./restaurant-detail-assets";
 import {
   buildFeatures,
+  buildGoogleMapsEmbedUrl,
   buildGoogleMapsUrl,
   buildInfoItems,
   buildRestaurantImages,
@@ -656,6 +656,7 @@ export function RestaurantDetailContent({
   const promotionItems = homeData.promotions.items as PublicRestaurantPromotion[];
   const restaurantName = restaurant.nameVn || restaurant.nameJp || "Restaurant";
   const googleMapsUrl = buildGoogleMapsUrl(restaurant);
+  const googleMapsEmbedUrl = buildGoogleMapsEmbedUrl(restaurant);
 
   return (
     <main className="min-h-screen bg-[#f9f9f6] pb-12">
@@ -730,22 +731,21 @@ export function RestaurantDetailContent({
           </div>
 
           <div className="relative min-h-[280px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
-            <div
-              aria-label={`Map near ${restaurantName}`}
-              className="absolute inset-0 bg-cover bg-center opacity-90 saturate-50"
-              role="img"
-              style={{ backgroundImage: `url(${restaurantDetailPhotos.map})` }}
-            />
-            <div className="absolute inset-0 bg-black/5" />
-            <div className="absolute left-1/2 top-[62px] flex -translate-x-1/2 flex-col items-center">
-              <div className="rounded border-2 border-white bg-[#d32f2f] px-4 py-2 text-[11px] font-bold leading-none text-white shadow-[0_0_0_4px_rgba(211,47,47,0.2),0_20px_25px_-5px_rgba(0,0,0,0.1)]">
-                {restaurantName}
+            {googleMapsEmbedUrl ? (
+              <iframe
+                src={googleMapsEmbedUrl}
+                title={`Google Map near ${restaurantName}`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 h-full w-full border-0"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#e8e8e5] px-6 text-center">
+                <p className="text-sm font-medium leading-6 text-[#5a6053] font-jp">
+                  åœ°å›³æƒ…å ±ã¯ã¾ã ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚
+                </p>
               </div>
-              <div className="mt-3 flex size-14 items-center justify-center rounded-xl border-4 border-white bg-[#d32f2f] text-white shadow-2xl">
-                <Utensils className="size-7" />
-              </div>
-              <div className="h-4 w-1.5 bg-[#d32f2f] shadow-md" />
-            </div>
+            )}
             <a
               href={googleMapsUrl}
               target="_blank"

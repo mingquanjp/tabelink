@@ -3,14 +3,52 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { DataSource } from 'typeorm';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateProfileTextDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UserProfileService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
+  ) {}
+  private configureCloudinary() {
+    cloudinary.config({
+      cloud_name: this.configService.get('CLOUDINARY_CLOUD_NAME'),
+      api_key: this.configService.get('CLOUDINARY_API_KEY'),
+      api_secret: this.configService.get('CLOUDINARY_API_SECRET'),
+      secure: true,
+    });
+  }
+  private async uploadToCloudinary(
+    file: any,
+    userId: number,
+  ): Promise<UploadApiResponse> {
+    this.configureCloudinary();
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          folder: `tabelink/users/${userId}/avatars`,
+          resource_type: 'image',
+          unique_filename: true,
+          overwrite: true,
+        },
+        (error, result) => {
+          if (error) return reject(error);
+          if (!result)
+            return reject(
+              new Error('Cloudinary upload failed: Result is undefined'),
+            );
+          resolve(result);
+        },
+      );
+      stream.end(file.buffer);
+    });
+  }
   async getProfile(targetAccountId: number, currentUserId: number) {
     const rows = await this.dataSource.query(
       `
@@ -81,26 +119,47 @@ export class UserProfileService {
   }
 
   //   Cập nhật thông tin cá nhân
-  async updateProfile(userId: number, dto: UpdateProfileDto) {
-    const { fullName, displayName, gender, nationality, purpose, avatarUrl } =
-      dto;
+  async uploadAvatar(userId: number, file: any) {
+    if (!file) throw new BadRequestException('ファイルが提供されていません。');
+    const uploadResult = await this.uploadToCloudinary(file, userId);
+    const avatarUrl = uploadResult.secure_url;
+    await this.dataSource.query(
+      `UPDATE CUSTOMER_PROFILE SET AvatarURL = $1 WHERE AccountID = $2`,
+      [avatarUrl, userId],
+    );
+
+    return { message: 'ファイルがアップロードされました。', avatarUrl };
+  }
+  async updateProfileText(userId: number, dto: UpdateProfileTextDto) {
     await this.dataSource.query(
       `
       UPDATE CUSTOMER_PROFILE
       SET 
         FullName = COALESCE($1, FullName),
-        DisplayName = COALESCE($2, DisplayName),
-        Gender = COALESCE($3, Gender),
-        Nationality = COALESCE($4, Nationality),
-        Purpose = COALESCE($5, Purpose),
-        AvatarURL = COALESCE($6, AvatarURL)
-      WHERE AccountID = $7
+        Gender = COALESCE($2, Gender),
+        Nationality = COALESCE($3, Nationality),
+        Purpose = COALESCE($4, Purpose)
+      WHERE AccountID = $5
       `,
-      [fullName, displayName, gender, nationality, purpose, avatarUrl, userId],
+      [dto.fullName, dto.gender, dto.nationality, dto.purpose, userId],
     );
-
-    return { message: 'プロフィールを更新しました。' };
+    return { message: 'ファイルが更新されました。' };
   }
+
+  // await this.dataSource.query(
+  //   `
+  //   UPDATE CUSTOMER_PROFILE
+  //   SET
+  //     FullName = COALESCE($1, FullName),
+  //     DisplayName = COALESCE($2, DisplayName),
+  //     Gender = COALESCE($3, Gender),
+  //     Nationality = COALESCE($4, Nationality),
+  //     Purpose = COALESCE($5, Purpose),
+  //     AvatarURL = COALESCE($6, AvatarURL)
+  //   WHERE AccountID = $7
+  //   `,
+  //   [fullName, displayName, gender, nationality, purpose, avatarUrl, userId],
+  // );
 
   //  Thay đổi mật khẩu
   async changePassword(userId: number, dto: ChangePasswordDto) {

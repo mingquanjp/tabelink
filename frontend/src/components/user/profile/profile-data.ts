@@ -46,7 +46,7 @@ const ramenImage =
   "https://www.figma.com/api/mcp/asset/6ef7cb9d-c492-4ec9-92d3-88deb01bd2a6";
 const bunChaImage =
   "https://www.figma.com/api/mcp/asset/98de97ba-c2b5-4380-8134-fb2eafe9465a";
-const postDetailImage =
+export const postDetailImage =
   "https://www.figma.com/api/mcp/asset/3a7041c9-f2a6-4379-a8ab-1012e2dbb5ab";
 
 export const foodReports: FoodReport[] = [

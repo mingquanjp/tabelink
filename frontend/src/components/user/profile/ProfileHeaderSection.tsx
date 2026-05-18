@@ -1,17 +1,18 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { UserProfileResponse } from "@/lib/api/user-profile/type";
 import { useState } from "react";
 import { ProfileEditModal } from "./ProfileEditModal";
-import type { UserProfileBadge, UserProfileStat } from "./profile-data";
+import type { UserProfileBadge } from "./profile-data";
 
 type ProfileHeaderSectionProps = {
-  name: string;
-  avatarUrl: string;
-  description: string;
-  badges: UserProfileBadge[];
-  stats: UserProfileStat[];
+  // open: boolean;
+  // onOpenChange: (open: boolean) => void;
+  profile: UserProfileResponse;
+  setProfile: React.Dispatch<React.SetStateAction<UserProfileResponse | null>>;
 };
+
 
 const badgeToneClasses: Record<UserProfileBadge["tone"], string> = {
   green: "bg-[#55785e] text-[#d7ffde]",
@@ -19,14 +20,19 @@ const badgeToneClasses: Record<UserProfileBadge["tone"], string> = {
   sage: "bg-[#dfe5d4] text-[#606659]",
 };
 
-export function ProfileHeaderSection({
-  name,
-  avatarUrl,
-  description,
-  badges,
-  stats,
-}: ProfileHeaderSectionProps) {
+
+export function ProfileHeaderSection({ profile, setProfile }: ProfileHeaderSectionProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  if (!profile) return null;
+  const stats = [
+    { label: "レポート数", value: profile.blogCount },
+    { label: "フォロワー", value: profile.followerCount },
+    // { label: "保存済み", value: 56 }, Nếu BE chưa trả về savedCount thì để tạm hardcode
+  ];
+  const badges = [
+    { label: "プロ・クリティック", tone: "green" as const },
+    { label: "ハノイ居住者", tone: "sage" as const },
+  ];
 
   return (
     <>
@@ -37,8 +43,8 @@ export function ProfileHeaderSection({
         <div className="size-40 shrink-0 rounded-xl bg-[linear-gradient(45deg,#af111c_0%,#d32f31_100%)] p-1 max-sm:size-32">
           <div className="size-full overflow-hidden rounded-xl border-4 border-[#f9f9f6] p-1">
             <img
-              src={avatarUrl}
-              alt=""
+              src={profile.avatarUrl ?? "/default-avatar.png"}
+              alt={profile.fullName}
               className="size-full rounded-lg object-cover"
               draggable={false}
             />
@@ -51,10 +57,11 @@ export function ProfileHeaderSection({
               id="profile-name"
               className="font-jp text-[30px] font-bold leading-9 tracking-[-0.75px] text-[#1a1c1b] max-sm:text-2xl"
             >
-              {name}
+              {profile.fullName}
+              <span className="ml-2 text-sm font-normal text-gray-400">{profile.handle}</span>
             </h1>
 
-            <div className="flex flex-wrap items-center gap-2">
+            {/* <div className="flex flex-wrap items-center gap-2">
               {badges.map((badge) => (
                 <span
                   key={badge.label}
@@ -62,11 +69,11 @@ export function ProfileHeaderSection({
                 >
                   {badge.label}
                 </span>
-              ))}
-            </div>
+              ))}   không có badge nào từ BE/ DB nên tạm ẩn phần này đi
+            </div> */}
 
-            <div className="ml-auto flex items-center gap-3 max-lg:ml-0 max-lg:w-full">
-              <button
+            {/* <div className="ml-auto flex items-center gap-3 max-lg:ml-0 max-lg:w-full"> */}
+            {/* <button
                 type="button"
                 className="rounded-xl border-2 border-[rgba(228,190,186,0.3)] px-[18px] py-2.5 font-jp text-xs font-bold uppercase leading-[18px] tracking-[1.2px] text-[#1a1c1b] transition-colors hover:bg-white"
                 onClick={() => setIsEditModalOpen(true)}
@@ -79,11 +86,25 @@ export function ProfileHeaderSection({
               >
                 フォローする
               </button>
+            </div> */}
+            <div className="ml-auto flex items-center gap-3">
+              {profile.isMyProfile ? (
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="rounded-xl border-2 border-[rgba(228,190,186,0.3)] px-[18px] py-2.5 font-bold"
+                >
+                  プロフィールを編集
+                </button>
+              ) : (
+                <button className="rounded-xl bg-[#d32f2f] px-6 py-2.5 text-white">
+                  {profile.isFollowing ? "フォロー中" : "フォローする"}
+                </button>
+              )}
             </div>
           </div>
 
           <p className="max-w-[576px] font-jp text-base font-normal leading-6 text-[#5a6053]">
-            {description}
+            {profile.purpose ?? "自己紹介がありません。"}
           </p>
 
           <div className="flex items-start gap-0 pt-2">
@@ -105,11 +126,10 @@ export function ProfileHeaderSection({
       </section>
 
       <ProfileEditModal
-        avatarUrl={avatarUrl}
-        description={description}
-        name={name}
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
+        profile={profile}
+        setProfile={setProfile}
       />
     </>
   );

@@ -1,13 +1,5 @@
 "use client";
 
-import {
-  Bookmark,
-  Heart,
-  MessageCircle,
-  Share2,
-  X,
-} from "lucide-react";
-import { type FormEvent, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +9,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  X
+} from "lucide-react";
+import { type FormEvent, useState } from "react";
 import {
   type HomepageComment,
   type HomepagePost,
@@ -131,7 +130,8 @@ export function PostDetailsDialog({
                 <div className="flex min-w-0 items-center gap-3">
                   <HomepageAvatar initials={post.initials} size="sm" />
                   <div className="min-w-0">
-                    <p className="truncate font-jp text-[14px] font-semibold leading-5 text-[#1a1c1b]">
+                    <p className="truncate font-jp text-[14px] font-semibold leading-5 text-[#1a1c1b]"
+                    >
                       {post.author}
                     </p>
                     <p className="font-manrope text-[11px] leading-4 text-[#7a7f74]">
@@ -205,11 +205,10 @@ export function PostDetailsDialog({
                 </div>
 
                 <div
-                  className={`mt-5 space-y-3 ${
-                    showAllComments
-                      ? "max-h-[240px] overflow-y-auto overscroll-contain pr-1"
-                      : "overflow-hidden"
-                  }`}
+                  className={`mt-5 space-y-3 ${showAllComments
+                    ? "max-h-[240px] overflow-y-auto overscroll-contain pr-1"
+                    : "overflow-hidden"
+                    }`}
                 >
                   {visibleComments.map((comment) => (
                     <div key={comment.id} className="flex min-w-0 gap-2">
@@ -243,9 +242,8 @@ export function PostDetailsDialog({
                   <div className="flex items-center gap-4">
                     <button
                       type="button"
-                      className={`inline-flex items-center gap-1.5 font-manrope text-[12px] font-medium transition-colors ${
-                        isLiked ? "text-[#af111c]" : "text-[#5a6053]"
-                      }`}
+                      className={`inline-flex items-center gap-1.5 font-manrope text-[12px] font-medium transition-colors ${isLiked ? "text-[#af111c]" : "text-[#5a6053]"
+                        }`}
                       aria-pressed={isLiked}
                       onClick={() => onToggleVote(post.id)}
                     >
@@ -260,9 +258,8 @@ export function PostDetailsDialog({
                     </span>
                     <button
                       type="button"
-                      className={`inline-flex items-center gap-1.5 font-manrope text-[12px] font-medium transition-colors ${
-                        isShared ? "text-[#af111c]" : "text-[#5a6053]"
-                      }`}
+                      className={`inline-flex items-center gap-1.5 font-manrope text-[12px] font-medium transition-colors ${isShared ? "text-[#af111c]" : "text-[#5a6053]"
+                        }`}
                       onClick={() => onShare(post.id)}
                     >
                       <Share2 className="size-4" />

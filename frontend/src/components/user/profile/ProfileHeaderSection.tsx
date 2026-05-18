@@ -1,14 +1,13 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
 import { UserProfileResponse } from "@/lib/api/user-profile/type";
 import { useState } from "react";
 import { ProfileEditModal } from "./ProfileEditModal";
 import type { UserProfileBadge } from "./profile-data";
 
 type ProfileHeaderSectionProps = {
-  // open: boolean;
-  // onOpenChange: (open: boolean) => void;
   profile: UserProfileResponse;
   setProfile: React.Dispatch<React.SetStateAction<UserProfileResponse | null>>;
 };
@@ -23,7 +22,36 @@ const badgeToneClasses: Record<UserProfileBadge["tone"], string> = {
 
 export function ProfileHeaderSection({ profile, setProfile }: ProfileHeaderSectionProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
   if (!profile) return null;
+
+  const handleFollowToggle = async () => {
+    if (isFollowLoading) return;
+    setIsFollowLoading(true);
+    try {
+      if (profile.isFollowing) {
+        await unfollowUserHomeReviewer(profile.accountId);
+      } else {
+        await followUserHomeReviewer(profile.accountId);
+      }
+
+      setProfile((prev) => {
+        if (!prev) return prev;
+        const isNowFollowing = !prev.isFollowing;
+        return {
+          ...prev,
+          isFollowing: isNowFollowing,
+          followerCount: isNowFollowing ? prev.followerCount + 1 : Math.max(0, prev.followerCount - 1),
+        };
+      });
+    } catch (err: any) {
+      alert(err.message || "エラーが発生しました");
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
   const stats = [
     { label: "レポート数", value: profile.blogCount },
     { label: "フォロワー", value: profile.followerCount },
@@ -96,7 +124,8 @@ export function ProfileHeaderSection({ profile, setProfile }: ProfileHeaderSecti
                   プロフィールを編集
                 </button>
               ) : (
-                <button className="rounded-xl bg-[#d32f2f] px-6 py-2.5 text-white">
+                <button className="rounded-xl bg-[#d32f2f] px-6 py-2.5 text-white"
+                  onClick={handleFollowToggle}>
                   {profile.isFollowing ? "フォロー中" : "フォローする"}
                 </button>
               )}

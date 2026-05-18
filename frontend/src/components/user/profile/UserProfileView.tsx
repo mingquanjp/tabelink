@@ -1,26 +1,33 @@
+"use client";
+import { getUserFullProfile } from "@/lib/api/user-profile/API";
+import { UserProfileResponse } from "@/lib/api/user-profile/type";
+import { useEffect, useState } from "react";
 import { FoodReportGrid } from "./FoodReportGrid";
-import {
-  foodReports,
-  profileBadges,
-  profileStats,
-  profileSummary,
-} from "./profile-data";
 import { ProfileHeaderSection } from "./ProfileHeaderSection";
 import { ProfileTabs } from "./ProfileTabs";
 
-export function UserProfileView() {
+export function UserProfileView({ accountId }: { accountId: number }) {
+  const [data, setData] = useState<UserProfileResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    getUserFullProfile(accountId)
+      .then((res) => setData(res))
+      .catch((err) => console.error("Lỗi:", err))
+      .finally(() => setLoading(false));
+  }, [accountId]);
+
+  if (loading) return <div>読み込み中......</div>;
+  if (!data) return <div>ユーザーが見つかりません</div>;
   return (
     <main className="min-h-[calc(100vh-80px)] bg-[#f9f9f6] text-[#1a1c1b]">
       <div className="mx-auto w-full max-w-[1024px] px-6 pb-24">
         <ProfileHeaderSection
-          avatarUrl={profileSummary.avatarUrl}
-          badges={profileBadges}
-          description={profileSummary.description}
-          name={profileSummary.name}
-          stats={profileStats}
+          profile={data}
+          setProfile={setData}
         />
         <ProfileTabs />
-        <FoodReportGrid reports={foodReports} />
+        <FoodReportGrid
+          blogs={data.blogs} />
       </div>
     </main>
   );

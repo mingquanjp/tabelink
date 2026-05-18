@@ -1,4 +1,4 @@
-import { BadgeCheck, Car, Globe, Map, Receipt, ShieldCheck, Star, Utensils } from "lucide-react";
+import { BadgeCheck, Car, Globe, Map, MapPin, Receipt, ShieldCheck, Star, Utensils } from "lucide-react";
 import Link from "next/link";
 import type { MapRestaurant } from "./map-data";
 import { formatDistanceShort } from "./map-routing";
@@ -62,6 +62,7 @@ export function RestaurantCard({
             {restaurant.rating}
           </span>
         </div>
+
       </div>
 
       {/* 2. Phần Nội dung  */}
@@ -74,6 +75,12 @@ export function RestaurantCard({
             <p className="text-[12px] text-[#5a6053] font-medium uppercase tracking-wider mt-1">
               {isCompact ? `• ${restaurant.address}` : ""}
             </p>
+            {compactDistance && (
+              <div className="mt-2 inline-flex w-fit items-center gap-1 rounded-full bg-[#f3f4f6] px-2 py-1 text-[11px] font-medium text-[#374151]">
+                <MapPin className="size-3" />
+                {compactDistance}
+              </div>
+            )}
           </div>
 
           {/* Badges xanh */}

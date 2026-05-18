@@ -583,19 +583,6 @@ export function UserHomePageView() {
     }
   }
 
-  function createPost(post: HomepagePost) {
-    const nextPost = {
-      ...post,
-      authorAccountId: homeUser.accountId,
-    };
-
-    setPosts((current) => [nextPost, ...current]);
-    setCommentsByPostId((current) => ({
-      ...current,
-      [nextPost.id]: [],
-    }));
-  }
-
   function updateFollowingCount(delta: number) {
     setHomeUser((current) => {
       if (current.followingCount === undefined) {
@@ -863,7 +850,7 @@ export function UserHomePageView() {
         <HomeLeftSidebar hotRestaurants={hotRestaurants} user={homeUser} />
 
         <section className="min-w-0 space-y-5">
-          <ComposerCard user={homeUser} onCreatePost={createPost} />
+          <ComposerCard user={homeUser} />
           <FeaturedPostCard
             activeIndex={featuredIndex}
             items={featuredRestaurants}

@@ -1,41 +1,143 @@
 "use client";
 
-import { useState } from "react";
+import { createUserFeedPostComment, getUserFeedPostDetail, likeUserFeedPost, unlikeUserFeedPost } from "@/lib/api/user-feed/API";
+import { UserFeedPostDetail } from "@/lib/api/user-feed/type";
+import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
+import { UserBlogItem } from "@/lib/api/user-profile/type";
+import { useEffect, useState } from "react";
+import { PostDetailsDialog } from "../homepage/PostDetailsDialog";
 import { FoodReportCard } from "./FoodReportCard";
-import { PostDetailModal } from "./PostDetailModal";
-import type { FoodReport } from "./profile-data";
 
 type FoodReportGridProps = {
-  reports: FoodReport[];
+  blogs: UserBlogItem[];
+  isFollowingAuthor: boolean;
+  onFollowToggle: () => void;
 };
 
-export function FoodReportGrid({ reports }: FoodReportGridProps) {
-  const [selectedReport, setSelectedReport] = useState<FoodReport | null>(null);
+export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle }: FoodReportGridProps) {
+  const [selectedBlogId, setSelectedBlogId] = useState<number | null>(null);
+  const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // useEffect(() => {
+  //   if (selectedBlogId) {
+  //     getUserFeedPostDetail(selectedBlogId)
+  //       .then((res) => setDetail(res))
+  //       .catch((err) => console.error("API Detail Error:", err));
+  //   } else {
+  //     setDetail(null);
+  //   }
+  // }, [selectedBlogId]);
+  useEffect(() => {
+    if (selectedBlogId) {
+      refreshDetail(selectedBlogId);
+    } else {
+      setDetail(null);
+    }
+  }, [selectedBlogId]);
+
+  const refreshDetail = async (id: number) => {
+    try {
+      const updated = await getUserFeedPostDetail(id);
+      setDetail(updated);
+    } catch (err) {
+      console.error("Refresh detail error:", err);
+    }
+  };
+
+  // Chuyển đổi dữ liệu sang định dạng của PostDetailsDialog
+  const mapDetailToHomepagePost = (d: UserFeedPostDetail | null) => {
+    if (!d) return null;
+    return {
+      id: d.blogId,
+      author: d.author.name,
+      authorAccountId: d.author.accountId,
+      initials: d.author.name?.substring(0, 2).toUpperCase() || "U",
+      time: d.createdAt,
+      image: d.media?.[0]?.mediaUrl || null,
+      title: d.title,
+      body: d.content,
+      tags: d.hashtags?.map(h => h.name) || [],
+      metrics: {
+        taste: d.ratings.taste || 0,
+        hygiene: d.ratings.hygiene || 0,
+        service: d.ratings.service || 0,
+      },
+    } as any;
+  };
 
   return (
     <>
-      <section
-        className="grid grid-cols-2 gap-x-8 gap-y-8 pt-8 max-md:grid-cols-1"
-        aria-label="Food reports"
-      >
-        {reports.map((report) => (
+      <section className="grid grid-cols-2 gap-8 pt-8 max-md:grid-cols-1">
+        {(blogs || []).map((blog) => (
           <FoodReportCard
-            key={report.id}
-            report={report}
-            onOpen={setSelectedReport}
+            key={blog.blogId}
+            blog={blog}
+            onOpen={(b) => setSelectedBlogId(b.blogId)}
           />
         ))}
       </section>
 
-      <PostDetailModal
-        open={selectedReport !== null}
-        report={selectedReport}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedReport(null);
-          }
-        }}
-      />
+      {selectedBlogId && (
+        <PostDetailsDialog
+          post={mapDetailToHomepagePost(detail)}
+          open={selectedBlogId !== null}
+          onOpenChange={(open) => !open && setSelectedBlogId(null)}
+          comments={detail?.comments.map(c => ({
+            id: c.commentId.toString(),
+            name: c.author.name,
+            text: c.content,
+            initials: c.author.name.substring(0, 2).toUpperCase(),
+          })) || []}
+          commentCount={detail?.commentCount || 0}
+          likeCount={detail?.likeCount || 0}
+          isLiked={detail?.isLiked || false}
+          isAuthorFollowing={isFollowingAuthor}
+          isAuthorFollowPending={isFollowLoading}
+          onToggleAuthorFollow={async (accountId) => {
+            if (isFollowLoading) return;
+            setIsFollowLoading(true);
+            try {
+              // Gọi API (reuse từ user-home)
+              if (isFollowingAuthor) await unfollowUserHomeReviewer(accountId);
+              else await followUserHomeReviewer(accountId);
+              onFollowToggle();
+            } catch (err) {
+              alert("Follow operation failed");
+            } finally {
+              setIsFollowLoading(false);
+            }
+          }}
+
+          // XỬ LÝ LIKE (VOTE)
+          onToggleVote={async (blogId) => {
+            try {
+              if (detail?.isLiked) await unlikeUserFeedPost(blogId);
+              else await likeUserFeedPost(blogId);
+              await refreshDetail(blogId); // Update like count và icon
+            } catch (err) {
+              console.error("Like error:", err);
+            }
+          }}
+          // XỬ LÝ COMMENT
+          onAddComment={async (blogId, text) => {
+            try {
+              await createUserFeedPostComment(blogId, { content: text });
+              await refreshDetail(blogId); // Update danh sách comment mới
+              return true;
+            } catch (err) {
+              console.error("Comment error:", err);
+              return false;
+            }
+          }}
+          canFollowAuthor={!detail?.isLiked}
+          currentUserInitials="ME"
+          isSaved={false}
+          isShared={false}
+          onShare={() => { }}
+          onToggleSave={() => { }}
+        />
+      )}
     </>
   );
 }

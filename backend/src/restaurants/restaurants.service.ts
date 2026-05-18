@@ -240,7 +240,8 @@ export class RestaurantsService {
     const restaurant =
       await this.findActiveRestaurantWithRelations(restaurantId);
 
-    const [promotions, reviews, badges] = await Promise.all([
+    const [menu, promotions, reviews, badges] = await Promise.all([
+      this.getOwnerHomeMenu(restaurantId),
       this.getPublicRestaurantPromotions(restaurantId),
       this.getOwnerHomeReviews(restaurantId),
       this.getOwnerHomeBadges(restaurantId),
@@ -249,6 +250,7 @@ export class RestaurantsService {
     return {
       restaurantId,
       restaurant: this.toHomeRestaurantResponse(restaurant),
+      menu,
       promotions,
       reviews,
       badges,

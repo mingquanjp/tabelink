@@ -1,18 +1,18 @@
 "use client";
 
+import { getUserFeedPostDetail } from "@/lib/api/user-feed/API";
+import { UserFeedPostDetail } from "@/lib/api/user-feed/type";
+import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
 import { UserBlogItem } from "@/lib/api/user-profile/type";
 import { useEffect, useState } from "react";
-// Kiểm tra kỹ đường dẫn các file này
-import { getUserFeedPostDetail } from "@/lib/api/user-feed/API";
-import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
 import { PostDetailsDialog } from "../homepage/PostDetailsDialog";
 import { FoodReportCard } from "./FoodReportCard";
 
 export function FoodReportGrid({ blogs }: { blogs: UserBlogItem[] }) {
   const [selectedBlogId, setSelectedBlogId] = useState<number | null>(null);
-  const [detail, setDetail] = useState<any>(null);
+  const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
 
-  // Effect lấy dữ liệu chi tiết khi chọn bài blog
+  //  Dữ liệu chi tiết khi chọn bài blog
   useEffect(() => {
     if (selectedBlogId) {
       getUserFeedPostDetail(selectedBlogId)
@@ -24,22 +24,22 @@ export function FoodReportGrid({ blogs }: { blogs: UserBlogItem[] }) {
   }, [selectedBlogId]);
 
   // Hàm chuyển đổi dữ liệu sang định dạng của PostDetailsDialog
-  const mapDetailToHomepagePost = (d: any) => {
+  const mapDetailToHomepagePost = (d: UserFeedPostDetail | null) => {
     if (!d) return null;
     return {
       id: d.blogId,
-      author: d.authorName,
-      authorAccountId: d.authorAccountId,
-      initials: d.authorName?.substring(0, 2).toUpperCase() || "U",
+      author: d.author.name,
+      authorAccountId: d.author.accountId,
+      initials: d.author.name?.substring(0, 2).toUpperCase() || "U",
       time: d.createdAt,
-      image: d.images?.[0]?.url || d.thumbnailUrl,
+      image: d.media?.[0]?.mediaUrl || null,
       title: d.title,
       body: d.content,
-      tags: d.tags || [],
+      tags: d.hashtags?.map(h => h.name) || [],
       metrics: {
-        taste: d.tasteRating || 0,
-        hygiene: d.hygieneRating || 0,
-        service: d.serviceRating || 0,
+        taste: d.ratings.taste || 0,
+        hygiene: d.ratings.hygiene || 0,
+        service: d.ratings.service || 0,
       },
     } as any;
   };
@@ -61,11 +61,16 @@ export function FoodReportGrid({ blogs }: { blogs: UserBlogItem[] }) {
           post={mapDetailToHomepagePost(detail)}
           open={selectedBlogId !== null}
           onOpenChange={(open) => !open && setSelectedBlogId(null)}
-          comments={detail?.comments || []}
-          commentCount={detail?.commentsCount || 0}
-          likeCount={detail?.likesCount || 0}
+          comments={detail?.comments.map(c => ({
+            id: c.commentId.toString(),
+            name: c.author.name,
+            text: c.content,
+            initials: c.author.name.substring(0, 2).toUpperCase(),
+          })) || []}
+          commentCount={detail?.commentCount || 0}
+          likeCount={detail?.likeCount || 0}
           isLiked={detail?.isLiked || false}
-          isAuthorFollowing={detail?.isAuthorFollowing || false}
+          // isAuthorFollowing={detail?.isAuthorFollowing || false}
           onToggleAuthorFollow={async (accountId, currentIsFollowing) => {
             if (currentIsFollowing) await unfollowUserHomeReviewer(accountId);
             else await followUserHomeReviewer(accountId);

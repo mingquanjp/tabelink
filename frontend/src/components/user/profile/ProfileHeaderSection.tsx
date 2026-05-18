@@ -10,6 +10,7 @@ type ProfileHeaderSectionProps = {
   // open: boolean;
   // onOpenChange: (open: boolean) => void;
   profile: UserProfileResponse;
+  setProfile: React.Dispatch<React.SetStateAction<UserProfileResponse | null>>;
 };
 
 
@@ -20,7 +21,7 @@ const badgeToneClasses: Record<UserProfileBadge["tone"], string> = {
 };
 
 
-export function ProfileHeaderSection({ profile }: ProfileHeaderSectionProps) {
+export function ProfileHeaderSection({ profile, setProfile }: ProfileHeaderSectionProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   if (!profile) return null;
   const stats = [
@@ -128,6 +129,7 @@ export function ProfileHeaderSection({ profile }: ProfileHeaderSectionProps) {
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         profile={profile}
+        setProfile={setProfile}
       />
     </>
   );

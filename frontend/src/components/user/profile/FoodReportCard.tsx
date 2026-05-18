@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { UserBlogItem } from "@/lib/api/user-profile/type";
 import { MapPin, Star } from "lucide-react";
+import { postDetailImage } from "./profile-data";
 
 type FoodReportCardProps = {
   blog: UserBlogItem;
@@ -8,6 +9,9 @@ type FoodReportCardProps = {
 };
 
 export function FoodReportCard({ blog, onOpen }: FoodReportCardProps) {
+  const averageRating = (
+    (blog.tasteRating + blog.hygieneRating + blog.serviceRating) / 3
+  ).toFixed(1);
   return (
     <button
       type="button"
@@ -15,9 +19,10 @@ export function FoodReportCard({ blog, onOpen }: FoodReportCardProps) {
       onClick={() => onOpen?.(blog)}
     >
       <div className="h-48 overflow-hidden">
-        <img src={blog.thumbnailUrl ?? "/default-food.png"}
+        <img src={blog.thumbnailUrl ?? postDetailImage}
           className="size-full object-cover"
           draggable={false}
+          alt={blog.title}
         />
       </div>
 
@@ -30,7 +35,7 @@ export function FoodReportCard({ blog, onOpen }: FoodReportCardProps) {
           <div className="flex shrink-0 items-center gap-1 pt-1">
             <Star className="size-3 fill-[#af111c] text-[#af111c]" />
             <span className="font-jp text-sm font-bold leading-5 text-[#af111c]">
-              {blog.rating}
+              {averageRating}
             </span>
           </div>
         </div>
@@ -42,9 +47,9 @@ export function FoodReportCard({ blog, onOpen }: FoodReportCardProps) {
           </span>
         </div>
 
-        {/* <p className="border-t border-[rgba(228,190,186,0.1)] pt-4 font-jp text-sm font-normal leading-5 text-[#5a6053]">
-          {blog.description}
-        </p> */}
+        <p className="border-t border-[rgba(228,190,186,0.1)] pt-4 font-jp text-sm font-normal leading-5 text-[#5a6053]">
+          {blog.content}
+        </p>
       </div>
     </button>
   );

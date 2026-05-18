@@ -1,9 +1,16 @@
 import { UserProfileView } from "@/components/user/profile";
+export default async function UserProfilePage({
+    params,
+}: {
+    params: Promise<{ id: string }>;
+}) {
+    const { id } = await params;
 
-export default function UserProfilePage({ params }: { params: { id: string } }) {
-    const accountId = params.id ? parseInt(params.id) : undefined;
-    if (!accountId) {
-        return <div>Invalid user ID</div>;
+    const accountId = parseInt(id);
+
+    if (isNaN(accountId)) {
+        return <div>不正なユーザーIDです</div>;
     }
+
     return <UserProfileView accountId={accountId} />;
 }

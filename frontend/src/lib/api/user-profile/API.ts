@@ -1,7 +1,8 @@
 import { apiRequest } from "@/lib/api/client";
 import {
   ChangePasswordRequest,
-  UpdateProfileRequest,
+  UpdateProfileTextRequest,
+  UploadAvatarResponse,
   UserProfileResponse,
 } from "./type";
 
@@ -12,11 +13,21 @@ export function getUserFullProfile(accountId?: number) {
 }
 
 // Cập nhật thông tin cá nhân
-export function updateUserProfile(data: UpdateProfileRequest) {
+export function updateProfileText(data: UpdateProfileTextRequest) {
   return apiRequest<{ message: string }>("/user-profile/me", {
     auth: true,
     method: "PATCH",
     body: JSON.stringify(data),
+  });
+}
+export function uploadUserAvatar(file: File) {
+  const formData = new FormData();
+  formData.append("avatar", file);
+
+  return apiRequest<UploadAvatarResponse>("/user-profile/me/avatar", {
+    auth: true,
+    method: "POST",
+    body: formData,
   });
 }
 export function getBlogDetail(blogId: number) {

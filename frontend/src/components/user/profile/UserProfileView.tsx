@@ -16,13 +16,14 @@ export function UserProfileView({ accountId }: { accountId: number }) {
       .finally(() => setLoading(false));
   }, [accountId]);
 
-  if (loading) return <div>Đang tải...</div>;
-  if (!data) return <div>Không tìm thấy người dùng</div>;
+  if (loading) return <div>読み込み中......</div>;
+  if (!data) return <div>ユーザーが見つかりません</div>;
   return (
     <main className="min-h-[calc(100vh-80px)] bg-[#f9f9f6] text-[#1a1c1b]">
       <div className="mx-auto w-full max-w-[1024px] px-6 pb-24">
         <ProfileHeaderSection
           profile={data}
+          setProfile={setData}
         />
         <ProfileTabs />
         <FoodReportGrid

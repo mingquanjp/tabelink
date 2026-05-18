@@ -17,11 +17,8 @@ import {
   resumeOwnerPromotion,
 } from "@/lib/api/campaigns/API";
 import type { OwnerPromotion } from "@/lib/api/campaigns/type";
-import {
-  OWNER_TOAST_MESSAGES,
-  showErrorToast,
-  showSuccessToast,
-} from "@/lib/app-toast";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { getCampaignErrorMessage } from "@/components/owner/campaign/campaign-toast";
 
 type CampaignMetric = {
   label: string;
@@ -203,9 +200,7 @@ export function CampaignsSection({
       setPromotionToEnd(null);
       await onRetry?.();
     } catch (error) {
-      showErrorToast(
-        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
-      );
+      showErrorToast(getCampaignErrorMessage(error));
     } finally {
       setEndingPromotionId(null);
     }
@@ -218,9 +213,7 @@ export function CampaignsSection({
       showSuccessToast("キャンペーンを再開しました");
       await onRetry?.();
     } catch (error) {
-      showErrorToast(
-        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
-      );
+      showErrorToast(getCampaignErrorMessage(error));
     } finally {
       setResumingPromotionId(null);
     }
@@ -340,7 +333,7 @@ export function CampaignsSection({
       {isLoading ? (
         <Card className="rounded-lg border border-transparent bg-card shadow-[0px_1px_2px_#0000000d]">
           <CardContent className="p-6 text-sm font-medium text-(--ink-600)">
-            Loading promotions...
+            キャンペーン情報を読み込み中です...
           </CardContent>
         </Card>
       ) : errorMessage ? (
@@ -349,7 +342,7 @@ export function CampaignsSection({
             <p className="text-sm font-medium text-destructive">{errorMessage}</p>
             {onRetry ? (
               <Button type="button" variant="outline" onClick={() => void onRetry()}>
-                Retry
+                再読み込み
               </Button>
             ) : null}
           </CardContent>

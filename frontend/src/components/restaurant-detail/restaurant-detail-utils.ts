@@ -144,16 +144,20 @@ export function buildGoogleMapsEmbedUrl(
     return withGoogleMapsEmbedOutput(restaurant.map.embedUrl);
   }
 
-  const query =
-    restaurant.latitude !== null && restaurant.longitude !== null
-      ? `${restaurant.latitude},${restaurant.longitude}`
-      : restaurant.address.trim();
+  if (restaurant.latitude !== null && restaurant.longitude !== null) {
+    const latitude = encodeURIComponent(String(restaurant.latitude));
+    const longitude = encodeURIComponent(String(restaurant.longitude));
+
+    return `https://maps.google.com/maps?ll=${latitude},${longitude}&z=16&t=m&output=embed`;
+  }
+
+  const query = restaurant.address.trim();
 
   if (!query) {
     return null;
   }
 
-  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&output=embed`;
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&iwloc=&output=embed`;
 }
 
 function isDisplayableRestaurantImageUrl(url: string | null | undefined) {

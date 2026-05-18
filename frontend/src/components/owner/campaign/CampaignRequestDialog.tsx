@@ -29,11 +29,8 @@ import {
   updateOwnerPromotion,
 } from "@/lib/api/campaigns/API";
 import type { OwnerCampaignPromotion } from "@/lib/api/campaigns/type";
-import {
-  OWNER_TOAST_MESSAGES,
-  showErrorToast,
-  showSuccessToast,
-} from "@/lib/app-toast";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { getCampaignErrorMessage } from "@/components/owner/campaign/campaign-toast";
 
 type CampaignRequestDialogProps = {
   trigger: ReactNode;
@@ -159,7 +156,7 @@ export function CampaignRequestDialog({
           targetAudience: audience,
           discountType: selectedDiscount.discountType,
           discountValue: selectedDiscount.discountValue,
-          note: "Cannot be combined with other coupons.",
+          note: "他のクーポンとの併用はできません。",
           startDate: toApiStartDate(startDate),
           endDate: toApiEndDate(endDate),
         });
@@ -169,9 +166,7 @@ export function CampaignRequestDialog({
       setOpen(false);
       await onCreated?.();
     } catch (error) {
-      showErrorToast(
-        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
-      );
+      showErrorToast(getCampaignErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

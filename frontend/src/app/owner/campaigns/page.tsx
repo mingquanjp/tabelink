@@ -5,6 +5,7 @@ import { CampaignHero } from "@/components/owner/campaign/CampaignHero";
 import { CampaignPromoCta } from "@/components/owner/campaign/CampaignPromoCta";
 import { CampaignsSection } from "@/components/owner/campaign/CampaignsSection";
 import { CampaignStatsGrid } from "@/components/owner/campaign/CampaignStatsGrid";
+import { getCampaignErrorMessage } from "@/components/owner/campaign/campaign-toast";
 import { getOwnerPromotions } from "@/lib/api/campaigns/API";
 import type { OwnerPromotionsResponse } from "@/lib/api/campaigns/type";
 
@@ -21,9 +22,7 @@ const ElementCampaignAd = () => {
       const data = await getOwnerPromotions();
       setPromotions(data);
     } catch (error) {
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to load owner promotions."
-      );
+      setErrorMessage(getCampaignErrorMessage(error));
     } finally {
       setIsLoading(false);
     }

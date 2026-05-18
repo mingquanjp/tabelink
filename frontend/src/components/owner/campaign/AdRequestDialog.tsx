@@ -27,6 +27,7 @@ import {
   showErrorToast,
   showSuccessToast,
 } from "@/lib/app-toast";
+import { getCampaignErrorMessage } from "@/components/owner/campaign/campaign-toast";
 
 type AdRequestDialogProps = {
   trigger: ReactNode;
@@ -187,9 +188,7 @@ export function AdRequestDialog({
       setOpen(false);
       await onCreated?.();
     } catch (error) {
-      showErrorToast(
-        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
-      );
+      showErrorToast(getCampaignErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

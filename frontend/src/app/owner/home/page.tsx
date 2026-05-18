@@ -15,7 +15,6 @@ import {
   ReceiptText,
   Share2,
   Star,
-  Utensils,
   UsersRound,
   X,
 } from "lucide-react";
@@ -216,16 +215,53 @@ function buildGoogleMapsUrl(restaurant: OwnerHomeResponse["restaurant"] | undefi
     return "https://www.google.com/maps";
   }
 
+  if (restaurant.latitude !== null && restaurant.longitude !== null) {
+    return `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
+  }
+
   const address = restaurant.address.trim();
   if (address) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
   }
 
-  if (restaurant.latitude !== null && restaurant.longitude !== null) {
-    return `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
+  return "https://www.google.com/maps";
+}
+
+function withGoogleMapsEmbedOutput(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    parsedUrl.searchParams.set("output", "embed");
+    return parsedUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
+function buildGoogleMapsEmbedUrl(
+  restaurant: OwnerHomeResponse["restaurant"] | undefined,
+) {
+  if (!restaurant) {
+    return null;
   }
 
-  return "https://www.google.com/maps";
+  if (restaurant.map.embedUrl) {
+    return withGoogleMapsEmbedOutput(restaurant.map.embedUrl);
+  }
+
+  if (restaurant.latitude !== null && restaurant.longitude !== null) {
+    const latitude = encodeURIComponent(String(restaurant.latitude));
+    const longitude = encodeURIComponent(String(restaurant.longitude));
+
+    return `https://maps.google.com/maps?ll=${latitude},${longitude}&z=16&t=m&output=embed`;
+  }
+
+  const query = restaurant.address.trim();
+
+  if (!query) {
+    return null;
+  }
+
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&iwloc=&output=embed`;
 }
 
 function toMenuDisplayItems(items: OwnerHomeMenuItem[]): MenuDisplayItem[] {
@@ -1514,8 +1550,8 @@ export default function OwnerHomePage() {
     galleryImages.length > 0
       ? galleryImages
       : fallbackGalleryImages;
-  const mapImage = photos.map;
   const googleMapsUrl = buildGoogleMapsUrl(restaurant);
+  const googleMapsEmbedUrl = buildGoogleMapsEmbedUrl(restaurant);
   const dynamicInfoItems = useMemo(() => buildInfoItems(homeData), [homeData]);
   const dynamicFeatures = useMemo(() => buildFeatures(homeData), [homeData]);
   const editFields = useMemo(() => buildEditFields(homeData), [homeData]);
@@ -1616,22 +1652,21 @@ export default function OwnerHomePage() {
           </div>
 
           <div className="relative min-h-[280px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
-            <div
-              aria-label={`Map near ${restaurantName}`}
-              className="absolute inset-0 bg-cover bg-center opacity-90 saturate-50"
-              role="img"
-              style={{ backgroundImage: `url(${mapImage})` }}
-            />
-            <div className="absolute inset-0 bg-black/5" />
-            <div className="absolute left-1/2 top-[62px] flex -translate-x-1/2 flex-col items-center">
-              <div className="rounded border-2 border-white bg-[#d32f2f] px-4 py-2 text-[11px] font-bold leading-none text-white shadow-[0_0_0_4px_rgba(211,47,47,0.2),0_20px_25px_-5px_rgba(0,0,0,0.1)]">
-                {restaurantName}
+            {googleMapsEmbedUrl ? (
+              <iframe
+                src={googleMapsEmbedUrl}
+                title={`Google Map near ${restaurantName}`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 h-full w-full border-0"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#e8e8e5] px-6 text-center">
+                <p className="text-sm font-medium leading-6 text-[#5a6053] font-jp">
+                  åœ°å›³æƒ…å ±ã¯ã¾ã ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚
+                </p>
               </div>
-              <div className="mt-3 flex size-14 items-center justify-center rounded-xl border-4 border-white bg-[#d32f2f] text-white shadow-2xl">
-                <Utensils className="size-7" />
-              </div>
-              <div className="h-4 w-1.5 bg-[#d32f2f] shadow-md" />
-            </div>
+            )}
             <a
               href={googleMapsUrl}
               target="_blank"

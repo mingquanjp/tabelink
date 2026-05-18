@@ -248,7 +248,7 @@ function CampaignCard({ campaign }: { campaign: CampaignViewModel }) {
             asChild
             className="h-11 shrink-0 rounded-md bg-[#af111c] px-8 font-jp text-sm font-medium leading-5 text-white hover:bg-[#981018]"
           >
-            <Link href={`/user/reservations?restaurantId=${campaign.restaurantId}`}>
+            <Link href={`/user/restaurants/${campaign.restaurantId}`}>
               詳細を見る
             </Link>
           </Button>

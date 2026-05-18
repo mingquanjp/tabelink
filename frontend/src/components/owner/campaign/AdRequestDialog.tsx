@@ -27,6 +27,7 @@ import {
   showErrorToast,
   showSuccessToast,
 } from "@/lib/app-toast";
+import { getCampaignErrorMessage } from "@/components/owner/campaign/campaign-toast";
 
 type AdRequestDialogProps = {
   trigger: ReactNode;
@@ -35,7 +36,13 @@ type AdRequestDialogProps = {
   promotion?: OwnerAdPromotion;
 };
 
-const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+const toInputDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 const toApiStartDate = (value: string) => `${value}T00:00:00.000Z`;
 const toApiEndDate = (value: string) => `${value}T23:59:59.000Z`;
 
@@ -77,7 +84,7 @@ function AdTypeCard({
 }
 
 const toInputDateValue = (value?: string | null) =>
-  value ? new Date(value).toISOString().slice(0, 10) : "";
+  value ? value.slice(0, 10) : "";
 
 export function AdRequestDialog({
   trigger,
@@ -181,9 +188,7 @@ export function AdRequestDialog({
       setOpen(false);
       await onCreated?.();
     } catch (error) {
-      showErrorToast(
-        error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
-      );
+      showErrorToast(getCampaignErrorMessage(error));
     } finally {
       setIsSubmitting(false);
     }

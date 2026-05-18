@@ -3,8 +3,10 @@
 import { createUserFeedPostComment, getUserFeedPostDetail, likeUserFeedPost, unlikeUserFeedPost } from "@/lib/api/user-feed/API";
 import { UserFeedPostDetail } from "@/lib/api/user-feed/type";
 import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
+import { resolveApiUrl } from "@/lib/api/client";
 import { UserBlogItem } from "@/lib/api/user-profile/type";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import type { HomepageComment, HomepagePost } from "../homepage/homepage-data";
 import { PostDetailsDialog } from "../homepage/PostDetailsDialog";
 import { FoodReportCard } from "./FoodReportCard";
 
@@ -20,23 +22,6 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
   const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
 
-  // useEffect(() => {
-  //   if (selectedBlogId) {
-  //     getUserFeedPostDetail(selectedBlogId)
-  //       .then((res) => setDetail(res))
-  //       .catch((err) => console.error("API Detail Error:", err));
-  //   } else {
-  //     setDetail(null);
-  //   }
-  // }, [selectedBlogId]);
-  useEffect(() => {
-    if (selectedBlogId) {
-      refreshDetail(selectedBlogId);
-    } else {
-      setDetail(null);
-    }
-  }, [selectedBlogId]);
-
   const refreshDetail = async (id: number) => {
     try {
       const updated = await getUserFeedPostDetail(id);
@@ -46,17 +31,31 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
     }
   };
 
+  function openBlogDetail(blogId: number) {
+    setSelectedBlogId(blogId);
+    setDetail(null);
+    void refreshDetail(blogId);
+  }
+
+  function closeBlogDetail() {
+    setSelectedBlogId(null);
+    setDetail(null);
+  }
+
   // Chuyển đổi dữ liệu sang định dạng của PostDetailsDialog
-  const mapDetailToHomepagePost = (d: UserFeedPostDetail | null) => {
+  const mapDetailToHomepagePost = (d: UserFeedPostDetail | null): HomepagePost | null => {
     if (!d) return null;
     return {
       id: d.blogId,
       author: d.author.name,
       authorAccountId: d.author.accountId,
+      avatarUrl: resolveApiUrl(d.author.avatarUrl),
+      handle: d.author.handle,
       initials: d.author.name?.substring(0, 2).toUpperCase() || "U",
       time: d.createdAt,
-      image: d.media?.[0]?.mediaUrl || null,
-      title: d.title,
+      restaurant: "",
+      image: resolveApiUrl(d.media?.[0]?.mediaUrl) || "",
+      title: d.title ?? "",
       body: d.content,
       tags: d.hashtags?.map(h => h.name) || [],
       metrics: {
@@ -64,8 +63,20 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
         hygiene: d.ratings.hygiene || 0,
         service: d.ratings.service || 0,
       },
-    } as any;
+      likes: d.likeCount,
+      comments: d.commentCount,
+    };
   };
+
+  const mapDetailComments = (): HomepageComment[] =>
+    detail?.comments.map(c => ({
+      id: c.commentId.toString(),
+      authorAccountId: c.author.accountId,
+      avatarUrl: resolveApiUrl(c.author.avatarUrl),
+      name: c.author.name,
+      text: c.content,
+      initials: c.author.name.substring(0, 2).toUpperCase(),
+    })) || [];
 
   return (
     <>
@@ -74,7 +85,7 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
           <FoodReportCard
             key={blog.blogId}
             blog={blog}
-            onOpen={(b) => setSelectedBlogId(b.blogId)}
+            onOpen={(b) => openBlogDetail(b.blogId)}
           />
         ))}
       </section>
@@ -82,14 +93,8 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
       {selectedBlogId && (
         <PostDetailsDialog
           post={mapDetailToHomepagePost(detail)}
-          open={selectedBlogId !== null}
-          onOpenChange={(open) => !open && setSelectedBlogId(null)}
-          comments={detail?.comments.map(c => ({
-            id: c.commentId.toString(),
-            name: c.author.name,
-            text: c.content,
-            initials: c.author.name.substring(0, 2).toUpperCase(),
-          })) || []}
+          onOpenChange={(open) => !open && closeBlogDetail()}
+          comments={mapDetailComments()}
           commentCount={detail?.commentCount || 0}
           likeCount={detail?.likeCount || 0}
           isLiked={detail?.isLiked || false}
@@ -103,7 +108,7 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
               if (isFollowingAuthor) await unfollowUserHomeReviewer(accountId);
               else await followUserHomeReviewer(accountId);
               onFollowToggle();
-            } catch (err) {
+            } catch {
               alert("Follow operation failed");
             } finally {
               setIsFollowLoading(false);

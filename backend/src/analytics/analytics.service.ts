@@ -672,11 +672,18 @@ export class AnalyticsService {
   }
 
   private formatCurrentMonth() {
-    return new Date().toISOString().slice(0, 7);
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+
+    return `${now.getFullYear()}-${month}`;
   }
 
   private formatToday() {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
+    return `${now.getFullYear()}-${month}-${day}`;
   }
 
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {

@@ -16,7 +16,7 @@ export function ComposerCard({ user }: ComposerCardProps) {
     <Card className="rounded-lg border-[#e7e5df] bg-white py-0 shadow-none">
       <CardContent className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <HomepageAvatar initials={user.initials} />
+          <HomepageAvatar avatarUrl={user.avatarUrl} initials={user.initials} />
           <Link
             href={createPostHref}
             className="flex h-11 min-w-0 flex-1 items-center rounded-full bg-[#f4f4f1] px-4 text-left font-jp text-[13px] font-medium text-[#7a7f74] transition-colors hover:bg-[#ecece7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#af111c33]"

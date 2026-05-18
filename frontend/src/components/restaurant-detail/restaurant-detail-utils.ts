@@ -111,16 +111,53 @@ export function buildGoogleMapsUrl(
     return "https://www.google.com/maps";
   }
 
+  if (restaurant.latitude !== null && restaurant.longitude !== null) {
+    return `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
+  }
+
   const address = restaurant.address.trim();
   if (address) {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
   }
 
-  if (restaurant.latitude !== null && restaurant.longitude !== null) {
-    return `https://www.google.com/maps?q=${restaurant.latitude},${restaurant.longitude}`;
+  return "https://www.google.com/maps";
+}
+
+function withGoogleMapsEmbedOutput(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    parsedUrl.searchParams.set("output", "embed");
+    return parsedUrl.toString();
+  } catch {
+    return url;
+  }
+}
+
+export function buildGoogleMapsEmbedUrl(
+  restaurant: OwnerHomeResponse["restaurant"] | undefined,
+) {
+  if (!restaurant) {
+    return null;
   }
 
-  return "https://www.google.com/maps";
+  if (restaurant.map.embedUrl) {
+    return withGoogleMapsEmbedOutput(restaurant.map.embedUrl);
+  }
+
+  if (restaurant.latitude !== null && restaurant.longitude !== null) {
+    const latitude = encodeURIComponent(String(restaurant.latitude));
+    const longitude = encodeURIComponent(String(restaurant.longitude));
+
+    return `https://maps.google.com/maps?ll=${latitude},${longitude}&z=16&t=m&output=embed`;
+  }
+
+  const query = restaurant.address.trim();
+
+  if (!query) {
+    return null;
+  }
+
+  return `https://maps.google.com/maps?q=${encodeURIComponent(query)}&z=16&iwloc=&output=embed`;
 }
 
 function isDisplayableRestaurantImageUrl(url: string | null | undefined) {

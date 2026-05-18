@@ -146,6 +146,21 @@ export class UserProfileService {
     return { message: 'プロフィールが更新されました。' };
   }
 
+  // await this.dataSource.query(
+  //   `
+  //   UPDATE CUSTOMER_PROFILE
+  //   SET
+  //     FullName = COALESCE($1, FullName),
+  //     DisplayName = COALESCE($2, DisplayName),
+  //     Gender = COALESCE($3, Gender),
+  //     Nationality = COALESCE($4, Nationality),
+  //     Purpose = COALESCE($5, Purpose),
+  //     AvatarURL = COALESCE($6, AvatarURL)
+  //   WHERE AccountID = $7
+  //   `,
+  //   [fullName, displayName, gender, nationality, purpose, avatarUrl, userId],
+  // );
+
   //  Thay đổi mật khẩu
   async changePassword(userId: number, dto: ChangePasswordDto) {
     if (dto.newPassword.length < 8) {

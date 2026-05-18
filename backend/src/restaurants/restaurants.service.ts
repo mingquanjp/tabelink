@@ -234,7 +234,7 @@ export class RestaurantsService {
     };
   }
 
-  async getPublicRestaurantDetail(restaurantId: number, user: JwtPayload) {
+  async getPublicRestaurantDetail(restaurantId: number, user?: JwtPayload) {
     this.assertCustomerViewer(user);
 
     const restaurant =
@@ -253,7 +253,7 @@ export class RestaurantsService {
       reviews,
       badges,
       reviewSubmission: {
-        enabled: user.role === AuthRole.User,
+        enabled: user?.role === AuthRole.User,
         method: 'POST',
         endpoint: `/restaurants/${restaurantId}/reviews`,
       },
@@ -498,7 +498,11 @@ export class RestaurantsService {
     }
   }
 
-  private assertCustomerViewer(user: JwtPayload) {
+  private assertCustomerViewer(user?: JwtPayload) {
+    if (!user) {
+      return;
+    }
+
     if (![AuthRole.User, AuthRole.Guest].includes(user.role)) {
       throw new ForbiddenException(
         'Only customer or guest users can view restaurant detail.',

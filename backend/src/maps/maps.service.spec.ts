@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { MapsService } from './maps.service';
 
 describe('MapsService', () => {
@@ -36,25 +38,30 @@ describe('MapsService', () => {
     };
     fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
       ok: true,
-      json: async () => ({
-        routes: [
-          {
-            distance: 1842.3,
-            duration: 412.5,
-            geometry: {
-              coordinates: [
-                [105.8412, 21.0166],
-                [105.84647, 21.02686],
-              ],
+      json: () =>
+        Promise.resolve({
+          routes: [
+            {
+              distance: 1842.3,
+              duration: 412.5,
+              geometry: {
+                coordinates: [
+                  [105.8412, 21.0166],
+                  [105.84647, 21.02686],
+                ],
+              },
             },
-          },
-        ],
-      }),
+          ],
+        }),
     } as unknown as Response);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MapsService,
+        {
+          provide: getRepositoryToken(Restaurant),
+          useValue: {},
+        },
         {
           provide: DataSource,
           useValue: dataSource,
@@ -115,10 +122,12 @@ describe('MapsService', () => {
       expect.stringContaining("Status = 'Active'"),
       [10],
     );
-    expect(fetchMock).toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(
       'https://osrm.test/route/v1/driving/105.8412,21.0166;105.84647,21.02686?geometries=geojson&overview=full',
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+    expect(options?.signal).toBeInstanceOf(AbortSignal);
   });
 
   it('rejects invalid origin coordinates before requesting OSRM', async () => {
@@ -212,7 +221,7 @@ describe('MapsService', () => {
   it('throws when OSRM returns an HTTP error', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: false,
-      json: async () => ({}),
+      json: () => Promise.resolve({}),
     } as unknown as Response);
 
     await expect(
@@ -227,7 +236,8 @@ describe('MapsService', () => {
   it('throws when OSRM response has no route geometry', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ routes: [{ distance: 100, duration: 30 }] }),
+      json: () =>
+        Promise.resolve({ routes: [{ distance: 100, duration: 30 }] }),
     } as unknown as Response);
 
     await expect(
@@ -242,15 +252,16 @@ describe('MapsService', () => {
   it('throws when OSRM returns invalid route coordinates', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({
-        routes: [
-          {
-            distance: 100,
-            duration: 30,
-            geometry: { coordinates: [[105.8412, 999]] },
-          },
-        ],
-      }),
+      json: () =>
+        Promise.resolve({
+          routes: [
+            {
+              distance: 100,
+              duration: 30,
+              geometry: { coordinates: [[105.8412, 999]] },
+            },
+          ],
+        }),
     } as unknown as Response);
 
     await expect(

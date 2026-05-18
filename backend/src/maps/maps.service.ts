@@ -10,6 +10,7 @@ import { InjectRepository } from '@nestjs/typeorm/dist/common/typeorm.decorators
 import { DataSource, Repository } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import type { JwtPayload } from '../auth/auth.types';
+import { RestaurantMediaType } from '../restaurants/entities/restaurant-media.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import type { GetRestaurantRouteQueryDto } from './dto/get-restaurant-route-query.dto';
 import { SearchRestaurantDto } from './dto/restaurant-map-search.dto';
@@ -23,6 +24,7 @@ const MIN_LAT = -90;
 const MAX_LAT = 90;
 const MIN_LNG = -180;
 const MAX_LNG = 180;
+const EARTH_RADIUS_METERS = 6371000;
 
 interface RestaurantLocationRow {
   restaurantId: number | string;
@@ -31,6 +33,11 @@ interface RestaurantLocationRow {
   address: string;
   latitude: number | string | null;
   longitude: number | string | null;
+}
+
+interface RawSearchRestaurantRow {
+  distance?: string | number | null;
+  avgRating?: string | number | null;
 }
 
 interface OsrmRouteResponse {
@@ -98,10 +105,30 @@ export class MapsService {
       });
     }
     if (dto.lat !== undefined && dto.lng !== undefined) {
-      const haversine = `(6371000 * acos(cos(radians(:lat)) * cos(radians(restaurant.latitude)) * cos(radians(restaurant.longitude) - radians(:lng)) + sin(radians(:lat)) * sin(radians(restaurant.latitude))))`;
+      const haversine = this.createHaversineExpression();
       query.addSelect(haversine, 'distance');
       query.setParameters({ lat: dto.lat, lng: dto.lng });
-      if (dto.radius) {
+
+      if (dto.radius !== undefined) {
+        const bounds = this.createBoundingBox(
+          { lat: dto.lat, lng: dto.lng },
+          dto.radius,
+        );
+
+        query
+          .andWhere('restaurant.latitude BETWEEN :minLat AND :maxLat', {
+            minLat: bounds.minLat,
+            maxLat: bounds.maxLat,
+          })
+          .andWhere(
+            bounds.minLng <= bounds.maxLng
+              ? 'restaurant.longitude BETWEEN :minLng AND :maxLng'
+              : '(restaurant.longitude >= :minLng OR restaurant.longitude <= :maxLng)',
+            {
+              minLng: bounds.minLng,
+              maxLng: bounds.maxLng,
+            },
+          );
         query.andWhere(`${haversine} <= :radius`, { radius: dto.radius });
       }
       query.orderBy('distance', 'ASC');
@@ -139,14 +166,15 @@ export class MapsService {
 
     const totalCount = await query.getCount();
     query.skip(skip).take(limit);
-    const { entities, raw } = await query.getRawAndEntities();
+    const { entities, raw } =
+      await query.getRawAndEntities<RawSearchRestaurantRow>();
     const items = entities.map((entity, index) => {
       const rawData = raw[index];
       const distanceMeters = rawData?.distance
-        ? parseFloat(rawData.distance)
+        ? Number(rawData.distance)
         : undefined;
       const avgRating = rawData?.avgRating
-        ? Number(parseFloat(rawData.avgRating).toFixed(1))
+        ? Number(Number(rawData.avgRating).toFixed(1))
         : 0;
       return this.transformToMapRestaurant(entity, distanceMeters, avgRating);
     });
@@ -309,6 +337,53 @@ export class MapsService {
     }
   }
 
+  private createHaversineExpression() {
+    const cosineDistance =
+      'cos(radians(:lat)) * cos(radians(restaurant.latitude)) * ' +
+      'cos(radians(restaurant.longitude) - radians(:lng)) + ' +
+      'sin(radians(:lat)) * sin(radians(restaurant.latitude))';
+
+    return `(${EARTH_RADIUS_METERS} * acos(least(1, greatest(-1, ${cosineDistance}))))`;
+  }
+
+  private createBoundingBox(origin: LatLng, radiusMeters: number) {
+    const latDelta = (radiusMeters / EARTH_RADIUS_METERS) * (180 / Math.PI);
+    const latRad = (origin.lat * Math.PI) / 180;
+    const cosLat = Math.cos(latRad);
+    const lngDelta =
+      Math.abs(cosLat) < Number.EPSILON
+        ? 180
+        : (radiusMeters / (EARTH_RADIUS_METERS * Math.abs(cosLat))) *
+          (180 / Math.PI);
+    const minLat = Math.max(MIN_LAT, origin.lat - latDelta);
+    const maxLat = Math.min(MAX_LAT, origin.lat + latDelta);
+    const coversAllLongitudes =
+      lngDelta >= 180 || minLat <= MIN_LAT || maxLat >= MAX_LAT;
+
+    return {
+      minLat,
+      maxLat,
+      minLng: coversAllLongitudes
+        ? MIN_LNG
+        : this.normalizeLongitude(origin.lng - lngDelta),
+      maxLng: coversAllLongitudes
+        ? MAX_LNG
+        : this.normalizeLongitude(origin.lng + lngDelta),
+    };
+  }
+
+  private normalizeLongitude(lng: number) {
+    if (lng < MIN_LNG) {
+      return lng + 360;
+    }
+
+    if (lng > MAX_LNG) {
+      return lng - 360;
+    }
+
+    return lng;
+  }
+
   private isValidLatLng(point: LatLng) {
     return (
       Number.isFinite(point.lat) &&
@@ -394,14 +469,13 @@ export class MapsService {
       mapName: entity.nameJp || entity.nameVn,
       address: entity.address,
       position: { lat: Number(entity.latitude), lng: Number(entity.longitude) },
-      distance: distanceMeters
-        ? `${(distanceMeters / 1000).toFixed(1)}km`
-        : '---',
+      distance: distanceStr,
       distanceValue: distValue,
 
       rating: avgRating,
       imageUrl:
-        entity.media?.find((m) => m.mediaType === 'Cover')?.mediaUrl ||
+        entity.media?.find((m) => m.mediaType === RestaurantMediaType.Cover)
+          ?.mediaUrl ||
         entity.media?.[0]?.mediaUrl ||
         '',
       isVerified,

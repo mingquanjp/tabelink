@@ -1,6 +1,7 @@
 "use client";
 
-import { advancedSearchRestaurants, getRestaurantRoute } from "@/lib/api/maps/API";
+import { advancedSearchRestaurants } from "@/lib/api/maps/API";
+import type { AdvancedSearchParams } from "@/lib/api/maps/restaurant-advance-search/type";
 import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
 import { showErrorToast } from "@/lib/app-toast";
 import { useEffect, useMemo, useState } from "react";
@@ -76,24 +77,42 @@ export function UserMapView() {
   const [restaurants, setRestaurants] = useState<MapRestaurant[]>([]);
 
   const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [completedSearchKey, setCompletedSearchKey] = useState("");
 
   const [currentLocation, setCurrentLocation] =
     useState<BrowserLocation | null>(null);
-  const [routes, setRoutes] = useState<RouteMap>({});
-  const [completedRouteKey, setCompletedRouteKey] = useState("");
+  const routes = useMemo<RouteMap>(() => ({}), []);
   const isMapOpen = selectedRestaurant !== null;
-  const routeRequestKey = useMemo(() => {
-    if (!currentLocation || restaurants.length === 0) {
-      return "";
+  const searchParams = useMemo<AdvancedSearchParams | null>(() => {
+    if (!currentLocation) {
+      return null;
     }
-    return `${currentLocation.point.lat},${currentLocation.point.lng}:${restaurants
-      .map((restaurant) => restaurant.id)
-      .join(",")}`;
-  }, [currentLocation, restaurants]);
-  const isRouteLoading =
-    currentLocation === null ||
-    (routeRequestKey !== "" && completedRouteKey !== routeRequestKey);
+
+    const radius = parseFloat(filters.distance) * 1000;
+    const dishTypes = filters.cuisines.flatMap((c) => CUISINE_MAP[c] || []);
+    const japaneseStandards = [
+      filters.quality.hygiene ? FEATURE_IDS.HYGIENE : null,
+      filters.quality.japaneseMenu ? FEATURE_IDS.JAPANESE_MENU : null,
+    ].filter((v): v is number => v !== null);
+
+    return {
+      keyword: filters.keyword || undefined,
+      lat: currentLocation.point.lat,
+      lng: currentLocation.point.lng,
+      radius,
+      dishTypes,
+      japaneseStandards,
+      issuesVAT: filters.amenities.vat || undefined,
+      page: 1,
+      limit: 50,
+    };
+  }, [currentLocation, filters]);
+  const searchKey = useMemo(
+    () => (searchParams ? JSON.stringify(searchParams) : ""),
+    [searchParams],
+  );
+  const isLoading = currentLocation === null || completedSearchKey !== searchKey;
+  const isRouteLoading = currentLocation === null;
 
   useEffect(() => {
     getBrowserCurrentLocation()
@@ -110,31 +129,13 @@ export function UserMapView() {
   }, []);
 
   useEffect(() => {
-    if (!currentLocation) return;
+    if (!searchParams || searchKey === "") return;
     let cancelled = false;
-    setIsLoading(true);
-    // Chuyển đổi Filter sang API Params
-    const radius = parseFloat(filters.distance) * 1000;
-    const dishTypes = filters.cuisines.flatMap(c => CUISINE_MAP[c] || []);
-    const japaneseStandards = [
-      filters.quality.hygiene ? FEATURE_IDS.HYGIENE : null,
-      filters.quality.japaneseMenu ? FEATURE_IDS.JAPANESE_MENU : null
-    ].filter((v): v is number => v !== null);
 
-    advancedSearchRestaurants({
-      keyword: filters.keyword || undefined,
-      lat: currentLocation.point.lat,
-      lng: currentLocation.point.lng,
-      radius,
-      dishTypes,
-      japaneseStandards,
-      issuesVAT: filters.amenities.vat || undefined,
-      page: 1,
-      limit: 50,
-    })
+    advancedSearchRestaurants(searchParams)
       .then((res) => {
         if (cancelled) return;
-        setRestaurants(res.items as any);
+        setRestaurants(res.items as unknown as MapRestaurant[]);
         setTotalCount(res.totalCount);
       })
       .catch((err) => {
@@ -142,48 +143,11 @@ export function UserMapView() {
         if (!cancelled) showErrorToast("検索に失敗しました");
       })
       .finally(() => {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) setCompletedSearchKey(searchKey);
       });
 
     return () => { cancelled = true; };
-  }, [filters, currentLocation]);
-
-
-  useEffect(() => {
-    if (!currentLocation || routeRequestKey === "") {
-      return;
-    }
-
-    let cancelled = false;
-
-    Promise.allSettled(
-      restaurants.map((restaurant) =>
-        getRestaurantRoute(restaurant.id, currentLocation.point).then(
-          (route) => [restaurant.id, route] as const,
-        ),
-      ),
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
-
-      const nextRoutes: RouteMap = {};
-
-      results.forEach((result) => {
-        if (result.status === "fulfilled") {
-          const [restaurantId, route] = result.value;
-          nextRoutes[restaurantId] = route;
-        }
-      });
-
-      setRoutes(nextRoutes);
-      setCompletedRouteKey(routeRequestKey);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentLocation, restaurants, routeRequestKey]);
+  }, [searchParams, searchKey]);
 
   const appliedFilters = useMemo<AppliedFilter[]>(() => {
     const items: AppliedFilter[] = [
@@ -351,7 +315,7 @@ export function UserMapView() {
       <div className="mx-auto flex h-[calc(100vh-80px)] min-h-0 w-full max-w-[1280px] flex-col overflow-hidden bg-[#f4f4f1] lg:flex-row lg:items-start">
         {filterSidebar}
         <MapSearchResults
-          totalCount={filteredRestaurants.length}
+          totalCount={totalCount}
           isLoading={isLoading}
           appliedFilters={appliedFilters}
           isMapOpen={isMapOpen}
@@ -374,7 +338,7 @@ export function UserMapView() {
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-8">
       {filterSidebar}
       <MapSearchResults
-        totalCount={filteredRestaurants.length}
+        totalCount={totalCount}
         isLoading={isLoading}
         appliedFilters={appliedFilters}
         isMapOpen={isMapOpen}

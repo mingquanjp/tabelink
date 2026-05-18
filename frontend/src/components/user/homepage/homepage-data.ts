@@ -198,9 +198,11 @@ export const homepageComments = [
 
 export type HomepagePost = (typeof homepagePosts)[number] & {
   authorAccountId?: number;
+  avatarUrl?: string | null;
 };
 export type HomepageComment = (typeof homepageComments)[number] & {
   authorAccountId?: number;
+  avatarUrl?: string | null;
 };
 export type HomepageUser = typeof homepageUser & {
   accountId?: number;

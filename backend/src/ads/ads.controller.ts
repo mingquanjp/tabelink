@@ -292,6 +292,30 @@ export class AdsController {
     return this.adsService.endOwnerPromotion(promotionId, request.user);
   }
 
+  @Patch('owner/promotions/:promotionId/resume')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Resume an ended campaign or advertisement',
+    description:
+      'Owner-context resume action for screen ID10. Ended promotions are changed back to Active.',
+  })
+  @ApiOkResponse({ description: 'Promotion resumed.' })
+  @ApiBadRequestResponse({
+    description: 'Only ended promotions can be resumed.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({
+    description: 'Only restaurant owners can resume promotions.',
+  })
+  @ApiNotFoundResponse({ description: 'Promotion not found for this owner.' })
+  resumeOwnerPromotion(
+    @Param('promotionId', ParseIntPipe) promotionId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.adsService.resumeOwnerPromotion(promotionId, request.user);
+  }
+
   @Post('ads/:adId/impressions')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({

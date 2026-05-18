@@ -10,20 +10,11 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { AdRequestDialog } from "@/components/owner/campaign/AdRequestDialog";
+import { CampaignRequestDialog } from "@/components/owner/campaign/CampaignRequestDialog";
 import {
   endOwnerPromotion,
-  updateOwnerPromotion,
+  resumeOwnerPromotion,
 } from "@/lib/api/campaigns/API";
 import type { OwnerPromotion } from "@/lib/api/campaigns/type";
 import {
@@ -50,55 +41,6 @@ const currencyFormatter = new Intl.NumberFormat("ja-JP", {
   currency: "JPY",
   maximumFractionDigits: 0,
 });
-
-const discountOptions = [
-  {
-    value: "percentage-10",
-    label: "合計金額から 10% OFF",
-    discountType: "Percentage",
-    discountValue: "10%",
-  },
-  {
-    value: "percentage-20",
-    label: "合計金額から 20% OFF",
-    discountType: "Percentage",
-    discountValue: "20%",
-  },
-  {
-    value: "percentage-50",
-    label: "合計金額から 50% OFF",
-    discountType: "Percentage",
-    discountValue: "50%",
-  },
-  {
-    value: "fixed-50000",
-    label: "合計金額から 50,000VND 割引",
-    discountType: "FixedAmount",
-    discountValue: "50000VND",
-  },
-  {
-    value: "fixed-100000",
-    label: "合計金額から 100,000VND 割引",
-    discountType: "FixedAmount",
-    discountValue: "100000VND",
-  },
-] as const;
-
-const toInputDate = (value: string) => new Date(value).toISOString().slice(0, 10);
-const toApiStartDate = (value: string) => `${value}T00:00:00.000Z`;
-const toApiEndDate = (value: string) => `${value}T23:59:59.000Z`;
-
-function getDiscountOptionValue(item: OwnerPromotion) {
-  if (item.promotionType !== "Campaign") return discountOptions[0].value;
-
-  return (
-    discountOptions.find(
-      (option) =>
-        option.discountType === item.discountType &&
-        option.discountValue === item.discountValue
-    )?.value ?? discountOptions[0].value
-  );
-}
 
 function BurgerIllustration() {
   return (
@@ -246,37 +188,12 @@ export function CampaignsSection({
   onRetry,
 }: CampaignsSectionProps) {
   const [endingPromotionId, setEndingPromotionId] = useState<number | null>(null);
+  const [resumingPromotionId, setResumingPromotionId] = useState<number | null>(
+    null
+  );
   const [promotionToEnd, setPromotionToEnd] = useState<OwnerPromotion | null>(
     null
   );
-  const [editingPromotion, setEditingPromotion] = useState<OwnerPromotion | null>(
-    null
-  );
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editAudience, setEditAudience] = useState("all");
-  const [editDiscount, setEditDiscount] = useState<string>(discountOptions[0].value);
-  const [editAdType, setEditAdType] = useState("SNS");
-  const [editBudget, setEditBudget] = useState("0");
-  const [editStartDate, setEditStartDate] = useState("");
-  const [editEndDate, setEditEndDate] = useState("");
-
-  const openEditDialog = (promotion: OwnerPromotion) => {
-    setEditingPromotion(promotion);
-    setEditTitle(getTitle(promotion));
-    setEditDescription(getDescription(promotion));
-    setEditAudience(promotion.targetAudience ?? "all");
-    setEditDiscount(getDiscountOptionValue(promotion));
-    setEditAdType(
-      promotion.promotionType === "Advertisement"
-        ? promotion.advertisementType ?? "SNS"
-        : "SNS"
-    );
-    setEditBudget(String(promotion.totalCost ?? 0));
-    setEditStartDate(toInputDate(promotion.startDate));
-    setEditEndDate(toInputDate(promotion.endDate));
-  };
 
   const handleEndPromotion = async (promotion: OwnerPromotion) => {
     try {
@@ -294,57 +211,19 @@ export function CampaignsSection({
     }
   };
 
-  const handleSaveEdit = async () => {
-    if (!editingPromotion || isSavingEdit) return;
-
-    const selectedDiscount =
-      discountOptions.find((option) => option.value === editDiscount) ??
-      discountOptions[0];
-
+  const handleResumePromotion = async (promotion: OwnerPromotion) => {
     try {
-      setIsSavingEdit(true);
-      await updateOwnerPromotion(
-        editingPromotion.promotionId,
-        editingPromotion.promotionType === "Campaign"
-          ? {
-              titleVn: editTitle.trim(),
-              titleJp: editTitle.trim(),
-              contentVn: editDescription.trim(),
-              contentJp: editDescription.trim(),
-              targetAudience: editAudience,
-              discountType: selectedDiscount.discountType,
-              discountValue: selectedDiscount.discountValue,
-              termsVn: editingPromotion.note ?? undefined,
-              termsJp: editingPromotion.note ?? undefined,
-              startDate: toApiStartDate(editStartDate),
-              endDate: toApiEndDate(editEndDate),
-            }
-          : {
-              titleVn: editTitle.trim(),
-              titleJp: editTitle.trim(),
-              contentVn: editDescription.trim(),
-              contentJp: editDescription.trim(),
-              advertisementType: editAdType,
-              totalCost: Number(editBudget || 0),
-              mediaUrl: editingPromotion.mediaUrl ?? undefined,
-              startDate: toApiStartDate(editStartDate),
-              endDate: toApiEndDate(editEndDate),
-            }
-      );
-      showSuccessToast("編集内容を保存しました");
-      setEditingPromotion(null);
+      setResumingPromotionId(promotion.promotionId);
+      await resumeOwnerPromotion(promotion.promotionId);
+      showSuccessToast("キャンペーンを再開しました");
       await onRetry?.();
     } catch (error) {
       showErrorToast(
         error instanceof Error ? error.message : OWNER_TOAST_MESSAGES.error
       );
     } finally {
-      setIsSavingEdit(false);
+      setResumingPromotionId(null);
     }
-  };
-
-  const handleResumePromotion = () => {
-    showErrorToast("再開機能は準備中です");
   };
 
   const renderActionButtons = (promotion: OwnerPromotion) => {
@@ -352,26 +231,26 @@ export function CampaignsSection({
       <Button
         type="button"
         variant="secondary"
-        onClick={() => {
-          if (promotion.promotionType === "Campaign") {
-            openEditDialog(promotion);
-          }
-        }}
         className="h-auto w-32 rounded-sm bg-[var(--surface-mist)] px-0 py-2 font-jp text-xs font-medium leading-4 text-[var(--ink-900)] hover:bg-[color-mix(in_oklab,var(--surface-mist),black_4%)]"
       >
         編集
       </Button>
     );
     const editAction =
-      promotion.promotionType === "Advertisement" ? (
-        <AdRequestDialog
+      promotion.promotionType === "Campaign" ? (
+        <CampaignRequestDialog
           mode="edit"
           onCreated={onRetry}
           promotion={promotion}
           trigger={editButton}
         />
       ) : (
-        editButton
+        <AdRequestDialog
+          mode="edit"
+          onCreated={onRetry}
+          promotion={promotion}
+          trigger={editButton}
+        />
       );
 
     if (promotion.status === "Active") {
@@ -396,17 +275,16 @@ export function CampaignsSection({
         <Button
           type="button"
           variant="outline"
-          onClick={handleResumePromotion}
+          disabled={resumingPromotionId === promotion.promotionId}
+          onClick={() => void handleResumePromotion(promotion)}
           className="h-auto w-32 rounded-sm border-[color-mix(in_oklab,var(--primary),transparent_85%)] px-0 py-2 font-jp text-xs font-medium leading-4 text-(--ink-600) hover:bg-white/70"
         >
-          再開する
+          {resumingPromotionId === promotion.promotionId ? "再開中..." : "再開する"}
         </Button>
       );
     }
 
-    return (
-      editAction
-    );
+    return editAction;
   };
 
   return (
@@ -450,160 +328,6 @@ export function CampaignsSection({
             >
               {endingPromotionId !== null ? "停止中..." : "停止する"}
             </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Dialog
-        open={Boolean(editingPromotion)}
-        onOpenChange={(open) => {
-          if (!open && !isSavingEdit) {
-            setEditingPromotion(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-[672px] overflow-hidden rounded-lg border-none bg-white p-0">
-          <header className="bg-(--surface-mist) px-8 py-6">
-            <DialogTitle className="font-jp text-3xl font-medium tracking-[-0.6px] text-primary">
-              編集
-            </DialogTitle>
-            <DialogDescription className="mt-2 font-jp text-sm font-medium text-(--ink-600)">
-              保存すると承認待ちに戻ります。
-            </DialogDescription>
-          </header>
-          <div className="space-y-6 p-8">
-            <section className="space-y-3">
-              <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                タイトル
-              </Label>
-              <Input
-                value={editTitle}
-                onChange={(event) => setEditTitle(event.target.value)}
-                className="h-auto rounded bg-[#eeeeeb] px-4 py-4 font-jp text-base font-medium text-(--ink-900)"
-              />
-            </section>
-            <section className="space-y-3">
-              <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                説明
-              </Label>
-              <Textarea
-                value={editDescription}
-                onChange={(event) => setEditDescription(event.target.value)}
-                className="h-[104px] resize-none rounded bg-[#eeeeeb] px-4 py-4 font-jp text-base font-medium leading-6 text-(--ink-900)"
-              />
-            </section>
-            {editingPromotion?.promotionType === "Campaign" ? (
-              <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="space-y-3">
-                  <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                    対象ユーザー
-                  </Label>
-                  <Select value={editAudience} onValueChange={setEditAudience}>
-                    <SelectTrigger className="h-11 w-full rounded-md border border-[#e2e3e0] bg-white px-3 font-jp text-sm font-medium">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">すべてのお客様</SelectItem>
-                      <SelectItem value="new">新規のお客様</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-3">
-                  <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                    割引タイプ
-                  </Label>
-                  <Select value={editDiscount} onValueChange={setEditDiscount}>
-                    <SelectTrigger className="h-11 w-full rounded-md border border-[#e2e3e0] bg-white px-3 font-jp text-sm font-medium">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {discountOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </section>
-            ) : (
-              <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <div className="space-y-3">
-                  <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                    広告タイプ
-                  </Label>
-                  <Select value={editAdType} onValueChange={setEditAdType}>
-                    <SelectTrigger className="h-11 w-full rounded-md border border-[#e2e3e0] bg-white px-3 font-jp text-sm font-medium">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="SNS">バナー広告</SelectItem>
-                      <SelectItem value="Notification">プッシュ通知</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-3">
-                  <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                    予算
-                  </Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={editBudget}
-                    onChange={(event) => setEditBudget(event.target.value)}
-                    className="h-11 rounded bg-[#eeeeeb] px-4 font-jp text-base font-medium"
-                  />
-                </div>
-              </section>
-            )}
-            <section className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div className="space-y-3">
-                <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                  開始日
-                </Label>
-                <Input
-                  value={editStartDate}
-                  onChange={(event) => setEditStartDate(event.target.value)}
-                  placeholder="yyyy-mm-dd"
-                  className="h-11 rounded bg-[#eeeeeb] px-4 font-manrope text-base"
-                />
-              </div>
-              <div className="space-y-3">
-                <Label className="font-jp text-xs font-medium tracking-[1.2px] text-(--ink-600)">
-                  終了日
-                </Label>
-                <Input
-                  value={editEndDate}
-                  onChange={(event) => setEditEndDate(event.target.value)}
-                  placeholder="yyyy-mm-dd"
-                  className="h-11 rounded bg-[#eeeeeb] px-4 font-manrope text-base"
-                />
-              </div>
-            </section>
-            <footer className="flex justify-end gap-4 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={isSavingEdit}
-                onClick={() => setEditingPromotion(null)}
-                className="h-auto rounded px-8 py-3 font-jp text-base font-medium"
-              >
-                キャンセル
-              </Button>
-              <Button
-                type="button"
-                disabled={
-                  isSavingEdit ||
-                  !editTitle.trim() ||
-                  !editDescription.trim() ||
-                  !editStartDate ||
-                  !editEndDate
-                }
-                onClick={() => void handleSaveEdit()}
-                className="h-auto rounded bg-primary px-12 py-3 font-jp text-base font-medium text-white"
-              >
-                {isSavingEdit ? "保存中..." : "保存"}
-              </Button>
-            </footer>
           </div>
         </DialogContent>
       </Dialog>

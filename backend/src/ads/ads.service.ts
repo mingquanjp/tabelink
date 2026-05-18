@@ -374,6 +374,12 @@ export class AdsService {
     return this.endPromotion(restaurantId, promotionId, user);
   }
 
+  async resumeOwnerPromotion(promotionId: number, user: JwtPayload) {
+    const restaurantId = await this.resolveOwnerRestaurantId(user);
+
+    return this.resumePromotion(restaurantId, promotionId, user);
+  }
+
   async endPromotion(
     restaurantId: number,
     promotionId: number,
@@ -395,6 +401,65 @@ export class AdsService {
       `
         UPDATE PROMOTION
         SET Status = 'Ended'
+        WHERE PromotionID = $1
+          AND RestaurantID = $2
+          AND CreatedByOwnerAccountID = $3
+        RETURNING
+          PromotionID AS "promotionId",
+          RestaurantID AS "restaurantId",
+          CreatedByOwnerAccountID AS "createdByOwnerAccountId",
+          PromotionType AS "promotionType",
+          TargetAudience AS "targetAudience",
+          TitleVN AS "titleVn",
+          TitleJP AS "titleJp",
+          ContentVN AS "contentVn",
+          ContentJP AS "contentJp",
+          MediaURL AS "mediaUrl",
+          TermsVN AS "termsVn",
+          TermsJP AS "termsJp",
+          DiscountType AS "discountType",
+          DiscountValue AS "discountValue",
+          AdvertisementType AS "advertisementType",
+          TargetRadiusKm AS "targetRadiusKm",
+          StartDate AS "startDate",
+          EndDate AS "endDate",
+          Status AS "status",
+          Impressions AS "impressions",
+          Clicks AS "clicks",
+          TotalCost AS "totalCost"
+      `,
+      [promotionId, restaurantId, user.sub],
+    );
+
+    const row = this.unwrapFirstRow(rows);
+    if (!row) {
+      throw new NotFoundException('Promotion not found for this owner.');
+    }
+
+    return this.toPromotionResponse(row);
+  }
+
+  async resumePromotion(
+    restaurantId: number,
+    promotionId: number,
+    user: JwtPayload,
+  ) {
+    await this.assertOwnerRestaurant(restaurantId, user);
+
+    const current = await this.findOwnedPromotion(
+      restaurantId,
+      promotionId,
+      user.sub,
+    );
+
+    if (current.status !== 'Ended') {
+      throw new BadRequestException('Only ended promotions can be resumed.');
+    }
+
+    const rows = await this.dataSource.query<PromotionRow[]>(
+      `
+        UPDATE PROMOTION
+        SET Status = 'Active'
         WHERE PromotionID = $1
           AND RestaurantID = $2
           AND CreatedByOwnerAccountID = $3

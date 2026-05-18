@@ -1,7 +1,7 @@
 "use client";
 
 import { CalendarDays, Tag, X } from "lucide-react";
-import type { ReactNode } from "react";
+import type { FormEvent, ReactNode } from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { createOwnerCampaign } from "@/lib/api/campaigns/API";
+import {
+  createOwnerCampaign,
+  updateOwnerPromotion,
+} from "@/lib/api/campaigns/API";
+import type { OwnerCampaignPromotion } from "@/lib/api/campaigns/type";
 import {
   OWNER_TOAST_MESSAGES,
   showErrorToast,
@@ -34,6 +38,8 @@ import {
 type CampaignRequestDialogProps = {
   trigger: ReactNode;
   onCreated?: () => void | Promise<void>;
+  mode?: "create" | "edit";
+  promotion?: OwnerCampaignPromotion;
 };
 
 const audienceOptions = [
@@ -45,11 +51,15 @@ const discountOptions = [
   { value: "percentage-10", label: "合計金額から 10% OFF", discountType: "Percentage", discountValue: "10%" },
   { value: "percentage-20", label: "合計金額から 20% OFF", discountType: "Percentage", discountValue: "20%" },
   { value: "percentage-50", label: "合計金額から 50% OFF", discountType: "Percentage", discountValue: "50%" },
+  { value: "percentage-100", label: "合計金額から 100% OFF", discountType: "Percentage", discountValue: "100%" },
   { value: "fixed-50000", label: "合計金額から 50,000VND 割引", discountType: "FixedAmount", discountValue: "50000VND" },
   { value: "fixed-100000", label: "合計金額から 100,000VND 割引", discountType: "FixedAmount", discountValue: "100000VND" },
+  { value: "fixed-200000", label: "合計金額から 200,000VND 割引", discountType: "FixedAmount", discountValue: "200000VND" },
 ] as const;
 
 const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+const toInputDateValue = (value?: string | null) =>
+  value ? new Date(value).toISOString().slice(0, 10) : "";
 const toApiStartDate = (value: string) => `${value}T00:00:00.000Z`;
 const toApiEndDate = (value: string) => `${value}T23:59:59.000Z`;
 
@@ -63,28 +73,48 @@ const parseInputDate = (value: string) => {
 export function CampaignRequestDialog({
   trigger,
   onCreated,
+  mode = "create",
+  promotion,
 }: CampaignRequestDialogProps) {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [audience, setAudience] = useState<(typeof audienceOptions)[number]["value"]>("all");
-  const [discountType, setDiscountType] = useState<string>(
-    discountOptions[0].value
+  const [name, setName] = useState(promotion?.campaignName ?? "");
+  const [description, setDescription] = useState(
+    promotion?.campaignDescription ?? ""
   );
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [audience, setAudience] = useState<(typeof audienceOptions)[number]["value"]>(
+    promotion?.targetAudience === "new" ? "new" : "all"
+  );
+  const [discountType, setDiscountType] = useState<string>(
+    discountOptions.find(
+      (option) =>
+        option.discountType === promotion?.discountType &&
+        option.discountValue === promotion?.discountValue
+    )?.value ?? discountOptions[0].value
+  );
+  const [startDate, setStartDate] = useState(toInputDateValue(promotion?.startDate));
+  const [endDate, setEndDate] = useState(toInputDateValue(promotion?.endDate));
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const dialogTitle =
+    mode === "edit" ? "キャンペーンを編集" : "新しいキャンペーンを作成";
+  const submitLabel = mode === "edit" ? "保存" : "作成";
+  const submittingLabel = mode === "edit" ? "保存中..." : "作成中...";
 
   const canSubmit =
     name.trim().length > 0 && description.trim().length > 0 && startDate && endDate;
 
   const resetForm = () => {
-    setName("");
-    setDescription("");
-    setAudience("all");
-    setDiscountType(discountOptions[0].value);
-    setStartDate("");
-    setEndDate("");
+    setName(promotion?.campaignName ?? "");
+    setDescription(promotion?.campaignDescription ?? "");
+    setAudience(promotion?.targetAudience === "new" ? "new" : "all");
+    setDiscountType(
+      discountOptions.find(
+        (option) =>
+          option.discountType === promotion?.discountType &&
+          option.discountValue === promotion?.discountValue
+      )?.value ?? discountOptions[0].value
+    );
+    setStartDate(toInputDateValue(promotion?.startDate));
+    setEndDate(toInputDateValue(promotion?.endDate));
   };
 
   const handleCancel = () => {
@@ -92,7 +122,7 @@ export function CampaignRequestDialog({
     setOpen(false);
   };
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!canSubmit || isSubmitting) return;
 
@@ -102,16 +132,32 @@ export function CampaignRequestDialog({
 
     try {
       setIsSubmitting(true);
-      await createOwnerCampaign({
-        campaignName: name.trim(),
-        campaignDescription: description.trim(),
-        targetAudience: audience,
-        discountType: selectedDiscount.discountType,
-        discountValue: selectedDiscount.discountValue,
-        note: "Cannot be combined with other coupons.",
-        startDate: toApiStartDate(startDate),
-        endDate: toApiEndDate(endDate),
-      });
+      if (mode === "edit" && promotion) {
+        await updateOwnerPromotion(promotion.promotionId, {
+          titleVn: name.trim(),
+          titleJp: name.trim(),
+          contentVn: description.trim(),
+          contentJp: description.trim(),
+          targetAudience: audience,
+          discountType: selectedDiscount.discountType,
+          discountValue: selectedDiscount.discountValue,
+          termsVn: promotion.note ?? undefined,
+          termsJp: promotion.note ?? undefined,
+          startDate: toApiStartDate(startDate),
+          endDate: toApiEndDate(endDate),
+        });
+      } else {
+        await createOwnerCampaign({
+          campaignName: name.trim(),
+          campaignDescription: description.trim(),
+          targetAudience: audience,
+          discountType: selectedDiscount.discountType,
+          discountValue: selectedDiscount.discountValue,
+          note: "Cannot be combined with other coupons.",
+          startDate: toApiStartDate(startDate),
+          endDate: toApiEndDate(endDate),
+        });
+      }
       showSuccessToast();
       resetForm();
       setOpen(false);
@@ -131,7 +177,7 @@ export function CampaignRequestDialog({
       <DialogContent className="max-w-[672px] overflow-hidden rounded-lg border-none bg-white p-0">
         <header className="flex items-center justify-between bg-(--surface-mist) px-8 py-6">
           <DialogTitle className="font-jp text-3xl font-medium tracking-[-0.6px] text-primary">
-            新しいキャンペーンを作成
+            {dialogTitle}
           </DialogTitle>
           <button
             type="button"
@@ -262,7 +308,7 @@ export function CampaignRequestDialog({
               disabled={!canSubmit || isSubmitting}
               className="h-auto rounded bg-primary px-12 py-3 font-jp text-base font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]"
             >
-              {isSubmitting ? "作成中..." : "作成"}
+              {isSubmitting ? submittingLabel : submitLabel}
             </Button>
           </footer>
         </form>

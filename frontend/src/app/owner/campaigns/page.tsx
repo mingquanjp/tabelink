@@ -44,7 +44,7 @@ const ElementCampaignAd = () => {
           items={promotions?.items ?? []}
           onRetry={loadPromotions}
         />
-        <CampaignPromoCta />
+        <CampaignPromoCta onPromotionCreated={loadPromotions} />
       </div>
     </main>
   );

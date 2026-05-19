@@ -28,10 +28,46 @@ export type MapRestaurant = {
   features: string[];
 };
 
+function parseDistanceMeters(value: string | undefined) {
+  if (!value || value === "---") {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  const amount = Number.parseFloat(normalized);
+
+  if (!Number.isFinite(amount)) {
+    return undefined;
+  }
+
+  return normalized.includes("km") ? amount * 1000 : amount;
+}
+
 export const mapApiToMapRestaurant = (
-  item: RestaurantSearchItem,
+  item: RestaurantSearchItem | MapRestaurant,
 ): MapRestaurant => {
-  const distKm = item.distance ? item.distance / 1000 : 0;
+  if ("id" in item) {
+    const distanceMeters =
+      item.routeDistanceMeters ?? parseDistanceMeters(item.distance);
+    const ratingValue =
+      typeof item.ratingValue === "number"
+        ? item.ratingValue
+        : Number(item.rating) || 0;
+
+    return {
+      ...item,
+      rating: String(item.rating ?? ratingValue),
+      ratingValue,
+      routeDistanceMeters: distanceMeters,
+      routeDurationSeconds: item.routeDurationSeconds,
+      badges: item.badges ?? [],
+      amenities: item.amenities ?? [],
+      features: item.features ?? [],
+    };
+  }
+
+  const distanceMeters = item.distance;
+  const distKm = distanceMeters ? distanceMeters / 1000 : 0;
   let distOption: DistanceOption = "5km";
   if (distKm <= 0.5) distOption = "500m";
   else if (distKm <= 1.0) distOption = "1.0km";
@@ -44,7 +80,7 @@ export const mapApiToMapRestaurant = (
       lat: item.latitude,
       lng: item.longitude,
     },
-    distance: item.distance ? `${distKm.toFixed(1)}km` : "---",
+    distance: distanceMeters ? `${distKm.toFixed(1)}km` : "---",
     distanceValue: distOption,
 
     rating: (item.averageRating || 4.5).toString(),

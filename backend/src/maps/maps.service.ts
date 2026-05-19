@@ -19,10 +19,31 @@ type LatLng = {
   lng: number;
 };
 
+type RestaurantRouteResult = {
+  restaurantId: number;
+  origin: LatLng;
+  destination: LatLng & {
+    nameVn: string;
+    nameJp: string;
+    address: string;
+  };
+  provider: 'osrm';
+  distanceMeters: number;
+  durationSeconds: number;
+  geometry: LatLng[];
+};
+
+type RouteCacheEntry = {
+  expiresAt: number;
+  value: RestaurantRouteResult;
+};
+
 const MIN_LAT = -90;
 const MAX_LAT = 90;
 const MIN_LNG = -180;
 const MAX_LNG = 180;
+const ROUTE_CACHE_COORDINATE_PRECISION = 4;
+const DEFAULT_ROUTE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 interface RestaurantLocationRow {
   restaurantId: number | string;
@@ -50,6 +71,8 @@ type OsrmRoute = NonNullable<OsrmRouteResponse['routes']>[number];
 export class MapsService {
   private readonly osrmBaseUrl: string;
   private readonly osrmTimeoutMs: number;
+  private readonly routeCacheTtlMs: number;
+  private readonly routeCache = new Map<string, RouteCacheEntry>();
 
   constructor(
     @InjectRepository(Restaurant)
@@ -61,6 +84,7 @@ export class MapsService {
       .get<string>('OSRM_BASE_URL', 'https://router.project-osrm.org')
       .replace(/\/+$/, '');
     this.osrmTimeoutMs = this.resolveTimeoutMs();
+    this.routeCacheTtlMs = this.resolveRouteCacheTtlMs();
   }
   async searchRestaurants(dto: SearchRestaurantDto, user: JwtPayload) {
     // Implementation for searching restaurants
@@ -140,13 +164,28 @@ export class MapsService {
     const totalCount = await query.getCount();
     query.skip(skip).take(limit);
     const { entities, raw } = await query.getRawAndEntities();
-    const items = entities.map((entity, index) => {
-      const rawData = raw[index];
+    const rawByRestaurantId = new Map<number, Record<string, unknown>>();
+
+    raw.forEach((rawData: Record<string, unknown>) => {
+      const rawRestaurantId =
+        rawData.restaurant_RestaurantID ??
+        rawData.restaurant_restaurantid ??
+        rawData.restaurantid ??
+        rawData.RestaurantID;
+      const restaurantId = Number(rawRestaurantId);
+
+      if (Number.isFinite(restaurantId) && !rawByRestaurantId.has(restaurantId)) {
+        rawByRestaurantId.set(restaurantId, rawData);
+      }
+    });
+
+    const items = entities.map((entity) => {
+      const rawData = rawByRestaurantId.get(entity.restaurantId);
       const distanceMeters = rawData?.distance
-        ? parseFloat(rawData.distance)
+        ? parseFloat(String(rawData.distance))
         : undefined;
       const avgRating = rawData?.avgRating
-        ? Number(parseFloat(rawData.avgRating).toFixed(1))
+        ? Number(parseFloat(String(rawData.avgRating)).toFixed(1))
         : 0;
       return this.transformToMapRestaurant(entity, distanceMeters, avgRating);
     });
@@ -171,10 +210,19 @@ export class MapsService {
 
     this.assertLatLng(origin, 'origin');
 
+    const routeCacheKey = this.getRouteCacheKey(restaurantId, origin);
+    const cachedRoute = this.getCachedRoute(routeCacheKey);
+
+    if (cachedRoute) {
+      return {
+        ...cachedRoute,
+        origin,
+      };
+    }
+
     const routeTarget = await this.resolveRouteTarget(restaurantId);
     const route = await this.fetchOsrmRoute(origin, routeTarget.destination);
-
-    return {
+    const result = {
       restaurantId,
       origin,
       destination: {
@@ -189,6 +237,10 @@ export class MapsService {
       durationSeconds: route.durationSeconds,
       geometry: route.geometry,
     };
+
+    this.setCachedRoute(routeCacheKey, result);
+
+    return result;
   }
 
   private assertMapViewer(user: JwtPayload) {
@@ -303,6 +355,45 @@ export class MapsService {
     return Number.isFinite(value) && value > 0 ? value : 5000;
   }
 
+  private resolveRouteCacheTtlMs() {
+    const rawValue = this.configService.get<string>('OSRM_ROUTE_CACHE_TTL_MS');
+    const value =
+      rawValue === undefined ? DEFAULT_ROUTE_CACHE_TTL_MS : Number(rawValue);
+
+    return Number.isFinite(value) && value > 0
+      ? value
+      : DEFAULT_ROUTE_CACHE_TTL_MS;
+  }
+
+  private getRouteCacheKey(restaurantId: number, origin: LatLng) {
+    const lat = origin.lat.toFixed(ROUTE_CACHE_COORDINATE_PRECISION);
+    const lng = origin.lng.toFixed(ROUTE_CACHE_COORDINATE_PRECISION);
+
+    return `${restaurantId}:${lat},${lng}`;
+  }
+
+  private getCachedRoute(key: string) {
+    const cached = this.routeCache.get(key);
+
+    if (!cached) {
+      return null;
+    }
+
+    if (cached.expiresAt <= Date.now()) {
+      this.routeCache.delete(key);
+      return null;
+    }
+
+    return cached.value;
+  }
+
+  private setCachedRoute(key: string, value: RestaurantRouteResult) {
+    this.routeCache.set(key, {
+      expiresAt: Date.now() + this.routeCacheTtlMs,
+      value,
+    });
+  }
+
   private assertLatLng(point: LatLng, label: 'origin' | 'destination') {
     if (!this.isValidLatLng(point)) {
       throw new BadRequestException(`Invalid ${label} coordinates.`);
@@ -394,10 +485,9 @@ export class MapsService {
       mapName: entity.nameJp || entity.nameVn,
       address: entity.address,
       position: { lat: Number(entity.latitude), lng: Number(entity.longitude) },
-      distance: distanceMeters
-        ? `${(distanceMeters / 1000).toFixed(1)}km`
-        : '---',
+      distance: distanceStr,
       distanceValue: distValue,
+      routeDistanceMeters: distanceMeters,
 
       rating: avgRating,
       imageUrl:

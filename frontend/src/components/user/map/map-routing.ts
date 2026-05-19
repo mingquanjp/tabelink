@@ -11,8 +11,9 @@ export type BrowserLocation = {
   capturedAt: number;
 };
 
-const TARGET_GPS_ACCURACY_METERS = 50;
-const LOCATION_TIMEOUT_MS = 15_000;
+const TARGET_GPS_ACCURACY_METERS = 100;
+const LOCATION_TIMEOUT_MS = 6_000;
+const LOCATION_SETTLE_MS = 2_000;
 const GEOLOCATION_PERMISSION_DENIED = 1;
 
 export function isValidLatLng(point: LatLngLiteral) {
@@ -98,6 +99,7 @@ export function getBrowserCurrentLocation() {
     let bestLocation: BrowserLocation | null = null;
     let lastError: GeolocationPositionError | null = null;
     let watchId: number | null = null;
+    let settleTimeoutId: number | null = null;
 
     const options = {
       enableHighAccuracy: true,
@@ -141,6 +143,15 @@ export function getBrowserCurrentLocation() {
 
       if (location.accuracyMeters <= TARGET_GPS_ACCURACY_METERS) {
         finishWithLocation(location);
+        return;
+      }
+
+      if (settleTimeoutId === null) {
+        settleTimeoutId = window.setTimeout(() => {
+          if (bestLocation) {
+            finishWithLocation(bestLocation);
+          }
+        }, LOCATION_SETTLE_MS);
       }
     }
 
@@ -165,6 +176,10 @@ export function getBrowserCurrentLocation() {
 
     function cleanup() {
       window.clearTimeout(timeoutId);
+
+      if (settleTimeoutId !== null) {
+        window.clearTimeout(settleTimeoutId);
+      }
 
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);

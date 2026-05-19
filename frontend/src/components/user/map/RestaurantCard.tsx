@@ -1,4 +1,4 @@
-import { BadgeCheck, Car, Globe, Map, MapPin, Receipt, ShieldCheck, Star, Utensils } from "lucide-react";
+import { BadgeCheck, Car, Globe, Map, MapPin, Receipt, ShieldCheck, Star, Utensils, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import type { MapRestaurant } from "./map-data";
 import { formatDistanceShort } from "./map-routing";
@@ -10,7 +10,7 @@ type RestaurantCardProps = {
   onMapOpen?: (restaurant: MapRestaurant) => void;
 };
 
-export const FEATURE_MAPPING: Record<string, { label: string; icon: any }> = {
+export const FEATURE_MAPPING: Record<string, { label: string; icon: LucideIcon }> = {
   JAPANESE_MENU: { label: "日本語メニュー", icon: Globe },
   VAT_INVOICE: { label: "VAT発行可", icon: Receipt },
   PARKING: { label: "駐車場あり", icon: Car },
@@ -29,7 +29,7 @@ export function RestaurantCard({
   const compactDistance =
     restaurant.routeDistanceMeters !== undefined
       ? formatDistanceShort(restaurant.routeDistanceMeters)
-      : restaurant.distanceValue;
+      : null;
 
   return (
     <article

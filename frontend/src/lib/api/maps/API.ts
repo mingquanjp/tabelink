@@ -33,6 +33,7 @@ export async function advancedSearchRestaurants(params: AdvancedSearchParams) {
 export async function getRestaurantRoute(
   restaurantId: number,
   origin: { lat: number; lng: number },
+  options: RequestInit = {},
 ) {
   const params = new URLSearchParams({
     originLat: String(origin.lat),
@@ -41,6 +42,6 @@ export async function getRestaurantRoute(
 
   return apiRequest<RestaurantRouteResponse>(
     `/maps/restaurants/${restaurantId}/route?${params.toString()}`,
-    { auth: true },
+    { ...options, auth: true },
   );
 }

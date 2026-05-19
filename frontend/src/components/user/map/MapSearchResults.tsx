@@ -1,4 +1,5 @@
 import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { MapRestaurant } from "./map-data";
 import type { LatLngLiteral } from "./map-routing";
 import { MapArea } from "./MapArea";
@@ -14,7 +15,7 @@ type MapSearchResultsProps = {
   appliedFilters: AppliedFilter[];
   sort: SortOption;
   isMapOpen: boolean;
-  isRouteLoading: boolean;
+  isLoading: boolean;
   selectedRestaurant: MapRestaurant | null;
   origin: LatLngLiteral | null;
   routes: Record<number, RestaurantRouteResponse>;
@@ -22,8 +23,10 @@ type MapSearchResultsProps = {
   onOpenMap: (restaurant: MapRestaurant) => void;
   onSortChange: (sort: SortOption) => void;
   onRemoveFilter: (key: string) => void;
+  onPageChange: (page: number) => void;
   totalCount: number;
-  isLoading: boolean;
+  currentPage: number;
+  totalPages: number;
 };
 
 export function MapSearchResults({
@@ -31,7 +34,7 @@ export function MapSearchResults({
   appliedFilters,
   sort,
   isMapOpen,
-  isRouteLoading,
+  isLoading,
   selectedRestaurant,
   origin,
   routes,
@@ -39,9 +42,40 @@ export function MapSearchResults({
   onOpenMap,
   onSortChange,
   onRemoveFilter,
+  onPageChange,
   totalCount,
-  isLoading,
+  currentPage,
+  totalPages,
 }: MapSearchResultsProps) {
+  const shouldShowLoadingState = isLoading && restaurants.length === 0;
+  const canGoPrevious = currentPage > 1 && !isLoading;
+  const canGoNext = currentPage < totalPages && !isLoading;
+  const pagination = totalPages > 1 ? (
+    <div className="mt-8 flex items-center justify-center gap-3 font-jp text-[12px] font-medium text-[#5a6053]">
+      <button
+        type="button"
+        className="inline-flex size-9 items-center justify-center rounded-lg border border-[#e2e3e0] bg-white text-[#1a1c1b] disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={!canGoPrevious}
+        onClick={() => onPageChange(currentPage - 1)}
+        aria-label="Previous page"
+      >
+        <ChevronLeft className="size-4" />
+      </button>
+      <span>
+        {currentPage} / {totalPages}
+      </span>
+      <button
+        type="button"
+        className="inline-flex size-9 items-center justify-center rounded-lg border border-[#e2e3e0] bg-white text-[#1a1c1b] disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={!canGoNext}
+        onClick={() => onPageChange(currentPage + 1)}
+        aria-label="Next page"
+      >
+        <ChevronRight className="size-4" />
+      </button>
+    </div>
+  ) : null;
+
   if (isMapOpen && selectedRestaurant) {
     return (
       <main className="h-full min-h-0 min-w-0 flex-1 overflow-hidden bg-white">
@@ -56,9 +90,9 @@ export function MapSearchResults({
                 onSortChange={onSortChange}
               />
             </div>
-            {isRouteLoading ? (
+            {shouldShowLoadingState ? (
               <div className="m-6 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
-                ルートを計算中...
+                検索中...
               </div>
             ) : restaurants.length > 0 ? (
               <div className="min-h-0 flex-1 overflow-y-auto p-6">
@@ -73,6 +107,7 @@ export function MapSearchResults({
                     />
                   ))}
                 </div>
+                {pagination}
               </div>
             ) : (
               <div className="m-6 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
@@ -101,20 +136,23 @@ export function MapSearchResults({
           onRemoveFilter={onRemoveFilter}
           onSortChange={onSortChange}
         />
-        {isRouteLoading ? (
+        {shouldShowLoadingState ? (
           <div className="mt-10 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
-            ルートを計算中...
+            検索中...
           </div>
         ) : restaurants.length > 0 ? (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-8 pt-10 md:grid-cols-2 xl:grid-cols-3">
-            {restaurants.map((restaurant) => (
-              <RestaurantCard
-                key={restaurant.id}
-                restaurant={restaurant}
-                onMapOpen={onOpenMap}
-              />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 gap-x-6 gap-y-8 pt-10 md:grid-cols-2 xl:grid-cols-3">
+              {restaurants.map((restaurant) => (
+                <RestaurantCard
+                  key={restaurant.id}
+                  restaurant={restaurant}
+                  onMapOpen={onOpenMap}
+                />
+              ))}
+            </div>
+            {pagination}
+          </>
         ) : (
           <div className="mt-10 rounded-lg border border-dashed border-[#e4beba] bg-white px-6 py-12 text-center font-jp text-[14px] font-medium text-[#5a6053]">
             条件に一致するレストランはありません。

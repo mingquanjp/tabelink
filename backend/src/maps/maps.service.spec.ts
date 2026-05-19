@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { MapsService } from './maps.service';
 
 describe('MapsService', () => {
@@ -55,6 +57,10 @@ describe('MapsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MapsService,
+        {
+          provide: getRepositoryToken(Restaurant),
+          useValue: {},
+        },
         {
           provide: DataSource,
           useValue: dataSource,
@@ -119,6 +125,30 @@ describe('MapsService', () => {
       'https://osrm.test/route/v1/driving/105.8412,21.0166;105.84647,21.02686?geometries=geojson&overview=full',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
+  });
+
+  it('reuses cached route responses for the same rounded origin', async () => {
+    await service.getRestaurantRoute(
+      10,
+      { originLat: 21.0166, originLng: 105.8412 },
+      user,
+    );
+
+    await expect(
+      service.getRestaurantRoute(
+        10,
+        { originLat: 21.01661, originLng: 105.84121 },
+        user,
+      ),
+    ).resolves.toMatchObject({
+      restaurantId: 10,
+      origin: { lat: 21.01661, lng: 105.84121 },
+      distanceMeters: 1842.3,
+      durationSeconds: 412.5,
+    });
+
+    expect(dataSource.query).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('rejects invalid origin coordinates before requesting OSRM', async () => {

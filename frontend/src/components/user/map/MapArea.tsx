@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { LocateFixed, Minus, Navigation, Plus, X } from "lucide-react";
 import { getRestaurantRoute } from "@/lib/api/maps/API";
 import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
@@ -23,6 +23,7 @@ type MapAreaProps = {
 const TILE_SIZE = 256;
 const MIN_ZOOM = 11;
 const MAX_ZOOM = 16;
+const ROUTE_TIMEOUT_MS = 8_000;
 const EMPTY_ROUTE_COORDINATES: LatLngLiteral[] = [];
 
 function clamp(value: number, min: number, max: number) {
@@ -56,6 +57,30 @@ function formatRouteInfo(distanceMeters?: number, durationSeconds?: number) {
   const minutes = Math.max(1, Math.round(durationSeconds / 60));
 
   return `${distance} / 約${minutes}分`;
+}
+
+function getDirectDistanceMeters(origin: LatLngLiteral, destination: LatLngLiteral) {
+  const earthRadiusMeters = 6_371_000;
+  const originLat = (origin.lat * Math.PI) / 180;
+  const destinationLat = (destination.lat * Math.PI) / 180;
+  const deltaLat = ((destination.lat - origin.lat) * Math.PI) / 180;
+  const deltaLng = ((destination.lng - origin.lng) * Math.PI) / 180;
+  const haversine =
+    Math.sin(deltaLat / 2) ** 2 +
+    Math.cos(originLat) *
+      Math.cos(destinationLat) *
+      Math.sin(deltaLng / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+function formatDirectRouteInfo(distanceMeters: number) {
+  const distance =
+    distanceMeters >= 1000
+      ? `${(distanceMeters / 1000).toFixed(1)}km`
+      : `${Math.round(distanceMeters)}m`;
+
+  return `${distance} / 直線距離`;
 }
 
 function isSamePoint(first: LatLngLiteral, second: LatLngLiteral) {
@@ -96,6 +121,16 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
   } | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [zoomDelta, setZoomDelta] = useState(0);
+  const [panState, setPanState] = useState<{
+    routeKey: string;
+    offset: Point;
+  } | null>(null);
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startOffset: Point;
+  } | null>(null);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -145,13 +180,20 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
     [mapOrigin, activeDestination, size],
   );
   const zoom = clamp(fitZoom + zoomDelta, MIN_ZOOM, MAX_ZOOM);
+  const panOffset = useMemo(
+    () => (panState?.routeKey === routeKey ? panState.offset : { x: 0, y: 0 }),
+    [panState, routeKey],
+  );
 
   useEffect(() => {
     let cancelled = false;
+    let timeoutId: number | null = null;
+    const controller = new AbortController();
 
     if (!origin) {
       return () => {
         cancelled = true;
+        controller.abort();
       };
     }
 
@@ -162,10 +204,15 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
     ) {
       return () => {
         cancelled = true;
+        controller.abort();
       };
     }
 
-    getRestaurantRoute(restaurant.id, origin)
+    timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, ROUTE_TIMEOUT_MS);
+
+    getRestaurantRoute(restaurant.id, origin, { signal: controller.signal })
       .then((route) => {
         if (cancelled) {
           return;
@@ -183,16 +230,31 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
           return;
         }
 
+        const directDistanceMeters = getDirectDistanceMeters(
+          origin,
+          restaurant.position,
+        );
+
         setRouteResult({
           key: routeKey,
-          coordinates: [],
+          coordinates: [origin, restaurant.position],
           destination: restaurant.position,
-          info: "ルート情報を取得できません",
+          info: formatDirectRouteInfo(directDistanceMeters),
         });
+      })
+      .finally(() => {
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
       });
 
     return () => {
       cancelled = true;
+      controller.abort();
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
     };
   }, [
     origin,
@@ -210,8 +272,8 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
       y: (originPoint.y + destinationPoint.y) / 2,
     };
     const topLeft = {
-      x: center.x - size.width / 2,
-      y: center.y - size.height / 2,
+      x: center.x - size.width / 2 - panOffset.x,
+      y: center.y - size.height / 2 - panOffset.y,
     };
 
     return {
@@ -232,7 +294,7 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
       }),
       topLeft,
     };
-  }, [mapOrigin, activeDestination, activeRouteCoordinates, size, zoom]);
+  }, [mapOrigin, activeDestination, activeRouteCoordinates, panOffset, size, zoom]);
 
   const tiles = useMemo(() => {
     if (size.width === 0 || size.height === 0) {
@@ -273,10 +335,65 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
     .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
     .join(" ");
 
+  function handlePointerDown(event: PointerEvent<HTMLElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    if ((event.target as HTMLElement).closest("button,a")) {
+      return;
+    }
+
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startOffset: panOffset,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - drag.startX;
+    const deltaY = event.clientY - drag.startY;
+
+    setPanState({
+      routeKey,
+      offset: {
+        x: drag.startOffset.x + deltaX,
+        y: drag.startOffset.y + deltaY,
+      },
+    });
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLElement>) {
+    const drag = dragRef.current;
+
+    if (!drag || drag.pointerId !== event.pointerId) {
+      return;
+    }
+
+    dragRef.current = null;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
   return (
     <section
       ref={containerRef}
-      className="relative h-full min-h-0 flex-1 overflow-hidden bg-[#e2e3e0]"
+      className="relative h-full min-h-0 flex-1 cursor-grab touch-none overflow-hidden bg-[#e2e3e0] active:cursor-grabbing"
+      onPointerCancel={handlePointerUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
       onWheel={(event) => event.preventDefault()}
     >
       <div className="absolute inset-0">
@@ -372,7 +489,10 @@ export function MapArea({ restaurant, origin, route, onClose }: MapAreaProps) {
           type="button"
           aria-label="Back to current location"
           className="flex size-12 items-center justify-center rounded-lg bg-[#d32f2f] text-white shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)]"
-          onClick={() => setZoomDelta(0)}
+          onClick={() => {
+            setZoomDelta(0);
+            setPanState(null);
+          }}
         >
           <LocateFixed className="size-5" />
         </button>

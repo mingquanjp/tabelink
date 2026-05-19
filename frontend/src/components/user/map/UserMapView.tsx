@@ -2,17 +2,18 @@
 
 import { advancedSearchRestaurants, getRestaurantRoute } from "@/lib/api/maps/API";
 import type { RestaurantRouteResponse } from "@/lib/api/maps/type";
+import { refreshSession, guestLogin } from "@/lib/api/auth/API";
+import { clearAuthSessionCache } from "@/lib/api/auth/session";
+import { ApiError } from "@/lib/api/client";
 import { showErrorToast } from "@/lib/app-toast";
 import { useEffect, useMemo, useState } from "react";
 import type {
   AmenityKey,
   MapRestaurant,
 } from "./map-data";
-import { currentLocation as fallbackLocation } from "./map-data";
+import { currentLocation as fallbackLocation, mapApiToMapRestaurant } from "./map-data";
 import {
   distanceLimitMeters,
-  distanceOptionForMeters,
-  formatDistanceShort,
   getBrowserCurrentLocation,
   type BrowserLocation
 } from "./map-routing";
@@ -33,6 +34,10 @@ const FEATURE_IDS = {
   VAT: 4,
   HYGIENE: -1,
 };
+
+const SEARCH_DEBOUNCE_MS = 300;
+const ROUTE_DISTANCE_CONCURRENCY = 3;
+const PAGE_SIZE = 6;
 
 const initialFilters: MapFilterState = {
   keyword: "",
@@ -67,33 +72,58 @@ function isValidKeyword(value: string) {
 }
 
 type RouteMap = Record<number, RestaurantRouteResponse>;
+type SearchParams = Parameters<typeof advancedSearchRestaurants>[0];
+
+async function searchRestaurantsWithSessionRetry(params: SearchParams) {
+  try {
+    return await advancedSearchRestaurants(params);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      try {
+        await refreshSession();
+      } catch {
+        await guestLogin();
+      }
+
+      clearAuthSessionCache();
+      return advancedSearchRestaurants(params);
+    }
+
+    throw error;
+  }
+}
 
 export function UserMapView() {
   const [filters, setFilters] = useState<MapFilterState>(initialFilters);
+  const [debouncedFilters, setDebouncedFilters] =
+    useState<MapFilterState>(initialFilters);
   const [sort, setSort] = useState<SortOption>("recommended");
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<MapRestaurant | null>(null);
   const [restaurants, setRestaurants] = useState<MapRestaurant[]>([]);
-
   const [totalCount, setTotalCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [currentLocation, setCurrentLocation] =
     useState<BrowserLocation | null>(null);
+  const [completedSearchKey, setCompletedSearchKey] = useState("");
   const [routes, setRoutes] = useState<RouteMap>({});
-  const [completedRouteKey, setCompletedRouteKey] = useState("");
   const isMapOpen = selectedRestaurant !== null;
-  const routeRequestKey = useMemo(() => {
-    if (!currentLocation || restaurants.length === 0) {
+  const searchRequestKey = useMemo(() => {
+    if (!currentLocation) {
       return "";
     }
-    return `${currentLocation.point.lat},${currentLocation.point.lng}:${restaurants
-      .map((restaurant) => restaurant.id)
-      .join(",")}`;
-  }, [currentLocation, restaurants]);
-  const isRouteLoading =
+
+    return JSON.stringify({
+      filters: debouncedFilters,
+      lat: currentLocation.point.lat,
+      lng: currentLocation.point.lng,
+      page: currentPage,
+    });
+  }, [currentLocation, debouncedFilters, currentPage]);
+  const isSearchLoading =
     currentLocation === null ||
-    (routeRequestKey !== "" && completedRouteKey !== routeRequestKey);
+    (searchRequestKey !== "" && completedSearchKey !== searchRequestKey);
 
   useEffect(() => {
     getBrowserCurrentLocation()
@@ -110,80 +140,108 @@ export function UserMapView() {
   }, []);
 
   useEffect(() => {
-    if (!currentLocation) return;
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedFilters(filters);
+      setCurrentPage(1);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [filters]);
+
+  useEffect(() => {
+    if (!currentLocation || searchRequestKey === "") return;
     let cancelled = false;
-    setIsLoading(true);
+    const requestKey = searchRequestKey;
     // Chuyển đổi Filter sang API Params
-    const radius = parseFloat(filters.distance) * 1000;
-    const dishTypes = filters.cuisines.flatMap(c => CUISINE_MAP[c] || []);
+    const radius = parseFloat(debouncedFilters.distance) * 1000;
+    const dishTypes = debouncedFilters.cuisines.flatMap(c => CUISINE_MAP[c] || []);
     const japaneseStandards = [
-      filters.quality.hygiene ? FEATURE_IDS.HYGIENE : null,
-      filters.quality.japaneseMenu ? FEATURE_IDS.JAPANESE_MENU : null
+      debouncedFilters.quality.hygiene ? FEATURE_IDS.HYGIENE : null,
+      debouncedFilters.quality.japaneseMenu ? FEATURE_IDS.JAPANESE_MENU : null
     ].filter((v): v is number => v !== null);
 
-    advancedSearchRestaurants({
-      keyword: filters.keyword || undefined,
+    searchRestaurantsWithSessionRetry({
+      keyword: debouncedFilters.keyword || undefined,
       lat: currentLocation.point.lat,
       lng: currentLocation.point.lng,
       radius,
       dishTypes,
       japaneseStandards,
-      issuesVAT: filters.amenities.vat || undefined,
-      page: 1,
-      limit: 50,
+      issuesVAT: debouncedFilters.amenities.vat || undefined,
+      page: currentPage,
+      limit: PAGE_SIZE,
     })
       .then((res) => {
         if (cancelled) return;
-        setRestaurants(res.items as any);
+        setRestaurants(res.items.map(mapApiToMapRestaurant));
         setTotalCount(res.totalCount);
+        setCompletedSearchKey(requestKey);
       })
       .catch((err) => {
         console.error(err);
-        if (!cancelled) showErrorToast("検索に失敗しました");
+        if (!cancelled) {
+          setCompletedSearchKey(requestKey);
+          if (err instanceof ApiError && err.status === 403) {
+            showErrorToast("ユーザーまたはゲストとしてログインしてください");
+          } else {
+            showErrorToast("検索に失敗しました");
+          }
+        }
       })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
 
     return () => { cancelled = true; };
-  }, [filters, currentLocation]);
-
+  }, [currentPage, debouncedFilters, currentLocation, searchRequestKey]);
 
   useEffect(() => {
-    if (!currentLocation || routeRequestKey === "") {
+    if (restaurants.length === 0 || completedSearchKey !== searchRequestKey) {
       return;
     }
 
     let cancelled = false;
+    const controller = new AbortController();
+    const pendingRestaurants = restaurants;
+    let nextIndex = 0;
 
-    Promise.allSettled(
-      restaurants.map((restaurant) =>
-        getRestaurantRoute(restaurant.id, currentLocation.point).then(
-          (route) => [restaurant.id, route] as const,
-        ),
-      ),
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
+    async function runWorker() {
+      while (!cancelled) {
+        const restaurant = pendingRestaurants[nextIndex];
+        nextIndex += 1;
 
-      const nextRoutes: RouteMap = {};
-
-      results.forEach((result) => {
-        if (result.status === "fulfilled") {
-          const [restaurantId, route] = result.value;
-          nextRoutes[restaurantId] = route;
+        if (!restaurant) {
+          return;
         }
-      });
 
-      setRoutes(nextRoutes);
-      setCompletedRouteKey(routeRequestKey);
-    });
+        try {
+          const route = await getRestaurantRoute(
+            restaurant.id,
+            currentLocation.point,
+            { signal: controller.signal },
+          );
+
+          if (cancelled) {
+            return;
+          }
+
+          setRoutes((current) => ({ ...current, [restaurant.id]: route }));
+        } catch (error) {
+          if (!cancelled) {
+            console.error(error);
+          }
+        }
+      }
+    }
+
+    Array.from(
+      { length: Math.min(ROUTE_DISTANCE_CONCURRENCY, pendingRestaurants.length) },
+      () => runWorker(),
+    );
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [currentLocation, restaurants, routeRequestKey]);
+  }, [completedSearchKey, currentLocation, restaurants, searchRequestKey]);
+
 
   const appliedFilters = useMemo<AppliedFilter[]>(() => {
     const items: AppliedFilter[] = [
@@ -219,28 +277,24 @@ export function UserMapView() {
     () =>
       restaurants.map((restaurant) => {
         const route = routes[restaurant.id];
-        const routeOrigin = currentLocation?.point;
 
-        if (
-          !route ||
-          !routeOrigin ||
-          route.origin.lat !== routeOrigin.lat ||
-          route.origin.lng !== routeOrigin.lng
-        ) {
+        if (!route) {
           return restaurant;
         }
 
+        const distance =
+          route.distanceMeters >= 1000
+            ? `${(route.distanceMeters / 1000).toFixed(1)}km`
+            : `${Math.round(route.distanceMeters)}m`;
+
         return {
           ...restaurant,
-          distance: formatDistanceShort(route.distanceMeters),
-          distanceValue:
-            distanceOptionForMeters(route.distanceMeters) ??
-            restaurant.distanceValue,
+          distance,
           routeDistanceMeters: route.distanceMeters,
           routeDurationSeconds: route.durationSeconds,
         };
       }),
-    [currentLocation, routes, restaurants],
+    [restaurants, routes],
   );
 
   const filteredRestaurants = useMemo(() => {
@@ -259,6 +313,9 @@ export function UserMapView() {
       return Number(Boolean(b.isVerified)) - Number(Boolean(a.isVerified));
     });
   }, [routedRestaurants, sort, filters.distance]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const visibleRestaurants = isSearchLoading ? [] : filteredRestaurants;
+  const visibleTotalCount = isSearchLoading ? 0 : totalCount;
 
   function handleKeywordBlur() {
     if (isValidKeyword(filters.keyword)) {
@@ -307,6 +364,11 @@ export function UserMapView() {
     }
   }
 
+  function handlePageChange(page: number) {
+    setCurrentPage(page);
+    setSelectedRestaurant(null);
+  }
+
   const filterSidebar = (
     <MapFilterSidebar
       filters={filters}
@@ -351,18 +413,20 @@ export function UserMapView() {
       <div className="mx-auto flex h-[calc(100vh-80px)] min-h-0 w-full max-w-[1280px] flex-col overflow-hidden bg-[#f4f4f1] lg:flex-row lg:items-start">
         {filterSidebar}
         <MapSearchResults
-          totalCount={filteredRestaurants.length}
-          isLoading={isLoading}
+          totalCount={visibleTotalCount}
+          currentPage={currentPage}
           appliedFilters={appliedFilters}
           isMapOpen={isMapOpen}
           origin={currentLocation?.point ?? null}
-          isRouteLoading={isRouteLoading}
-          restaurants={filteredRestaurants}
+          isLoading={isSearchLoading}
+          totalPages={totalPages}
+          restaurants={visibleRestaurants}
           routes={routes}
           selectedRestaurant={selectedRestaurant}
           sort={sort}
           onCloseMap={() => setSelectedRestaurant(null)}
           onOpenMap={setSelectedRestaurant}
+          onPageChange={handlePageChange}
           onRemoveFilter={handleRemoveFilter}
           onSortChange={setSort}
         />
@@ -374,18 +438,20 @@ export function UserMapView() {
     <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-6 px-6 py-8 lg:flex-row lg:items-start lg:gap-8">
       {filterSidebar}
       <MapSearchResults
-        totalCount={filteredRestaurants.length}
-        isLoading={isLoading}
+        totalCount={visibleTotalCount}
+        currentPage={currentPage}
         appliedFilters={appliedFilters}
         isMapOpen={isMapOpen}
         origin={currentLocation?.point ?? null}
-        isRouteLoading={isRouteLoading}
-        restaurants={filteredRestaurants}
+        isLoading={isSearchLoading}
+        totalPages={totalPages}
+        restaurants={visibleRestaurants}
         routes={routes}
         selectedRestaurant={selectedRestaurant}
         sort={sort}
         onCloseMap={() => setSelectedRestaurant(null)}
         onOpenMap={setSelectedRestaurant}
+        onPageChange={handlePageChange}
         onRemoveFilter={handleRemoveFilter}
         onSortChange={setSort}
       />

@@ -3,9 +3,14 @@
 import { createUserFeedPostComment, getUserFeedPostDetail, likeUserFeedPost, unlikeUserFeedPost } from "@/lib/api/user-feed/API";
 import { UserFeedPostDetail } from "@/lib/api/user-feed/type";
 import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
+import {
+  getAuthSession,
+  readCachedAuthSession,
+} from "@/lib/api/auth/session";
+import type { MeResponse } from "@/lib/api/auth/type";
 import { resolveApiUrl } from "@/lib/api/client";
 import { UserBlogItem } from "@/lib/api/user-profile/type";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { HomepageComment, HomepagePost } from "../homepage/homepage-data";
 import { PostDetailsDialog } from "../homepage/PostDetailsDialog";
 import { FoodReportCard } from "./FoodReportCard";
@@ -17,10 +22,71 @@ type FoodReportGridProps = {
   isMyProfile: boolean;
 };
 
+function buildInitials(value: string) {
+  const parts = value
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "U";
+  }
+
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function formatPostTime(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return date.toLocaleDateString("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+  });
+}
+
+function getSessionDisplayName(session: MeResponse | null) {
+  const profile = session?.profile;
+
+  return (
+    profile?.displayName?.trim() ||
+    profile?.fullName?.trim() ||
+    session?.account.email ||
+    "User"
+  );
+}
+
 export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyProfile }: FoodReportGridProps) {
   const [selectedBlogId, setSelectedBlogId] = useState<number | null>(null);
   const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [session, setSession] = useState<MeResponse | null>(
+    () => readCachedAuthSession() ?? null,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSession() {
+      const nextSession = await getAuthSession();
+
+      if (!cancelled) {
+        setSession(nextSession);
+      }
+    }
+
+    void loadSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const refreshDetail = async (id: number) => {
     try {
@@ -52,7 +118,7 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
       avatarUrl: resolveApiUrl(d.author.avatarUrl),
       handle: d.author.handle,
       initials: d.author.name?.substring(0, 2).toUpperCase() || "U",
-      time: d.createdAt,
+      time: formatPostTime(d.createdAt),
       restaurant: "",
       image: resolveApiUrl(d.media?.[0]?.mediaUrl) || "",
       title: d.title ?? "",
@@ -75,8 +141,10 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
       avatarUrl: resolveApiUrl(c.author.avatarUrl),
       name: c.author.name,
       text: c.content,
-      initials: c.author.name.substring(0, 2).toUpperCase(),
+      initials: buildInitials(c.author.name),
     })) || [];
+
+  const currentUserName = getSessionDisplayName(session);
 
   return (
     <>
@@ -136,7 +204,8 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
               return false;
             }
           }}
-          currentUserInitials="ME"
+          currentUserInitials={buildInitials(currentUserName)}
+          currentUserAvatarUrl={resolveApiUrl(session?.profile?.avatarUrl)}
           isSaved={false}
           isShared={false}
           onShare={() => { }}

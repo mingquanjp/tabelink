@@ -124,7 +124,7 @@ export function getBrowserCurrentLocation() {
 
       settled = true;
       cleanup();
-      reject(new Error(message));
+      // reject(new Error(message));
     }
 
     function handlePosition(position: GeolocationPosition) {

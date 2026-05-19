@@ -104,8 +104,7 @@ export function UserMapView() {
           accuracyMeters: Number.POSITIVE_INFINITY,
           capturedAt: Date.now(),
         });
-        console.error(error);
-        showErrorToast("現在地を取得できませんでした");
+        console.warn("Falling back to default map location.", error);
       });
   }, []);
 

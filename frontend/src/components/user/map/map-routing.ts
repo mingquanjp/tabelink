@@ -122,7 +122,7 @@ export function getBrowserCurrentLocation() {
 
       settled = true;
       cleanup();
-      // reject(new Error(message));
+      reject(new Error(message));
     }
 
     function handlePosition(position: GeolocationPosition) {
@@ -171,15 +171,23 @@ export function getBrowserCurrentLocation() {
       }
     }
 
-    watchId = navigator.geolocation.watchPosition(
-      handlePosition,
-      handleError,
-      options,
-    );
-    navigator.geolocation.getCurrentPosition(
-      handlePosition,
-      handleError,
-      options,
-    );
+    try {
+      watchId = navigator.geolocation.watchPosition(
+        handlePosition,
+        handleError,
+        options,
+      );
+      navigator.geolocation.getCurrentPosition(
+        handlePosition,
+        handleError,
+        options,
+      );
+    } catch (error) {
+      finishWithError(
+        error instanceof Error
+          ? error.message
+          : "Could not get the current location.",
+      );
+    }
   });
 }

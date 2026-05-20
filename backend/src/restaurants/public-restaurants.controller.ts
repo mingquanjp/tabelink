@@ -25,13 +25,12 @@ import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
 import { RestaurantsService } from './restaurants.service';
 
 interface AuthenticatedRequest extends Request {
-  user: JwtPayload;
+  user?: JwtPayload;
 }
 
 @ApiTags('restaurants')
 @ApiBearerAuth('access-token')
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-@UseGuards(JwtAuthGuard)
 @Controller('restaurants')
 export class PublicRestaurantsController {
   constructor(private readonly restaurantsService: RestaurantsService) {}
@@ -104,6 +103,7 @@ export class PublicRestaurantsController {
   }
 
   @Post(':restaurantId/reviews')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Submit a restaurant review',
     description:
@@ -122,7 +122,6 @@ export class PublicRestaurantsController {
         dishCleanliness: 5,
         spaceCleanliness: 4,
         content: 'Clean and easy to reserve.',
-        sentiment: 'Positive',
         isJapaneseTag: true,
         status: 'Visible',
       },
@@ -143,7 +142,7 @@ export class PublicRestaurantsController {
     return this.restaurantsService.createReview(
       restaurantId,
       dto,
-      request.user,
+      request.user!,
     );
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   BadgeCheck,
   CalendarCheck,
@@ -11,18 +12,21 @@ import {
   Send,
   Star,
   Ticket,
-  Utensils,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import { createRestaurantReview } from "@/lib/api/restaurants/API";
 import type { OwnerHomeResponse } from "@/lib/api/owner-home/type";
+import type { PublicRestaurantPromotion } from "@/lib/api/restaurants/type";
 import {
   getAuthSession,
   readCachedAuthSession,
 } from "@/lib/api/auth/session";
 import type { MeResponse } from "@/lib/api/auth/type";
-import { fallbackGalleryImages, restaurantDetailPhotos } from "./restaurant-detail-assets";
+import { fallbackGalleryImages } from "./restaurant-detail-assets";
 import {
   buildFeatures,
+  buildGoogleMapsEmbedUrl,
   buildGoogleMapsUrl,
   buildInfoItems,
   buildRestaurantImages,
@@ -42,6 +46,18 @@ type RestaurantDetailContentProps = {
 
 function canSessionComment(session: MeResponse | null) {
   return session?.account.role === "User";
+}
+
+function getSessionDisplayName(session: MeResponse | null) {
+  if (!session) {
+    return "Guest";
+  }
+
+  return (
+    session.profile?.displayName ||
+    session.profile?.fullName ||
+    session.account.email
+  );
 }
 
 function PhotoTile({
@@ -425,8 +441,41 @@ function CommunityReviewsSection({
   );
 }
 
-function OffersSection() {
+function formatOfferDate(value: string | Date | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toLocaleDateString("ja-JP", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function OffersSection({ offers }: { offers: PublicRestaurantPromotion[] }) {
   const [isApplied, setIsApplied] = useState(false);
+  const offer = offers[0];
+
+  if (!offer) {
+    return null;
+  }
+
+  const title = offer.titleJp || offer.titleVn;
+  const description = offer.contentJp || offer.contentVn || title;
+  const terms = offer.termsJp || offer.termsVn;
+  const endDate = formatOfferDate(offer.endDate);
+  const meta = [
+    offer.targetAudience ? `対象: ${offer.targetAudience}` : "対象: 全ユーザー",
+    endDate ? `期間: ${endDate}まで` : null,
+    terms,
+  ].filter(Boolean);
 
   return (
     <section className="mx-auto w-[calc(100%-64px)] max-w-[1280px] pt-12 max-md:w-[calc(100%-32px)]">
@@ -437,17 +486,16 @@ function OffersSection() {
           </div>
           <div className="min-w-0 pl-4">
             <h2 className="text-lg font-bold leading-7 text-[#af111c] font-manrope">
-              限定特典 / Offers
+              {title}
             </h2>
             <p className="text-sm font-medium leading-[22.75px] text-[#5a6053] font-jp">
-              TABELINK経由の予約で、お会計から{" "}
-              <span className="font-bold text-[#af111c] font-manrope">10% OFF</span>
-              {" "}または{" "}
-              <span className="text-[#af111c]">ワンドリンクサービス</span>.
+              {description}
             </p>
-            <p className="text-[10px] font-medium uppercase leading-4 tracking-[0.5px] text-[#5a6053] font-jp">
-              対象: 全ユーザー, 期間: 2024年12月末まで
-            </p>
+            {meta.length > 0 ? (
+              <p className="text-[10px] font-medium uppercase leading-4 tracking-[0.5px] text-[#5a6053] font-jp">
+                {meta.join(", ")}
+              </p>
+            ) : null}
           </div>
         </div>
         <button
@@ -464,16 +512,17 @@ function OffersSection() {
   );
 }
 
-function CommentComposer() {
+function CommentComposer({ restaurantId }: { restaurantId: number }) {
+  const router = useRouter();
   const [session, setSession] = useState<MeResponse | null>(
     () => readCachedAuthSession() ?? null,
   );
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
-  const [submittedComments, setSubmittedComments] = useState<
-    Array<{ id: number; rating: number; text: string }>
-  >([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const canComment = canSessionComment(session);
+  const displayName = getSessionDisplayName(session);
+  const avatarInitial = displayName.trim().charAt(0).toUpperCase() || "G";
 
   useEffect(() => {
     let cancelled = false;
@@ -493,19 +542,30 @@ function CommentComposer() {
     };
   }, []);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const trimmed = comment.trim();
 
-    if (!canComment || !trimmed) {
+    if (!canComment || !trimmed || isSubmitting) {
       return;
     }
 
-    setSubmittedComments((current) => [
-      { id: Date.now(), rating, text: trimmed },
-      ...current,
-    ]);
-    setRating(5);
-    setComment("");
+    setIsSubmitting(true);
+
+    try {
+      await createRestaurantReview(restaurantId, {
+        rating,
+        content: trimmed,
+        isJapaneseTag: true,
+      });
+      setRating(5);
+      setComment("");
+      showSuccessToast("レビューを投稿しました。");
+      router.refresh();
+    } catch {
+      showErrorToast("レビューの投稿に失敗しました。");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -514,11 +574,11 @@ function CommentComposer() {
         <div className="rounded-lg border border-[#e4beba1a] bg-white p-5 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
           <div className="flex items-center gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#f4f4f1] text-[#5a6053] font-manrope">
-              {session?.account.email?.charAt(0).toUpperCase() ?? "G"}
+              {avatarInitial}
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold leading-5 text-[#1a1c1b] font-jp">
-                {canComment ? session?.account.email : "Guest"}
+                {canComment ? displayName : "Guest"}
               </p>
               <div className="mt-1 flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((score) => (
@@ -552,25 +612,13 @@ function CommentComposer() {
             />
             <button
               type="button"
-              disabled={!canComment || !comment.trim()}
+              disabled={!canComment || !comment.trim() || isSubmitting}
               onClick={handleSubmit}
               className="inline-flex h-11 min-w-11 items-center justify-center rounded-md bg-[#af111c] px-4 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:w-full"
             >
               <Send className="size-4" />
             </button>
           </div>
-          {submittedComments.length > 0 ? (
-            <div className="mt-5 flex flex-col gap-3 border-t border-[#e4beba1a] pt-4">
-              {submittedComments.map((item) => (
-                <div key={item.id} className="rounded-md bg-[#f9f9f6] px-4 py-3">
-                  <StarRating rating={item.rating} />
-                  <p className="mt-2 text-sm leading-6 text-[#5b403d] font-jp">
-                    {item.text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
       </div>
     </section>
@@ -605,8 +653,10 @@ export function RestaurantDetailContent({
     () => toReviewDisplayItems(homeData.reviews.items ?? []),
     [homeData],
   );
+  const promotionItems = homeData.promotions.items as PublicRestaurantPromotion[];
   const restaurantName = restaurant.nameVn || restaurant.nameJp || "Restaurant";
   const googleMapsUrl = buildGoogleMapsUrl(restaurant);
+  const googleMapsEmbedUrl = buildGoogleMapsEmbedUrl(restaurant);
 
   return (
     <main className="min-h-screen bg-[#f9f9f6] pb-12">
@@ -681,22 +731,21 @@ export function RestaurantDetailContent({
           </div>
 
           <div className="relative min-h-[280px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
-            <div
-              aria-label={`Map near ${restaurantName}`}
-              className="absolute inset-0 bg-cover bg-center opacity-90 saturate-50"
-              role="img"
-              style={{ backgroundImage: `url(${restaurantDetailPhotos.map})` }}
-            />
-            <div className="absolute inset-0 bg-black/5" />
-            <div className="absolute left-1/2 top-[62px] flex -translate-x-1/2 flex-col items-center">
-              <div className="rounded border-2 border-white bg-[#d32f2f] px-4 py-2 text-[11px] font-bold leading-none text-white shadow-[0_0_0_4px_rgba(211,47,47,0.2),0_20px_25px_-5px_rgba(0,0,0,0.1)]">
-                {restaurantName}
+            {googleMapsEmbedUrl ? (
+              <iframe
+                src={googleMapsEmbedUrl}
+                title={`Google Map near ${restaurantName}`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="absolute inset-0 h-full w-full border-0"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-[#e8e8e5] px-6 text-center">
+                <p className="text-sm font-medium leading-6 text-[#5a6053] font-jp">
+                  åœ°å›³æƒ…å ±ã¯ã¾ã ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“ã€‚
+                </p>
               </div>
-              <div className="mt-3 flex size-14 items-center justify-center rounded-xl border-4 border-white bg-[#d32f2f] text-white shadow-2xl">
-                <Utensils className="size-7" />
-              </div>
-              <div className="h-4 w-1.5 bg-[#d32f2f] shadow-md" />
-            </div>
+            )}
             <a
               href={googleMapsUrl}
               target="_blank"
@@ -734,13 +783,13 @@ export function RestaurantDetailContent({
         </div>
       </section>
 
-      {!canEdit ? <OffersSection /> : null}
+      {!canEdit ? <OffersSection offers={promotionItems} /> : null}
       <MenuSection categories={dynamicMenuCategories} items={dynamicMenuItems} />
       <CommunityReviewsSection
         items={dynamicReviews}
         summary={homeData.reviews.summary}
       />
-      {!canEdit ? <CommentComposer /> : null}
+      {!canEdit ? <CommentComposer restaurantId={homeData.restaurantId} /> : null}
     </main>
   );
 }

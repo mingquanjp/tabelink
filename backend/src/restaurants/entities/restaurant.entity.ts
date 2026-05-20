@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { OwnerProfile } from '../../auth/entities/owner-profile.entity';
+import { RestaurantBadge } from './restaurant-badge.entity';
 import { RestaurantFeature } from './restaurant-feature.entity';
 import { RestaurantMedia } from './restaurant-media.entity';
 import { RestaurantPaymentMethod } from './restaurant-payment-method.entity';
@@ -95,4 +96,7 @@ export class Restaurant {
 
   @OneToMany(() => RestaurantPaymentMethod, (method) => method.restaurant)
   paymentMethodLinks?: RestaurantPaymentMethod[];
+
+  @OneToMany(() => RestaurantBadge, (rb) => rb.restaurant)
+  restaurantBadges?: RestaurantBadge[];
 }

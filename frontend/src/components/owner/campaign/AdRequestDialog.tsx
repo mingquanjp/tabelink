@@ -2,7 +2,7 @@
 
 import { BellRing, CalendarDays, ImagePlus, Megaphone, Send, Wallet, X } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,19 +15,36 @@ import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  createOwnerAdRequest,
+  updateOwnerPromotion,
+  uploadOwnerAdImage,
+} from "@/lib/api/campaigns/API";
+import type { OwnerAdPromotion } from "@/lib/api/campaigns/type";
 import {
   OWNER_TOAST_MESSAGES,
   showErrorToast,
   showSuccessToast,
 } from "@/lib/app-toast";
+import { getCampaignErrorMessage } from "@/components/owner/campaign/campaign-toast";
 
 type AdRequestDialogProps = {
   trigger: ReactNode;
+  onCreated?: () => void | Promise<void>;
+  mode?: "create" | "edit";
+  promotion?: OwnerAdPromotion;
 };
 
-const toInputDate = (date: Date) => date.toISOString().slice(0, 10);
+const toInputDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
+const toApiStartDate = (value: string) => `${value}T00:00:00.000Z`;
+const toApiEndDate = (value: string) => `${value}T23:59:59.000Z`;
 
 const parseInputDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
@@ -66,27 +83,54 @@ function AdTypeCard({
   );
 }
 
-export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
+const toInputDateValue = (value?: string | null) =>
+  value ? value.slice(0, 10) : "";
+
+export function AdRequestDialog({
+  trigger,
+  onCreated,
+  mode = "create",
+  promotion,
+}: AdRequestDialogProps) {
   const [open, setOpen] = useState(false);
-  const [adType, setAdType] = useState<"banner" | "push">("banner");
-  const [targetKm, setTargetKm] = useState(5);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [budget, setBudget] = useState("50000");
-  const [message, setMessage] = useState("");
+  const [adType, setAdType] = useState<"banner" | "push">(
+    promotion?.advertisementType === "Notification" ? "push" : "banner"
+  );
+  const [startDate, setStartDate] = useState(toInputDateValue(promotion?.startDate));
+  const [endDate, setEndDate] = useState(toInputDateValue(promotion?.endDate));
+  const [budget, setBudget] = useState(String(promotion?.totalCost ?? 50000));
+  const [message, setMessage] = useState(
+    promotion?.contentJp || promotion?.contentVn || ""
+  );
   const [creativeFile, setCreativeFile] = useState<File | null>(null);
+  const [creativePreviewUrl, setCreativePreviewUrl] = useState<string | null>(
+    null
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const parsedBudget = useMemo(() => Number(budget || 0), [budget]);
   const canSubmit = message.trim().length > 0 && parsedBudget > 0 && startDate && endDate;
 
+  useEffect(() => {
+    return () => {
+      if (creativePreviewUrl) {
+        URL.revokeObjectURL(creativePreviewUrl);
+      }
+    };
+  }, [creativePreviewUrl]);
+
+  const updateCreativeFile = (file: File | null) => {
+    setCreativeFile(file);
+    setCreativePreviewUrl(file ? URL.createObjectURL(file) : null);
+  };
+
   const resetForm = () => {
-    setAdType("banner");
-    setTargetKm(5);
-    setStartDate("");
-    setEndDate("");
-    setBudget("50000");
-    setMessage("");
-    setCreativeFile(null);
+    setAdType(promotion?.advertisementType === "Notification" ? "push" : "banner");
+    setStartDate(toInputDateValue(promotion?.startDate));
+    setEndDate(toInputDateValue(promotion?.endDate));
+    setBudget(String(promotion?.totalCost ?? 50000));
+    setMessage(promotion?.contentJp || promotion?.contentVn || "");
+    updateCreativeFile(null);
   };
 
   const handleCancel = () => {
@@ -101,29 +145,53 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
 
     if (file && file.size > 5 * 1024 * 1024) {
       event.target.value = "";
-      setCreativeFile(null);
+      updateCreativeFile(null);
       showErrorToast(OWNER_TOAST_MESSAGES.uploadError);
       return;
     }
 
-    setCreativeFile(file);
+    updateCreativeFile(file);
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!canSubmit) return;
-    // Temporary client-side handling until API integration is available.
-    console.log("Ad request submitted", {
-      adType,
-      targetKm,
-      startDate,
-      endDate,
-      budget: parsedBudget,
-      message,
-      creativeFileName: creativeFile?.name ?? null,
-    });
-    showSuccessToast();
-    setOpen(false);
+    if (!canSubmit || isSubmitting) return;
+
+    try {
+      setIsSubmitting(true);
+      const uploadResult = creativeFile
+        ? await uploadOwnerAdImage(creativeFile)
+        : null;
+      const advertisementType: "SNS" | "Notification" =
+        adType === "banner" ? "SNS" : "Notification";
+      const payload = {
+        titleJp:
+          promotion?.titleJp ||
+          (adType === "banner"
+            ? "Banner広告リクエスト"
+            : "Push通知リクエスト"),
+        contentJp: message.trim(),
+        advertisementType,
+        mediaUrl: uploadResult?.mediaUrl ?? promotion?.mediaUrl ?? undefined,
+        totalCost: parsedBudget,
+        startDate: toApiStartDate(startDate),
+        endDate: toApiEndDate(endDate),
+      };
+
+      if (mode === "edit" && promotion) {
+        await updateOwnerPromotion(promotion.promotionId, payload);
+      } else {
+        await createOwnerAdRequest(payload);
+      }
+      showSuccessToast();
+      resetForm();
+      setOpen(false);
+      await onCreated?.();
+    } catch (error) {
+      showErrorToast(getCampaignErrorMessage(error));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -133,7 +201,7 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
         <div className="flex items-center justify-between border-b border-[color-mix(in_oklab,var(--primary),transparent_90%)] px-8 pb-[25px] pt-6">
           <div className="space-y-1">
             <DialogTitle className="font-jp text-3xl font-medium tracking-[-0.6px] text-primary">
-              広告リクエスト
+              {mode === "edit" ? "広告リクエストを編集" : "広告リクエスト"}
             </DialogTitle>
             <DialogDescription className="font-jp text-sm font-medium text-(--ink-600)">
               集客を最大化するための特別なプロモーションプラン
@@ -170,30 +238,7 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
             </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-8 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="font-jp text-xs font-medium tracking-[0.6px] text-(--ink-600)">
-                配信ターゲット範囲 (KM)
-              </p>
-              <div className="flex items-center gap-4 pt-1">
-                <Slider
-                  value={[targetKm]}
-                  min={1}
-                  max={20}
-                  step={1}
-                  onValueChange={(value) => setTargetKm(value[0] ?? 5)}
-                  className="flex-1"
-                />
-                <span className="font-brand text-[28px] font-bold leading-7 text-(--ink-900)">
-                  {targetKm}km
-                </span>
-              </div>
-              <div className="flex justify-between font-jp text-[10px] font-medium leading-[15px] text-(--ink-600)">
-                <span>店舗周辺</span>
-                <span>広域エリア</span>
-              </div>
-            </div>
-
+          <section className="grid grid-cols-1 gap-8">
             <div className="space-y-3">
               <p className="font-jp text-xs font-medium tracking-[0.6px] text-(--ink-600)">予算と期間</p>
               <div className="flex items-center gap-2 rounded-lg bg-[color-mix(in_oklab,var(--ink-600),transparent_94%)] p-2">
@@ -280,14 +325,24 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
                 placeholder="広告のキャッチコピーや詳細情報を入力してください..."
                 className="h-32 resize-none rounded-lg border-none bg-[color-mix(in_oklab,var(--ink-600),transparent_94%)] px-4 py-3 font-jp text-sm font-medium leading-5 text-[#8f6f6c] placeholder:text-[#8f6f6c]"
               />
-              <label className="flex h-32 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-[#e4beba] bg-(--surface-mist)">
-                <ImagePlus className="h-[26px] w-[18px] text-[#8f6f6c]" />
-                <p className="mt-1 font-jp text-xs font-medium text-[#5b403d]">
-                  {creativeFile ? creativeFile.name : "画像をドラッグ＆ドロップ"}
-                </p>
-                <p className="mt-1 font-manrope text-[10px] leading-[15px] text-[#8f6f6c]">
-                  最大 5MB (JPG, PNG)
-                </p>
+              <label className="relative flex h-32 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-[#e4beba] bg-(--surface-mist)">
+                {creativePreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={creativePreviewUrl}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                ) : null}
+                <div className="relative z-10 flex flex-col items-center rounded bg-white/80 px-3 py-2">
+                  <ImagePlus className="h-[26px] w-[18px] text-[#8f6f6c]" />
+                  <p className="mt-1 max-w-52 truncate font-jp text-xs font-medium text-[#5b403d]">
+                    {creativeFile ? creativeFile.name : "画像をドラッグ＆ドロップ"}
+                  </p>
+                  <p className="mt-1 font-manrope text-[10px] leading-[15px] text-[#8f6f6c]">
+                    最大 5MB (JPG, PNG)
+                  </p>
+                </div>
                 <input
                   type="file"
                   accept="image/png,image/jpeg"
@@ -309,11 +364,11 @@ export function AdRequestDialog({ trigger }: AdRequestDialogProps) {
             </Button>
             <Button
               type="submit"
-              disabled={!canSubmit}
+              disabled={!canSubmit || isSubmitting}
               className="h-auto gap-2 rounded-md bg-[linear-gradient(168deg,var(--primary)_0%,var(--primary-bright)_100%)] px-8 py-2.5 font-jp text-sm font-medium text-white shadow-[0px_10px_15px_-3px_rgba(175,17,28,0.2),0px_4px_6px_-4px_rgba(175,17,28,0.2)]"
             >
               <Send className="h-4 w-4" />
-              リクエストを送信
+              {mode === "edit" ? "保存" : "リクエストを送信"}
             </Button>
           </footer>
         </form>

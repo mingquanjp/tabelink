@@ -83,6 +83,136 @@ POST /auth/profile/merchant
     "issuesVat": false
   }
 
+### Maps
+GET /maps/restaurants
+- Auth: Bearer access token (role User or Guest)
+- Description:
+  Returns active restaurants that have Latitude/Longitude for the Search & Map
+  screen list and pins.
+
+GET /maps/restaurants/:restaurantId/route?originLat=21.0166&originLng=105.8412
+- Auth: Bearer access token (role User or Guest)
+- Description:
+  Returns destination coordinates, OSRM route geometry, distance, and duration
+  for the Search & Map screen. Distance and duration are returned by OSRM
+  driving routing; the backend does not calculate straight-line distance.
+- Current FE call example:
+  GET /maps/restaurants/1002/route?originLat=21.0166&originLng=105.8412
+- Response:
+  {
+    "restaurantId": 1,
+    "origin": { "lat": 21.0166, "lng": 105.8412 },
+    "destination": {
+      "lat": 21.02686,
+      "lng": 105.84647,
+      "nameVn": "Bun Cha Sakura",
+      "nameJp": "Bun Cha Sakura JP",
+      "address": "24 Hang Manh, Hoan Kiem, Hanoi"
+    },
+    "provider": "osrm",
+    "distanceMeters": 1842.3,
+    "durationSeconds": 412.5,
+    "geometry": [
+      { "lat": 21.0166, "lng": 105.8412 },
+      { "lat": 21.02686, "lng": 105.84647 }
+    ]
+  }
+
+Errors:
+- 400: invalid origin coordinates
+- 403: role is not User or Guest
+- 404: active restaurant or restaurant coordinates are not available
+- 502: route provider failed
+
+Frontend behavior:
+- Browser GPS must provide the current origin; the frontend must not fall back
+  to mock coordinates for originLat/originLng.
+- If OSRM route data is unavailable, the frontend should show no route path
+  instead of drawing a direct line between origin and destination.
+
+### Campaigns
+GET /campaigns
+- Description:
+  Returns active Campaign promotions that are currently available for screen
+  ID9. Expired campaigns and inactive restaurants are excluded. Restaurant
+  image is loaded from approved restaurant cover media.
+- Response:
+  {
+    "items": [
+      {
+        "promotionId": 8001,
+        "restaurantId": 1001,
+        "restaurantNameVN": "Sushi Tokyo VN",
+        "restaurantNameJP": "スシ東京",
+        "imageUrl": "https://example.com/restaurant-cover.jpg",
+        "promotionType": "Campaign",
+        "campaignNameVN": "Ưu đãi mùa hè",
+        "campaignNameJP": "サマーキャンペーン",
+        "campaignDescriptionVN": "Nội dung campaign tiếng Việt.",
+        "campaignDescriptionJP": "キャンペーン内容。",
+        "targetAudience": "all",
+        "discountType": "10",
+        "discountValue": "10%OFF",
+        "noteVN": "Áp dụng trong thời gian campaign.",
+        "noteJP": "キャンペーン期間中に適用。",
+        "startDate": "2026-05-01T00:00:00.000Z",
+        "endDate": "2026-08-01T00:00:00.000Z",
+        "status": "Active"
+      }
+    ]
+  }
+
+### Reservations
+POST /restaurants/:restaurantId/reservations
+- Auth: Bearer access token (role User)
+- Description:
+  Creates a pending reservation request for screen ID6, stores special request
+  templates/custom text, and sends an owner email notification.
+- Body:
+  {
+    "customerName": "Tanaka Taro",
+    "phoneNumber": "090-1234-5678",
+    "reservationDate": "2026-05-20",
+    "reservationTime": "19:00",
+    "pax": 2,
+    "durationMinutes": 120,
+    "requestTypes": ["Coriander", "LessSpicy", "VATInvoice"],
+    "customRequest": "Window seat if available."
+  }
+- requestTypes:
+  Coriander, LessSpicy, VATInvoice, PrivateRoom, Other.
+  PrivateRoom is stored as custom text because the current DB master enum does
+  not include it.
+- Response:
+  {
+    "message": "Reservation request submitted successfully.",
+    "ownerNotification": { "sent": true },
+    "reservation": {
+      "reservationId": 100,
+      "restaurantId": 1,
+      "reservationDateTime": "2026-05-20T12:00:00.000Z",
+      "durationMinutes": 120,
+      "reservationEndDateTime": "2026-05-20T14:00:00.000Z",
+      "pax": 2,
+      "customerName": "Tanaka Taro",
+      "phoneNumber": "090-1234-5678",
+      "note": "Window seat if available.",
+      "status": "Pending",
+      "specialRequests": [
+        {
+          "requestId": 1,
+          "templateId": 1,
+          "requestType": "Coriander",
+          "textJp": "パクチー抜き",
+          "descriptionJp": "すべての料理からパクチー（コリアンダー）を除きます。",
+          "customText": null,
+          "label": "パクチー抜き",
+          "description": "すべての料理からパクチー（コリアンダー）を除きます。"
+        }
+      ]
+    }
+  }
+
 ## Environment variables
 - APP_PORT
 - NODE_ENV
@@ -93,3 +223,5 @@ POST /auth/profile/merchant
 - JWT_REFRESH_SECRET (optional)
 - JWT_ACCESS_TTL (default 15m)
 - JWT_REFRESH_TTL (default 7d)
+- OSRM_BASE_URL (default https://router.project-osrm.org)
+- OSRM_TIMEOUT_MS (default 5000)

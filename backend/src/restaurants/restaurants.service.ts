@@ -14,6 +14,8 @@ import {
 } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
 import { JwtPayload } from '../auth/auth.types';
+import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
+import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 import { FeatureMaster } from './entities/feature-master.entity';
 import { PaymentMethod } from './entities/payment-method.entity';
 import { RestaurantFeature } from './entities/restaurant-feature.entity';
@@ -28,8 +30,6 @@ import {
   RestaurantSocialProvider,
 } from './entities/restaurant-social-link.entity';
 import { Restaurant } from './entities/restaurant.entity';
-import { CreateRestaurantReviewDto } from './dto/create-restaurant-review.dto';
-import { UpdateRestaurantDto } from './dto/update-restaurant.dto';
 
 interface OwnerHomeMenuSummaryRow {
   totalCount: number | string;
@@ -130,11 +130,8 @@ interface OwnerHomeReviewRow {
   dishCleanliness: number | string | null;
   spaceCleanliness: number | string | null;
   content: string | null;
-  sentiment: string | null;
   isJapaneseTag: boolean;
   createdAt: Date | string;
-  mediaUrls: string[] | null;
-  tags: string[] | null;
 }
 
 interface OwnerHomeBadgeRow {
@@ -167,7 +164,6 @@ interface CreatedReviewRow {
   dishCleanliness: number | string | null;
   spaceCleanliness: number | string | null;
   content: string | null;
-  sentiment: string | null;
   isJapaneseTag: boolean;
   status: string;
   createdAt: Date | string;
@@ -238,13 +234,14 @@ export class RestaurantsService {
     };
   }
 
-  async getPublicRestaurantDetail(restaurantId: number, user: JwtPayload) {
+  async getPublicRestaurantDetail(restaurantId: number, user?: JwtPayload) {
     this.assertCustomerViewer(user);
 
     const restaurant =
       await this.findActiveRestaurantWithRelations(restaurantId);
 
-    const [promotions, reviews, badges] = await Promise.all([
+    const [menu, promotions, reviews, badges] = await Promise.all([
+      this.getOwnerHomeMenu(restaurantId),
       this.getPublicRestaurantPromotions(restaurantId),
       this.getOwnerHomeReviews(restaurantId),
       this.getOwnerHomeBadges(restaurantId),
@@ -253,11 +250,12 @@ export class RestaurantsService {
     return {
       restaurantId,
       restaurant: this.toHomeRestaurantResponse(restaurant),
+      menu,
       promotions,
       reviews,
       badges,
       reviewSubmission: {
-        enabled: user.role === AuthRole.User,
+        enabled: user?.role === AuthRole.User,
         method: 'POST',
         endpoint: `/restaurants/${restaurantId}/reviews`,
       },
@@ -396,8 +394,6 @@ export class RestaurantsService {
     }
 
     const content = this.optionalTrim(dto.content) ?? null;
-    const sentiment =
-      dto.rating >= 4 ? 'Positive' : dto.rating === 3 ? 'Neutral' : 'Negative';
 
     const rows = await this.dataSource.query<CreatedReviewRow[]>(
       `
@@ -410,7 +406,6 @@ export class RestaurantsService {
           DishCleanliness,
           SpaceCleanliness,
           Content,
-          Sentiment,
           IsJapaneseTag,
           Status
         )
@@ -424,7 +419,6 @@ export class RestaurantsService {
           $7,
           $8,
           $9,
-          $10,
           'Visible'
         FROM RESTAURANT r
         INNER JOIN CUSTOMER_PROFILE cp
@@ -451,7 +445,6 @@ export class RestaurantsService {
           DishCleanliness AS "dishCleanliness",
           SpaceCleanliness AS "spaceCleanliness",
           Content AS "content",
-          Sentiment AS "sentiment",
           IsJapaneseTag AS "isJapaneseTag",
           Status AS "status",
           CreatedAt AS "createdAt",
@@ -466,7 +459,6 @@ export class RestaurantsService {
         dto.dishCleanliness ?? null,
         dto.spaceCleanliness ?? null,
         content,
-        sentiment,
         dto.isJapaneseTag ?? false,
       ],
     );
@@ -493,7 +485,6 @@ export class RestaurantsService {
       spaceCleanliness:
         row.spaceCleanliness === null ? null : Number(row.spaceCleanliness),
       content: row.content,
-      sentiment: row.sentiment,
       isJapaneseTag: row.isJapaneseTag,
       status: row.status,
       createdAt: row.createdAt,
@@ -509,7 +500,11 @@ export class RestaurantsService {
     }
   }
 
-  private assertCustomerViewer(user: JwtPayload) {
+  private assertCustomerViewer(user?: JwtPayload) {
+    if (!user) {
+      return;
+    }
+
     if (![AuthRole.User, AuthRole.Guest].includes(user.role)) {
       throw new ForbiddenException(
         'Only customer or guest users can view restaurant detail.',
@@ -957,36 +952,9 @@ export class RestaurantsService {
             COUNT(*)::int AS "visibleCount",
             AVG(Rating)::numeric(10, 2) AS "averageRating",
             COUNT(*) FILTER (WHERE IsJapaneseTag = TRUE)::int AS "japaneseReviewCount",
-            COUNT(*) FILTER (
-              WHERE COALESCE(
-                Sentiment,
-                CASE
-                  WHEN Rating >= 4 THEN 'Positive'
-                  WHEN Rating = 3 THEN 'Neutral'
-                  ELSE 'Negative'
-                END
-              ) = 'Positive'
-            )::int AS "positiveCount",
-            COUNT(*) FILTER (
-              WHERE COALESCE(
-                Sentiment,
-                CASE
-                  WHEN Rating >= 4 THEN 'Positive'
-                  WHEN Rating = 3 THEN 'Neutral'
-                  ELSE 'Negative'
-                END
-              ) = 'Neutral'
-            )::int AS "neutralCount",
-            COUNT(*) FILTER (
-              WHERE COALESCE(
-                Sentiment,
-                CASE
-                  WHEN Rating >= 4 THEN 'Positive'
-                  WHEN Rating = 3 THEN 'Neutral'
-                  ELSE 'Negative'
-                END
-              ) = 'Negative'
-            )::int AS "negativeCount"
+            COUNT(*) FILTER (WHERE Rating >= 4)::int AS "positiveCount",
+            COUNT(*) FILTER (WHERE Rating = 3)::int AS "neutralCount",
+            COUNT(*) FILTER (WHERE Rating <= 2)::int AS "negativeCount"
           FROM REVIEW
           WHERE RestaurantID = $1
             AND Status = 'Visible'
@@ -1006,45 +974,13 @@ export class RestaurantsService {
             r.DishCleanliness AS "dishCleanliness",
             r.SpaceCleanliness AS "spaceCleanliness",
             r.Content AS "content",
-            r.Sentiment AS "sentiment",
             r.IsJapaneseTag AS "isJapaneseTag",
-            r.CreatedAt AS "createdAt",
-            COALESCE(
-              ARRAY_AGG(rm.MediaURL ORDER BY rm.SortOrder, rm.MediaID)
-                FILTER (WHERE rm.MediaID IS NOT NULL),
-              ARRAY[]::text[]
-            ) AS "mediaUrls",
-            COALESCE(
-              ARRAY_AGG(DISTINCT h.Name)
-                FILTER (WHERE h.TagID IS NOT NULL),
-              ARRAY[]::text[]
-            ) AS "tags"
+            r.CreatedAt AS "createdAt"
           FROM REVIEW r
           INNER JOIN CUSTOMER_PROFILE cp
             ON cp.AccountID = r.CustomerAccountID
-          LEFT JOIN REVIEW_MEDIA rm
-            ON rm.ReviewID = r.ReviewID
-          LEFT JOIN REVIEW_TAG rt
-            ON rt.ReviewID = r.ReviewID
-          LEFT JOIN HASHTAG h
-            ON h.TagID = rt.TagID
           WHERE r.RestaurantID = $1
             AND r.Status = 'Visible'
-          GROUP BY
-            r.ReviewID,
-            r.RestaurantID,
-            r.CustomerAccountID,
-            cp.DisplayName,
-            cp.FullName,
-            cp.AvatarURL,
-            r.Rating,
-            r.ToiletCleanliness,
-            r.DishCleanliness,
-            r.SpaceCleanliness,
-            r.Content,
-            r.Sentiment,
-            r.IsJapaneseTag,
-            r.CreatedAt
           ORDER BY r.CreatedAt DESC, r.ReviewID DESC
         `,
         [restaurantId],
@@ -1088,10 +1024,7 @@ export class RestaurantsService {
         spaceCleanliness:
           row.spaceCleanliness === null ? null : Number(row.spaceCleanliness),
         content: row.content,
-        sentiment: row.sentiment,
         isJapaneseTag: row.isJapaneseTag,
-        mediaUrls: row.mediaUrls ?? [],
-        tags: row.tags ?? [],
         createdAt: row.createdAt,
       })),
       filters: {

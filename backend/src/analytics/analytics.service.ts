@@ -244,45 +244,16 @@ export class AnalyticsService {
         SELECT
           AVG(r.Rating) FILTER (
             WHERE r.IsJapaneseTag = TRUE
-              OR LOWER(COALESCE(cp.Nationality, '')) IN ('japan', 'japanese')
-              OR cp.Nationality IN ('æ—¥æœ¬', 'æ—¥æœ¬äºº')
+              OR LOWER(COALESCE(cp.Nationality, '')) IN ('japan', 'japanese', 'jp')
           )::numeric(10, 2) AS AverageRating,
           COUNT(*) FILTER (
             WHERE r.IsJapaneseTag = TRUE
-              OR LOWER(COALESCE(cp.Nationality, '')) IN ('japan', 'japanese')
-              OR cp.Nationality IN ('æ—¥æœ¬', 'æ—¥æœ¬äºº')
+              OR LOWER(COALESCE(cp.Nationality, '')) IN ('japan', 'japanese', 'jp')
           )::int AS ReviewCount,
           COUNT(*)::int AS PublishedReviewCount,
-          COUNT(*) FILTER (
-            WHERE COALESCE(
-              r.Sentiment,
-              CASE
-                WHEN r.Rating >= 4 THEN 'Positive'
-                WHEN r.Rating = 3 THEN 'Neutral'
-                ELSE 'Negative'
-              END
-            ) = 'Positive'
-          )::int AS Positive,
-          COUNT(*) FILTER (
-            WHERE COALESCE(
-              r.Sentiment,
-              CASE
-                WHEN r.Rating >= 4 THEN 'Positive'
-                WHEN r.Rating = 3 THEN 'Neutral'
-                ELSE 'Negative'
-              END
-            ) = 'Neutral'
-          )::int AS Neutral,
-          COUNT(*) FILTER (
-            WHERE COALESCE(
-              r.Sentiment,
-              CASE
-                WHEN r.Rating >= 4 THEN 'Positive'
-                WHEN r.Rating = 3 THEN 'Neutral'
-                ELSE 'Negative'
-              END
-            ) = 'Negative'
-          )::int AS Negative
+          COUNT(*) FILTER (WHERE r.Rating >= 4)::int AS Positive,
+          COUNT(*) FILTER (WHERE r.Rating = 3)::int AS Neutral,
+          COUNT(*) FILTER (WHERE r.Rating <= 2)::int AS Negative
         FROM REVIEW r
         LEFT JOIN CUSTOMER_PROFILE cp
           ON cp.AccountID = r.CustomerAccountID
@@ -701,11 +672,18 @@ export class AnalyticsService {
   }
 
   private formatCurrentMonth() {
-    return new Date().toISOString().slice(0, 7);
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+
+    return `${now.getFullYear()}-${month}`;
   }
 
   private formatToday() {
-    return new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+
+    return `${now.getFullYear()}-${month}-${day}`;
   }
 
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { RestaurantDetailContent } from "@/components/restaurant-detail";
-import { getMockUserRestaurantDetail } from "@/lib/mock/user-restaurant-detail";
+import { ApiError } from "@/lib/api/client";
+import { getUserRestaurantDetail } from "@/lib/api/restaurants/server";
 
 type UserRestaurantDetailPageProps = {
   params: Promise<{
@@ -18,11 +19,15 @@ export default async function UserRestaurantDetailPage({
     notFound();
   }
 
-  const homeData = getMockUserRestaurantDetail(numericRestaurantId);
+  const homeData = await getUserRestaurantDetail(numericRestaurantId).catch(
+    (error: unknown) => {
+      if (error instanceof ApiError && error.status === 404) {
+        notFound();
+      }
 
-  if (!homeData) {
-    notFound();
-  }
+      throw error;
+    },
+  );
 
   return <RestaurantDetailContent homeData={homeData} />;
 }

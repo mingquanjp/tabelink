@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate deterministic mock SQL for the Tabelink PostgreSQL schema.
+Generate deterministic Japanese mock SQL for the Tabelink PostgreSQL schema.
 
-The generated SQL is designed for Neon/PostgreSQL and follows the constraints in
-database/inits.sql: foreign keys are inserted in dependency order, enum/check
-values are valid, active reservation table time-slots do not collide, and
-identity sequences are advanced after explicit IDs are inserted.
-
-Usage:
-  python database/seeds/generate_mock_sql.py
-  python database/seeds/generate_mock_sql.py --output database/seeds/mock_data.sql
-  python database/seeds/generate_mock_sql.py --truncate --output database/seeds/mock_data.sql
+The generated rows follow database/inits.sql, insert in foreign-key order, and
+use real web image URLs for restaurant, menu, blog, and promotion imagery.
 """
 
 from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from pathlib import Path
 from typing import Iterable
@@ -25,6 +18,7 @@ from typing import Iterable
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUTPUT = ROOT / "database" / "seeds" / "mock_data.sql"
+PASSWORD_HASH = "$2b$10$biBhTZSASkD/E1oU.rfEKO85yaquAEgomgRBqWyxk33tLrbkzXwSS"
 
 
 @dataclass(frozen=True)
@@ -33,6 +27,40 @@ class RawSql:
 
 
 Row = dict[str, object]
+
+
+def unsplash(photo_id: str, width: int = 1200, height: int = 800) -> str:
+    return f"https://images.unsplash.com/{photo_id}?auto=format&fit=crop&w={width}&h={height}&q=80"
+
+
+RESTAURANT_IMAGES = [
+    "photo-1517248135467-4c7edcad34c4",
+    "photo-1552566626-52f8b828add9",
+    "photo-1555396273-367ea4eb4db5",
+    "photo-1550966871-3ed3cdb5ed0c",
+    "photo-1544148103-0773bf10d330",
+    "photo-1590846406792-0adc7f938f1d",
+    "photo-1578474846511-04ba529f0b88",
+    "photo-1514933651103-005eec06c04b",
+]
+
+FOOD_IMAGES = [
+    "photo-1569718212165-3a8278d5f624",
+    "photo-1544025162-d76694265947",
+    "photo-1559847844-5315695dadae",
+    "photo-1604908176997-125f25cc6f3d",
+    "photo-1504674900247-0877df9cc836",
+    "photo-1565958011703-44f9829ba187",
+    "photo-1546069901-ba9599a7e63c",
+    "photo-1625938144755-652e08e359b7",
+    "photo-1547592180-85f173990554",
+    "photo-1540189549336-e6e99c3679fe",
+    "photo-1600628422019-6348b5665c7c",
+    "photo-1612927601601-6638404737ce",
+    "photo-1555939594-58d7cb561ad1",
+    "photo-1562967914-608f82629710",
+    "photo-1745210358756-e7f7ff40e506",
+]
 
 
 def q(value: object) -> str:
@@ -46,69 +74,39 @@ def q(value: object) -> str:
         return str(value)
     if isinstance(value, Decimal):
         return str(value)
-    if isinstance(value, float):
-        return f"{value:.2f}"
     if isinstance(value, datetime):
         return "'" + value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z") + "'"
     if isinstance(value, date):
         return "'" + value.isoformat() + "'"
-
-    text = str(value).replace("'", "''")
-    return f"'{text}'"
+    return "'" + str(value).replace("'", "''") + "'"
 
 
-def quote_ident(name: str) -> str:
-    return name.lower()
-
-
-def insert_sql(
-    table: str,
-    rows: Iterable[Row],
-    conflict_columns: list[str],
-    update_columns: list[str] | None = None,
-) -> str:
+def insert_sql(table: str, rows: Iterable[Row], conflict_columns: list[str], update_columns: list[str] | None = None) -> str:
     rows = list(rows)
     if not rows:
         return ""
-
     columns = list(rows[0].keys())
     for row in rows:
         if list(row.keys()) != columns:
             raise ValueError(f"Inconsistent columns for {table}")
 
-    column_sql = ", ".join(quote_ident(column) for column in columns)
-    values_sql = ",\n  ".join(
-        "(" + ", ".join(q(row[column]) for column in columns) + ")" for row in rows
-    )
-    conflict_sql = ", ".join(quote_ident(column) for column in conflict_columns)
-
+    values = ",\n  ".join("(" + ", ".join(q(row[column]) for column in columns) + ")" for row in rows)
+    conflict = ", ".join(conflict_columns)
     if update_columns is None:
-        update_columns = [
-            column for column in columns if column not in set(conflict_columns)
-        ]
-
-    if update_columns:
-        action_sql = "DO UPDATE SET " + ", ".join(
-            f"{quote_ident(column)} = EXCLUDED.{quote_ident(column)}"
-            for column in update_columns
-        )
-    else:
-        action_sql = "DO NOTHING"
-
-    return (
-        f"INSERT INTO {quote_ident(table)} ({column_sql}) VALUES\n"
-        f"  {values_sql}\n"
-        f"ON CONFLICT ({conflict_sql}) {action_sql};"
+        update_columns = [column for column in columns if column not in set(conflict_columns)]
+    action = (
+        "DO UPDATE SET " + ", ".join(f"{column} = EXCLUDED.{column}" for column in update_columns)
+        if update_columns
+        else "DO NOTHING"
     )
+    return f"INSERT INTO {table} ({', '.join(columns)}) VALUES\n  {values}\nON CONFLICT ({conflict}) {action};"
 
 
 def sequence_sql(table: str, column: str) -> str:
-    table_name = quote_ident(table)
-    column_name = quote_ident(column)
     return (
         "SELECT setval(\n"
-        f"  pg_get_serial_sequence('{table_name}', '{column_name}'),\n"
-        f"  GREATEST((SELECT COALESCE(MAX({column_name}), 1) FROM {table_name}), 1),\n"
+        f"  pg_get_serial_sequence('{table}', '{column}'),\n"
+        f"  GREATEST((SELECT COALESCE(MAX({column}), 1) FROM {table}), 1),\n"
         "  TRUE\n"
         ");"
     )
@@ -116,1132 +114,418 @@ def sequence_sql(table: str, column: str) -> str:
 
 def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
     utc = timezone.utc
+    base = datetime(2026, 5, 1, 1, 0, tzinfo=utc)
+    restaurant_specs = [
+        ("バッハコア・フォー食堂", "ハノイ市ハイバーチュン区ダイコーヴィエット通り1番、ハノイ工科大学正門近く", Decimal("21.005930"), Decimal("105.843720"), "ハノイ工科大学周辺で学生と会社員が使いやすいフォー食堂です。"),
+        ("タクアンブー・ブンチャー店", "ハノイ市ハイバーチュン区タクアンブー通り22番", Decimal("21.006820"), Decimal("105.845120"), "炭火焼きのブンチャーと日本語メニューに対応する昼食向け店舗です。"),
+        ("レタントン・家庭料理", "ハノイ市ハイバーチュン区レタントン通り88番", Decimal("21.010420"), Decimal("105.849880"), "北部家庭料理を落ち着いた席で提供する予約対応店です。"),
+        ("チャンダイギア・コムタム", "ハノイ市ハイバーチュン区チャンダイギア通り45番", Decimal("21.004980"), Decimal("105.846410"), "工科大学エリアのランチ需要に合わせたご飯料理の店です。"),
+        ("バックマイ・バインミー", "ハノイ市ハイバーチュン区バックマイ通り117番", Decimal("21.001950"), Decimal("105.846930"), "軽食とコーヒーを早い時間から提供するカジュアル店舗です。"),
+        ("ミンカイ・海鮮鍋", "ハノイ市ハイバーチュン区ミンカイ通り36番", Decimal("21.000780"), Decimal("105.852220"), "夜の会食と大人数予約に向いた海鮮鍋レストランです。"),
+        ("ヴィンホー・春巻き工房", "ハノイ市ドンダー区ヴィンホー通り12番", Decimal("21.008610"), Decimal("105.832950"), "生春巻きと揚げ春巻きを中心にした清潔な小型店舗です。"),
+        ("キムリエン・麺キッチン", "ハノイ市ドンダー区キムリエン通り9番", Decimal("21.009260"), Decimal("105.838540"), "麺料理を中心に短時間の食事にも使いやすい店舗です。"),
+        ("ザイフォン・屋台食堂", "ハノイ市ハイバーチュン区ザイフォン通り210番", Decimal("21.002940"), Decimal("105.841620"), "大学病院と工科大学の間で屋台風メニューを提供します。"),
+        ("ホーヴィエット・ランチ", "ハノイ市ハイバーチュン区ホーヴィエット通り18番", Decimal("21.013480"), Decimal("105.848650"), "静かな昼食と日本語予約に対応するランチ食堂です。"),
+        ("バーチエウ・ベトナム食堂", "ハノイ市ハイバーチュン区バーチエウ通り64番", Decimal("21.012180"), Decimal("105.851090"), "買い物帰りにも使いやすい家庭料理レストランです。"),
+        ("ローダック・カフェ食堂", "ハノイ市ハイバーチュン区ローダック通り32番", Decimal("21.016210"), Decimal("105.854160"), "コーヒーと軽食、夕食メニューをまとめて提供する店舗です。"),
+    ]
+    restaurant_count = len(restaurant_specs)
 
-    user_accounts = [
+    user_accounts: list[Row] = [
+        {"accountid": 1, "email": "admin1@tabelink.test", "passwordhash": PASSWORD_HASH, "role": "Admin", "status": "Active", "createdat": base, "updatedat": base},
+    ]
+    user_accounts += [
+        {"accountid": 100 + i, "email": f"owner{i:02d}@tabelink.test", "passwordhash": PASSWORD_HASH, "role": "Owner", "status": "Active", "createdat": base, "updatedat": base}
+        for i in range(1, restaurant_count + 1)
+    ]
+    user_accounts += [
         {
-            "accountid": 1,
-            "email": "admin@tabelink.test",
-            "passwordhash": "$2b$10$mockAdminPasswordHash",
-            "role": "Admin",
-            "status": "Active",
-            "createdat": datetime(2026, 5, 1, 1, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 1, 1, 0, tzinfo=utc),
-        },
-        {
-            "accountid": 101,
-            "email": "owner.saigon@tabelink.test",
-            "passwordhash": "$2b$10$mockOwnerSaigonPasswordHash",
-            "role": "Owner",
-            "status": "Active",
-            "createdat": datetime(2026, 5, 1, 2, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 1, 2, 0, tzinfo=utc),
-        },
-        {
-            "accountid": 102,
-            "email": "owner.hanoi@tabelink.test",
-            "passwordhash": "$2b$10$mockOwnerHanoiPasswordHash",
-            "role": "Owner",
-            "status": "Active",
-            "createdat": datetime(2026, 5, 1, 2, 15, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 1, 2, 15, tzinfo=utc),
-        },
-        {
-            "accountid": 201,
-            "email": "sato.customer@tabelink.test",
-            "passwordhash": "$2b$10$mockSatoPasswordHash",
+            "accountid": 200 + i,
+            "email": f"user{i:02d}@tabelink.test",
+            "passwordhash": PASSWORD_HASH,
             "role": "User",
-            "status": "Active",
-            "createdat": datetime(2026, 5, 2, 3, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 2, 3, 0, tzinfo=utc),
-        },
-        {
-            "accountid": 202,
-            "email": "tanaka.customer@tabelink.test",
-            "passwordhash": "$2b$10$mockTanakaPasswordHash",
-            "role": "User",
-            "status": "Active",
-            "createdat": datetime(2026, 5, 2, 3, 15, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 2, 3, 15, tzinfo=utc),
-        },
-        {
-            "accountid": 203,
-            "email": "linh.customer@tabelink.test",
-            "passwordhash": "$2b$10$mockLinhPasswordHash",
-            "role": "User",
-            "status": "Pending",
-            "createdat": datetime(2026, 5, 2, 3, 30, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 2, 3, 30, tzinfo=utc),
-        },
+            "status": ["Active", "Active", "Active", "Pending", "Banned"][i % 5],
+            "createdat": base + timedelta(minutes=i),
+            "updatedat": base + timedelta(minutes=i),
+        }
+        for i in range(1, 31)
     ]
 
     feature_master = [
-        {
-            "featureid": 1,
-            "featurecode": "TABLE_MANAGEMENT",
-            "featurenamevn": "Quản lý bàn",
-            "featurenamejp": "席管理",
-        },
-        {
-            "featureid": 2,
-            "featurecode": "ONLINE_RESERVATION",
-            "featurenamevn": "Đặt bàn trực tuyến",
-            "featurenamejp": "オンライン予約",
-        },
-        {
-            "featureid": 3,
-            "featurecode": "JAPANESE_MENU",
-            "featurenamevn": "Thực đơn tiếng Nhật",
-            "featurenamejp": "日本語メニュー",
-        },
-        {
-            "featureid": 4,
-            "featurecode": "VAT_INVOICE",
-            "featurenamevn": "Xuất hóa đơn VAT",
-            "featurenamejp": "VAT領収書",
-        },
+        {"featureid": 1, "featurecode": "TABLE_MANAGEMENT", "featurenamevn": "席管理", "featurenamejp": "席管理"},
+        {"featureid": 2, "featurecode": "ONLINE_RESERVATION", "featurenamevn": "オンライン予約", "featurenamejp": "オンライン予約"},
+        {"featureid": 3, "featurecode": "JAPANESE_MENU", "featurenamevn": "日本語メニュー", "featurenamejp": "日本語メニュー"},
+        {"featureid": 4, "featurecode": "VAT_INVOICE", "featurenamevn": "領収書対応", "featurenamejp": "領収書対応"},
     ]
-
     payment_methods = [
-        {"paymentmethodid": 1, "methodcode": "CASH", "methodname": "Tiền mặt"},
-        {"paymentmethodid": 2, "methodcode": "CARD", "methodname": "Thẻ"},
-        {"paymentmethodid": 3, "methodcode": "MOMO", "methodname": "MoMo"},
+        {"paymentmethodid": 1, "methodcode": "CASH", "methodname": "現金"},
+        {"paymentmethodid": 2, "methodcode": "CARD", "methodname": "クレジットカード"},
+        {"paymentmethodid": 3, "methodcode": "MOMO", "methodname": "電子ウォレット"},
         {"paymentmethodid": 4, "methodcode": "PAYPAY", "methodname": "PayPay"},
     ]
-
     hashtags = [
-        {"tagid": 1, "name": "pho"},
-        {"tagid": 2, "name": "comtam"},
-        {"tagid": 3, "name": "japanese-friendly"},
-        {"tagid": 4, "name": "clean"},
-        {"tagid": 5, "name": "family"},
+        {"tagid": 1, "name": "ベトナム料理"},
+        {"tagid": 2, "name": "日本語対応"},
+        {"tagid": 3, "name": "清潔"},
+        {"tagid": 4, "name": "家族向け"},
+        {"tagid": 5, "name": "ランチ"},
+        {"tagid": 6, "name": "接待"},
     ]
-
     request_templates = [
-        {
-            "templateid": 1,
-            "textvn": "Không rau mùi",
-            "textjp": "パクチー抜き",
-            "requesttype": "Coriander",
-        },
-        {
-            "templateid": 2,
-            "textvn": "Ít cay",
-            "textjp": "辛さ控えめ",
-            "requesttype": "LessSpicy",
-        },
-        {
-            "templateid": 3,
-            "textvn": "Cần hóa đơn VAT",
-            "textjp": "VAT領収書が必要",
-            "requesttype": "VATInvoice",
-        },
-        {
-            "templateid": 4,
-            "textvn": "Ghế trẻ em nếu có",
-            "textjp": "子ども椅子希望",
-            "requesttype": "Other",
-        },
+        {"templateid": 1, "textjp": "パクチーを抜いてください", "descriptionjp": "香草が苦手な方向けの依頼です。", "requesttype": "Coriander"},
+        {"templateid": 2, "textjp": "辛さを控えめにしてください", "descriptionjp": "唐辛子を少なめにして提供します。", "requesttype": "LessSpicy"},
+        {"templateid": 3, "textjp": "領収書をお願いします", "descriptionjp": "会社名入りの領収書が必要な場合に使います。", "requesttype": "VATInvoice"},
+        {"templateid": 4, "textjp": "子ども用の椅子をお願いします", "descriptionjp": "小さなお子さま連れの予約向けです。", "requesttype": "Other"},
     ]
-
     badges = [
-        {
-            "badgeid": 1,
-            "badgecode": "VERIFIED",
-            "badgenamevn": "Đã xác thực",
-            "badgenamejp": "認証済み",
-            "descriptionvn": "Nhà hàng đã được TABELINK xác thực hồ sơ.",
-            "descriptionjp": "提出書類の確認後、TABELINKにより認証された店舗です。",
-            "criteria": "Giấy phép kinh doanh, chứng nhận an toàn thực phẩm",
-        },
-        {
-            "badgeid": 2,
-            "badgecode": "JP_FRIENDLY",
-            "badgenamevn": "Thân thiện với khách Nhật",
-            "badgenamejp": "日本人向け",
-            "descriptionvn": "Có thông tin, thực đơn hoặc hỗ trợ phù hợp khách Nhật.",
-            "descriptionjp": "日本人利用者向けの情報やメニューがあります。",
-            "criteria": "Thực đơn Nhật, nhân viên hỗ trợ, đánh giá tốt",
-        },
+        {"badgeid": 1, "badgecode": "VERIFIED", "badgenamevn": "認証済み", "badgenamejp": "認証済み", "descriptionvn": "提出書類を確認済みの店舗です。", "descriptionjp": "提出書類を確認済みの店舗です。", "criteria": "営業許可証、衛生関連書類"},
+        {"badgeid": 2, "badgecode": "JP_FRIENDLY", "badgenamevn": "日本人向け", "badgenamejp": "日本人向け", "descriptionvn": "日本語メニューや日本人向け案内があります。", "descriptionjp": "日本語メニューや日本人向け案内があります。", "criteria": "日本語メニュー、予約対応、清潔評価"},
     ]
 
     customer_profiles = [
         {
-            "accountid": 201,
-            "fullname": "Sato Haruka",
-            "displayname": "Haruka",
-            "gender": "Female",
-            "dob": date(1994, 4, 12),
-            "nationality": "Japan",
-            "purpose": "Business lunch and local food discovery",
-            "avatarurl": "https://images.example.test/avatars/sato.jpg",
-        },
-        {
-            "accountid": 202,
-            "fullname": "Tanaka Ren",
-            "displayname": "Ren",
-            "gender": "Male",
-            "dob": date(1990, 9, 5),
-            "nationality": "Japan",
-            "purpose": "Family dining",
-            "avatarurl": "https://images.example.test/avatars/tanaka.jpg",
-        },
-        {
-            "accountid": 203,
-            "fullname": "Nguyen Linh",
-            "displayname": "Linh",
-            "gender": "Female",
-            "dob": date(1998, 2, 20),
-            "nationality": "Vietnam",
-            "purpose": "Review Vietnamese restaurants",
-            "avatarurl": None,
-        },
+            "accountid": 200 + i,
+            "fullname": f"利用者{i:02d}",
+            "displayname": f"ゲスト{i:02d}",
+            "gender": ["Female", "Male", "Other"][i % 3],
+            "dob": date(1988 + (i % 18), (i % 12) + 1, (i % 27) + 1),
+            "nationality": "日本",
+            "purpose": ["出張中の食事", "家族での外食", "現地料理の記録", "友人との会食"][i % 4],
+            "avatarurl": f"https://randomuser.me/api/portraits/{'women' if i % 2 else 'men'}/{i + 10}.jpg",
+        }
+        for i in range(1, 31)
     ]
-
     owner_profiles = [
-        {
-            "accountid": 101,
-            "fullname": "Tran Minh",
-            "phone": "+84901234567",
-            "businessname": "Saigon Pho Group",
-            "avatarurl": "https://images.example.test/owners/saigon.jpg",
-        },
-        {
-            "accountid": 102,
-            "fullname": "Pham Anh",
-            "phone": "+84987654321",
-            "businessname": "Hanoi Home Kitchen",
-            "avatarurl": "https://images.example.test/owners/hanoi.jpg",
-        },
+        {"accountid": 100 + i, "fullname": f"店舗オーナー{i:02d}", "phone": f"+84280000{i:04d}", "businessname": f"タベリンク運営会社{i:02d}", "avatarurl": f"https://randomuser.me/api/portraits/men/{20 + i}.jpg"}
+        for i in range(1, restaurant_count + 1)
     ]
-
     follows = [
-        {
-            "followeraccountid": 201,
-            "followedaccountid": 202,
-            "createdat": datetime(2026, 5, 3, 4, 0, tzinfo=utc),
-        },
-        {
-            "followeraccountid": 202,
-            "followedaccountid": 201,
-            "createdat": datetime(2026, 5, 3, 4, 10, tzinfo=utc),
-        },
-        {
-            "followeraccountid": 203,
-            "followedaccountid": 201,
-            "createdat": datetime(2026, 5, 3, 4, 20, tzinfo=utc),
-        },
+        {"followeraccountid": 200 + i, "followedaccountid": 200 + ((i + 6) % 30) + 1, "createdat": base + timedelta(hours=i)}
+        for i in range(1, 25)
+        if 200 + i != 200 + ((i + 6) % 30) + 1
     ]
-
-    restaurants = [
-        {
-            "restaurantid": 1001,
-            "owneraccountid": 101,
-            "namevn": "Phở Sài Gòn 1985",
-            "namejp": "サイゴンフォー1985",
-            "address": "12 Nguyen Hue, District 1, Ho Chi Minh City",
-            "latitude": Decimal("10.775843"),
-            "longitude": Decimal("106.701755"),
-            "descriptionvn": "Quán phở trung tâm, có menu tiếng Nhật và đặt bàn.",
-            "descriptionjp": "市内中心部のフォー店。日本語メニューと予約に対応。",
-            "issuesvat": True,
-            "phone": "+842812345678",
-            "openinghours": "10:00-22:00",
-            "status": "Active",
-            "createdat": datetime(2026, 5, 3, 5, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 3, 5, 0, tzinfo=utc),
-        },
-        {
-            "restaurantid": 1002,
-            "owneraccountid": 102,
-            "namevn": "Bếp Nhà Hà Nội",
-            "namejp": "ハノイ家庭料理",
-            "address": "25 Hang Be, Hoan Kiem, Hanoi",
-            "latitude": Decimal("21.034210"),
-            "longitude": Decimal("105.853020"),
-            "descriptionvn": "Món gia đình miền Bắc, không gian yên tĩnh.",
-            "descriptionjp": "北部家庭料理。落ち着いた空間です。",
-            "issuesvat": False,
-            "phone": "+842412345678",
-            "openinghours": "09:30-21:30",
-            "status": "PendingApproval",
-            "createdat": datetime(2026, 5, 3, 5, 30, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 3, 5, 30, tzinfo=utc),
-        },
-    ]
-
-    restaurant_media = [
-        {
-            "mediaid": 1,
-            "restaurantid": 1001,
-            "mediaurl": "https://images.example.test/restaurants/1001/cover.jpg",
-            "mediatype": "Cover",
-            "sortorder": 0,
-            "status": "Approved",
-        },
-        {
-            "mediaid": 2,
-            "restaurantid": 1001,
-            "mediaurl": "https://images.example.test/restaurants/1001/dining-room.jpg",
-            "mediatype": "Photo",
-            "sortorder": 1,
-            "status": "Approved",
-        },
-        {
-            "mediaid": 3,
-            "restaurantid": 1002,
-            "mediaurl": "https://images.example.test/restaurants/1002/cover.jpg",
-            "mediatype": "Cover",
-            "sortorder": 0,
-            "status": "Pending",
-        },
-    ]
-
-    restaurant_features = [
-        {"restaurantid": 1001, "featureid": 1},
-        {"restaurantid": 1001, "featureid": 2},
-        {"restaurantid": 1001, "featureid": 3},
-        {"restaurantid": 1001, "featureid": 4},
-        {"restaurantid": 1002, "featureid": 1},
-        {"restaurantid": 1002, "featureid": 3},
-    ]
-
-    restaurant_payment_methods = [
-        {"restaurantid": 1001, "paymentmethodid": 1},
-        {"restaurantid": 1001, "paymentmethodid": 2},
-        {"restaurantid": 1001, "paymentmethodid": 3},
-        {"restaurantid": 1002, "paymentmethodid": 1},
-        {"restaurantid": 1002, "paymentmethodid": 4},
-    ]
-
-    menu_items = [
-        {
-            "itemid": 5001,
-            "restaurantid": 1001,
-            "namevn": "Phở bò tái",
-            "namejp": "半生牛肉フォー",
-            "price": Decimal("85000.00"),
-            "descriptionvn": "Nước dùng bò thanh, bánh phở mềm.",
-            "descriptionjp": "あっさりした牛骨スープのフォー。",
-            "ingredients": "Bánh phở, thịt bò, hành, rau thơm",
-            "isrecommendedforjp": True,
-            "spicylevel": 1,
-            "corianderlevel": 2,
-            "imageurl": "https://images.example.test/menu/pho-bo-tai.jpg",
-            "imagepublicid": "tabelink/restaurants/1001/menus/pho-bo-tai",
-            "isactive": True,
-            "deletedat": None,
-            "createdat": datetime(2026, 5, 3, 6, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 3, 6, 0, tzinfo=utc),
-        },
-        {
-            "itemid": 5002,
-            "restaurantid": 1001,
-            "namevn": "Gỏi cuốn tôm thịt",
-            "namejp": "海老と豚肉の生春巻き",
-            "price": Decimal("65000.00"),
-            "descriptionvn": "Cuốn tươi ăn kèm nước chấm đậu phộng.",
-            "descriptionjp": "ピーナッツソース付きの生春巻き。",
-            "ingredients": "Bánh tráng, tôm, thịt heo, rau sống",
-            "isrecommendedforjp": True,
-            "spicylevel": 0,
-            "corianderlevel": 1,
-            "imageurl": "https://images.example.test/menu/goi-cuon.jpg",
-            "imagepublicid": "tabelink/restaurants/1001/menus/goi-cuon",
-            "isactive": True,
-            "deletedat": None,
-            "createdat": datetime(2026, 5, 3, 6, 10, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 3, 6, 10, tzinfo=utc),
-        },
-        {
-            "itemid": 5003,
-            "restaurantid": 1002,
-            "namevn": "Bún chả Hà Nội",
-            "namejp": "ハノイ風ブンチャー",
-            "price": Decimal("90000.00"),
-            "descriptionvn": "Thịt nướng ăn cùng bún và nước chấm.",
-            "descriptionjp": "焼き豚と米麺を甘酸っぱいタレで楽しむ料理。",
-            "ingredients": "Bún, thịt heo, rau sống, nước mắm",
-            "isrecommendedforjp": True,
-            "spicylevel": 1,
-            "corianderlevel": 2,
-            "imageurl": "https://images.example.test/menu/bun-cha.jpg",
-            "imagepublicid": "tabelink/restaurants/1002/menus/bun-cha",
-            "isactive": True,
-            "deletedat": None,
-            "createdat": datetime(2026, 5, 3, 6, 20, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 3, 6, 20, tzinfo=utc),
-        },
-    ]
-
-    menu_item_criteria = [
-        {"criterionid": 1, "itemid": 5001, "criterionname": "Hương vị", "ratinglevel": 5, "sortorder": 0, "createdat": datetime(2026, 5, 3, 6, 30, tzinfo=utc)},
-        {"criterionid": 2, "itemid": 5001, "criterionname": "Độ cay", "ratinglevel": 1, "sortorder": 1, "createdat": datetime(2026, 5, 3, 6, 31, tzinfo=utc)},
-        {"criterionid": 3, "itemid": 5002, "criterionname": "Độ tươi", "ratinglevel": 5, "sortorder": 0, "createdat": datetime(2026, 5, 3, 6, 32, tzinfo=utc)},
-        {"criterionid": 4, "itemid": 5003, "criterionname": "Hương than", "ratinglevel": 4, "sortorder": 0, "createdat": datetime(2026, 5, 3, 6, 33, tzinfo=utc)},
-    ]
-
-    restaurant_tables = [
-        {"tableid": 7001, "restaurantid": 1001, "tablename": "A1", "capacity": 2, "status": "Reserved", "positionx": Decimal("40.00"), "positiony": Decimal("50.00"), "width": Decimal("80.00"), "height": Decimal("80.00"), "zone": "Floor 1"},
-        {"tableid": 7002, "restaurantid": 1001, "tablename": "A2", "capacity": 4, "status": "Using", "positionx": Decimal("150.00"), "positiony": Decimal("50.00"), "width": Decimal("100.00"), "height": Decimal("80.00"), "zone": "Floor 1"},
-        {"tableid": 7003, "restaurantid": 1001, "tablename": "B1", "capacity": 6, "status": "Empty", "positionx": Decimal("40.00"), "positiony": Decimal("170.00"), "width": Decimal("140.00"), "height": Decimal("90.00"), "zone": "Floor 2"},
-        {"tableid": 7004, "restaurantid": 1001, "tablename": "B2", "capacity": 4, "status": "Reserved", "positionx": Decimal("210.00"), "positiony": Decimal("170.00"), "width": Decimal("100.00"), "height": Decimal("80.00"), "zone": "Floor 2"},
-        {"tableid": 7101, "restaurantid": 1002, "tablename": "H1", "capacity": 4, "status": "Empty", "positionx": Decimal("50.00"), "positiony": Decimal("60.00"), "width": Decimal("100.00"), "height": Decimal("80.00"), "zone": "Main"},
-        {"tableid": 7102, "restaurantid": 1002, "tablename": "H2", "capacity": 2, "status": "Reserved", "positionx": Decimal("180.00"), "positiony": Decimal("60.00"), "width": Decimal("80.00"), "height": Decimal("80.00"), "zone": "Main"},
-    ]
-
-    reservations = [
-        {
-            "reservationid": 9001,
-            "customeraccountid": 201,
-            "restaurantid": 1001,
-            "tableid": 7001,
-            "reservationdatetime": datetime(2026, 5, 10, 12, 0, tzinfo=utc),
-            "pax": 2,
-            "note": "No coriander, please.",
-            "status": "Approved",
-            "createdat": datetime(2026, 5, 4, 1, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 4, 1, 15, tzinfo=utc),
-        },
-        {
-            "reservationid": 9002,
-            "customeraccountid": 202,
-            "restaurantid": 1001,
-            "tableid": 7003,
-            "reservationdatetime": datetime(2026, 5, 10, 18, 30, tzinfo=utc),
-            "pax": 4,
-            "note": "Family dinner.",
-            "status": "Pending",
-            "createdat": datetime(2026, 5, 4, 2, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 4, 2, 0, tzinfo=utc),
-        },
-        {
-            "reservationid": 9003,
-            "customeraccountid": 201,
-            "restaurantid": 1001,
-            "tableid": 7002,
-            "reservationdatetime": datetime(2026, 5, 5, 12, 0, tzinfo=utc),
-            "pax": 2,
-            "note": "Completed lunch reservation.",
-            "status": "Completed",
-            "createdat": datetime(2026, 5, 4, 3, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 5, 13, 0, tzinfo=utc),
-        },
-        {
-            "reservationid": 9004,
-            "customeraccountid": 203,
-            "restaurantid": 1002,
-            "tableid": 7102,
-            "reservationdatetime": datetime(2026, 5, 11, 11, 30, tzinfo=utc),
-            "pax": 2,
-            "note": "Quiet table.",
-            "status": "Approved",
-            "createdat": datetime(2026, 5, 4, 4, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 4, 4, 15, tzinfo=utc),
-        },
-        {
-            "reservationid": 9005,
-            "customeraccountid": 202,
-            "restaurantid": 1002,
-            "tableid": None,
-            "reservationdatetime": datetime(2026, 5, 12, 19, 0, tzinfo=utc),
-            "pax": 3,
-            "note": "Cancelled by customer.",
-            "status": "Cancelled",
-            "createdat": datetime(2026, 5, 4, 5, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 4, 5, 30, tzinfo=utc),
-        },
-    ]
-
-    reservation_items = [
-        {"reservationitemid": 1, "reservationid": 9001, "restaurantid": 1001, "itemid": 5001, "quantity": 2, "unitprice": Decimal("85000.00"), "note": "No coriander", "createdat": datetime(2026, 5, 4, 1, 5, tzinfo=utc)},
-        {"reservationitemid": 2, "reservationid": 9001, "restaurantid": 1001, "itemid": 5002, "quantity": 1, "unitprice": Decimal("65000.00"), "note": None, "createdat": datetime(2026, 5, 4, 1, 6, tzinfo=utc)},
-        {"reservationitemid": 3, "reservationid": 9003, "restaurantid": 1001, "itemid": 5001, "quantity": 1, "unitprice": Decimal("85000.00"), "note": None, "createdat": datetime(2026, 5, 4, 3, 5, tzinfo=utc)},
-        {"reservationitemid": 4, "reservationid": 9004, "restaurantid": 1002, "itemid": 5003, "quantity": 2, "unitprice": Decimal("90000.00"), "note": "Less spicy", "createdat": datetime(2026, 5, 4, 4, 5, tzinfo=utc)},
-    ]
-
-    reservation_special_requests = [
-        {"requestid": 1, "reservationid": 9001, "templateid": 1, "customtext": None},
-        {"requestid": 2, "reservationid": 9001, "templateid": 2, "customtext": None},
-        {"requestid": 3, "reservationid": 9002, "templateid": 4, "customtext": "Please prepare a child chair."},
-        {"requestid": 4, "reservationid": 9005, "templateid": None, "customtext": "Customer will rebook next week."},
-    ]
-
-    reviews = [
-        {
-            "reviewid": 3001,
-            "customeraccountid": 201,
-            "restaurantid": 1001,
-            "reservationid": 9003,
-            "rating": 5,
-            "toiletcleanliness": 4,
-            "dishcleanliness": 5,
-            "spacecleanliness": 4,
-            "content": "Good pho and clear Japanese menu.",
-            "isjapanesetag": True,
-            "status": "Visible",
-            "createdat": datetime(2026, 5, 5, 14, 0, tzinfo=utc),
-            "updatedat": datetime(2026, 5, 5, 14, 0, tzinfo=utc),
-        }
-    ]
-
-    review_media = [
-        {"mediaid": 1, "reviewid": 3001, "mediaurl": "https://images.example.test/reviews/3001/pho.jpg", "mediatype": "Photo", "sortorder": 0}
-    ]
-
-    review_tags = [
-        {"reviewid": 3001, "tagid": 1},
-        {"reviewid": 3001, "tagid": 3},
-        {"reviewid": 3001, "tagid": 4},
-    ]
-
-    promotions = [
-        {
-            "promotionid": 8001,
-            "restaurantid": 1001,
-            "createdbyowneraccountid": 101,
-            "approvedbyadminid": 1,
-            "promotiontype": "Campaign",
-            "targetaudience": "Japanese office workers in District 1",
-            "titlevn": "Combo trưa cho khách Nhật",
-            "titlejp": "日本人向けランチセット",
-            "contentvn": "Giảm 10% cho combo phở và gỏi cuốn.",
-            "contentjp": "フォーと生春巻きセットを10%割引。",
-            "mediaurl": "https://images.example.test/promotions/8001.jpg",
-            "termsvn": "Áp dụng từ thứ Hai đến thứ Sáu.",
-            "termsjp": "平日のみ適用。",
-            "startdate": datetime(2026, 5, 6, 0, 0, tzinfo=utc),
-            "enddate": datetime(2026, 6, 6, 0, 0, tzinfo=utc),
-            "status": "Active",
-            "impressions": 1200,
-            "clicks": 180,
-            "totalcost": Decimal("2500000.00"),
-        },
-        {
-            "promotionid": 8002,
-            "restaurantid": 1002,
-            "createdbyowneraccountid": 102,
-            "approvedbyadminid": None,
-            "promotiontype": "Advertisement",
-            "targetaudience": "Families visiting Hanoi",
-            "titlevn": "Bữa tối gia đình",
-            "titlejp": "家族向けディナー",
-            "contentvn": "Set bún chả cho nhóm 4 người.",
-            "contentjp": "4名向けブンチャーセット。",
-            "mediaurl": "https://images.example.test/promotions/8002.jpg",
-            "termsvn": "Chờ duyệt.",
-            "termsjp": "承認待ち。",
-            "startdate": datetime(2026, 5, 15, 0, 0, tzinfo=utc),
-            "enddate": datetime(2026, 6, 15, 0, 0, tzinfo=utc),
-            "status": "Pending",
-            "impressions": 0,
-            "clicks": 0,
-            "totalcost": Decimal("0.00"),
-        },
-    ]
-
-    badge_applications = [
-        {
-            "appid": 6001,
-            "restaurantid": 1001,
-            "badgeid": 1,
-            "submittedbyowneraccountid": 101,
-            "reviewedbyadminid": 1,
-            "businesslicenseurl": "https://files.example.test/verification/1001/license.pdf",
-            "businesslicensepublicid": "tabelink/restaurants/1001/verification/business-license/license",
-            "foodsafetycerturl": "https://files.example.test/verification/1001/food-safety.pdf",
-            "foodsafetycertpublicid": "tabelink/restaurants/1001/verification/food-safety/cert",
-            "status": "Approved",
-            "submittedat": datetime(2026, 5, 3, 7, 0, tzinfo=utc),
-            "reviewedat": datetime(2026, 5, 3, 8, 0, tzinfo=utc),
-            "reviewnote": "Documents are valid.",
-        },
-        {
-            "appid": 6002,
-            "restaurantid": 1002,
-            "badgeid": 1,
-            "submittedbyowneraccountid": 102,
-            "reviewedbyadminid": None,
-            "businesslicenseurl": "https://files.example.test/verification/1002/license.pdf",
-            "businesslicensepublicid": "tabelink/restaurants/1002/verification/business-license/license",
-            "foodsafetycerturl": None,
-            "foodsafetycertpublicid": None,
-            "status": "Pending",
-            "submittedat": datetime(2026, 5, 4, 7, 0, tzinfo=utc),
-            "reviewedat": None,
-            "reviewnote": None,
-        },
-    ]
-
-    restaurant_badges = [
-        {
-            "restaurantid": 1001,
-            "badgeid": 1,
-            "grantedbyadminid": 1,
-            "grantedat": datetime(2026, 5, 3, 8, 5, tzinfo=utc),
-            "expiresat": datetime(2027, 5, 3, 8, 5, tzinfo=utc),
-        },
-        {
-            "restaurantid": 1001,
-            "badgeid": 2,
-            "grantedbyadminid": 1,
-            "grantedat": datetime(2026, 5, 3, 8, 10, tzinfo=utc),
-            "expiresat": None,
-        },
-    ]
-
-    moderation_logs = [
-        {"logid": 1, "adminaccountid": 1, "targettype": "BadgeApplication", "targetid": 6001, "actiontype": "Approve", "reason": "Documents verified.", "createdat": datetime(2026, 5, 3, 8, 0, tzinfo=utc)},
-        {"logid": 2, "adminaccountid": 1, "targettype": "RestaurantMedia", "targetid": 1, "actiontype": "Approve", "reason": "Cover image approved.", "createdat": datetime(2026, 5, 3, 8, 20, tzinfo=utc)},
-        {"logid": 3, "adminaccountid": 1, "targettype": "Promotion", "targetid": 8001, "actiontype": "Approve", "reason": "Campaign complies with policy.", "createdat": datetime(2026, 5, 6, 1, 0, tzinfo=utc)},
-    ]
-
-    restaurant_analytics = [
-        {"analyticsid": 1, "restaurantid": 1001, "statdate": date(2026, 5, 5), "visitcount": 240, "japanesevisitcount": 85, "reviewcount": 1, "reservationcount": 3, "peakhour": 12},
-        {"analyticsid": 2, "restaurantid": 1001, "statdate": date(2026, 5, 6), "visitcount": 210, "japanesevisitcount": 73, "reviewcount": 0, "reservationcount": 2, "peakhour": 19},
-        {"analyticsid": 3, "restaurantid": 1002, "statdate": date(2026, 5, 5), "visitcount": 120, "japanesevisitcount": 26, "reviewcount": 0, "reservationcount": 1, "peakhour": 18},
-    ]
-
-    menu_analytics = [
-        {"analyticsid": 1, "itemid": 5001, "statdate": date(2026, 5, 5), "viewcount": 180, "ordercount": 42},
-        {"analyticsid": 2, "itemid": 5002, "statdate": date(2026, 5, 5), "viewcount": 95, "ordercount": 18},
-        {"analyticsid": 3, "itemid": 5003, "statdate": date(2026, 5, 5), "viewcount": 70, "ordercount": 11},
-    ]
-
-    # Scale up to a realistic QA dataset. All mock accounts share this password:
-    # Password123!
-    password_hash = "$2b$10$BFWjs0HqgjGtmCJMWSvAKenKYyD/ZXGQ4z/whptnX.xeaqap6QzS2"
-    base_created = datetime(2026, 5, 1, 1, 0, tzinfo=utc)
-    base_reservation = datetime(2026, 5, 10, 10, 0, tzinfo=utc)
-
-    user_accounts = []
-    for account_id in range(1, 6):
-        user_accounts.append(
-            {
-                "accountid": account_id,
-                "email": f"admin{account_id}@tabelink.test",
-                "passwordhash": password_hash,
-                "role": "Admin",
-                "status": "Active",
-                "createdat": base_created,
-                "updatedat": base_created,
-            }
-        )
-
-    for offset, account_id in enumerate(range(101, 121), start=1):
-        user_accounts.append(
-            {
-                "accountid": account_id,
-                "email": f"owner{offset:02d}@tabelink.test",
-                "passwordhash": password_hash,
-                "role": "Owner",
-                "status": "Active",
-                "createdat": base_created,
-                "updatedat": base_created,
-            }
-        )
-
-    for offset, account_id in enumerate(range(201, 276), start=1):
-        user_accounts.append(
-            {
-                "accountid": account_id,
-                "email": f"user{offset:02d}@tabelink.test",
-                "passwordhash": password_hash,
-                "role": "User",
-                "status": ["Active", "Active", "Active", "Pending", "Banned"][offset % 5],
-                "createdat": base_created,
-                "updatedat": base_created,
-            }
-        )
-
-    owner_profiles = [
-        {
-            "accountid": account_id,
-            "fullname": f"Owner {offset:02d}",
-            "phone": f"+8490{offset:07d}",
-            "businessname": f"Tabelink Mock Restaurant Group {offset:02d}",
-            "avatarurl": f"https://images.example.test/owners/{account_id}.jpg",
-        }
-        for offset, account_id in enumerate(range(101, 121), start=1)
-    ]
-
-    customer_profiles = [
-        {
-            "accountid": account_id,
-            "fullname": f"Mock Customer {offset:02d}",
-            "displayname": f"Customer {offset:02d}",
-            "gender": ["Female", "Male", "Other"][offset % 3],
-            "dob": date(1988 + (offset % 16), (offset % 12) + 1, (offset % 27) + 1),
-            "nationality": ["Japan", "Vietnam", "Korea", "Singapore"][offset % 4],
-            "purpose": ["Business lunch", "Family dining", "Food discovery", "Date night"][offset % 4],
-            "avatarurl": f"https://images.example.test/avatars/{account_id}.jpg",
-        }
-        for offset, account_id in enumerate(range(201, 276), start=1)
-    ]
-
-    follows = [
-        {
-            "followeraccountid": 201 + index,
-            "followedaccountid": 201 + ((index + 7) % 75),
-            "createdat": datetime(2026, 5, 3, index % 24, index % 60, tzinfo=utc),
-        }
-        for index in range(75)
-        if index != ((index + 7) % 75)
-    ]
-
-    restaurant_names = [
-        ("Phở Sài Gòn 1985", "サイゴンフォー1985", "Ho Chi Minh City"),
-        ("Bếp Nhà Hà Nội", "ハノイ家庭料理", "Hanoi"),
-        ("Cơm Tấm Tokyo Alley", "コムタム東京横丁", "Ho Chi Minh City"),
-        ("Bún Chả Hồ Gươm", "ホーグオムブンチャー", "Hanoi"),
-        ("Mì Quảng Hội An", "ホイアンミークアン", "Da Nang"),
-        ("Chay An Nhiên", "アンニエン精進料理", "Ho Chi Minh City"),
-        ("Lẩu Mắm Mekong", "メコン鍋", "Can Tho"),
-        ("Bánh Mì Station", "バインミーステーション", "Ho Chi Minh City"),
-        ("Hải Sản Biển Đông", "ビエンドン海鮮", "Da Nang"),
-        ("Quán Huế Cố Đô", "古都フエ料理", "Hue"),
-        ("Cà Phê & Cơm Việt", "ベトナムカフェ食堂", "Hanoi"),
-        ("Nem Nướng Nha Trang", "ニャチャン焼き春巻き", "Nha Trang"),
-        ("Ốc Đêm Sài Gòn", "サイゴン夜貝料理", "Ho Chi Minh City"),
-        ("Gà Nướng Lá Chanh", "レモンリーフ焼き鶏", "Da Lat"),
-        ("Tấm Cám Bistro", "タムカムビストロ", "Ho Chi Minh City"),
-    ]
-    city_coords = {
-        "Ho Chi Minh City": (Decimal("10.775843"), Decimal("106.701755")),
-        "Hanoi": (Decimal("21.034210"), Decimal("105.853020")),
-        "Da Nang": (Decimal("16.054407"), Decimal("108.202167")),
-        "Can Tho": (Decimal("10.045162"), Decimal("105.746857")),
-        "Hue": (Decimal("16.463713"), Decimal("107.590866")),
-        "Nha Trang": (Decimal("12.238791"), Decimal("109.196749")),
-        "Da Lat": (Decimal("11.940419"), Decimal("108.458313")),
-    }
 
     restaurants = []
-    for index, (name_vn, name_jp, city) in enumerate(restaurant_names, start=1):
-        latitude, longitude = city_coords[city]
+    for i, (name, address, lat, lng, desc) in enumerate(restaurant_specs, start=1):
         restaurants.append(
             {
-                "restaurantid": 1000 + index,
-                "owneraccountid": 100 + index,
-                "namevn": name_vn,
-                "namejp": name_jp,
-                "address": f"{10 + index} Mock Street, {city}",
-                "latitude": latitude + Decimal(index) / Decimal("10000"),
-                "longitude": longitude + Decimal(index) / Decimal("10000"),
-                "descriptionvn": f"{name_vn} có menu tiếng Nhật, đặt bàn và dữ liệu mock đầy đủ.",
-                "descriptionjp": f"{name_jp} は日本語メニューと予約に対応しています。",
-                "issuesvat": index % 3 != 0,
-                "phone": f"+8428{index:08d}",
-                "openinghours": ["09:00-21:00", "10:00-22:00", "11:00-23:00"][index % 3],
-                "status": "Active" if index <= 13 else "PendingApproval",
-                "createdat": base_created,
-                "updatedat": base_created,
+                "restaurantid": 1000 + i,
+                "owneraccountid": 100 + i,
+                "namevn": name,
+                "namejp": name,
+                "address": address,
+                "latitude": lat,
+                "longitude": lng,
+                "descriptionvn": desc,
+                "descriptionjp": desc,
+                "issuesvat": i != 4,
+                "phone": f"+84281234{i:04d}",
+                "openinghours": ["09:00-21:00", "10:00-22:00", "11:00-23:00", "08:30-21:30", "16:00-23:30"][(i - 1) % 5],
+                "status": "Active",
+                "createdat": base,
+                "updatedat": base,
             }
         )
 
     restaurant_media = []
     media_id = 1
-    for restaurant_row in restaurants:
-        for sort_order, media_type in enumerate(["Cover", "Photo", "Photo"]):
+    for r_index, restaurant in enumerate(restaurants):
+        for sort_order, media_type in enumerate(["Cover", "Photo", "Photo", "Photo"]):
             restaurant_media.append(
-                {
-                    "mediaid": media_id,
-                    "restaurantid": restaurant_row["restaurantid"],
-                    "mediaurl": f"https://images.example.test/restaurants/{restaurant_row['restaurantid']}/{sort_order}.jpg",
-                    "mediatype": media_type,
-                    "sortorder": sort_order,
-                    "status": "Approved" if restaurant_row["status"] == "Active" else "Pending",
-                }
+                {"mediaid": media_id, "restaurantid": restaurant["restaurantid"], "mediaurl": unsplash(RESTAURANT_IMAGES[(r_index * 4 + sort_order) % len(RESTAURANT_IMAGES)], 1400, 900), "mediatype": media_type, "sortorder": sort_order, "status": "Approved"}
             )
             media_id += 1
 
-    restaurant_features = [
-        {"restaurantid": restaurant_row["restaurantid"], "featureid": feature_id}
-        for restaurant_row in restaurants
-        for feature_id in ([1, 2, 3, 4] if restaurant_row["restaurantid"] % 3 else [1, 3])
+    restaurant_social_links = [
+        {"sociallinkid": i, "restaurantid": 1000 + i, "provider": "Website", "url": f"https://example.com/tabelink/jp/restaurant-{i}", "displaylabel": "公式サイト", "sortorder": 0, "isactive": True}
+        for i in range(1, restaurant_count + 1)
     ]
-    restaurant_payment_methods = [
-        {"restaurantid": restaurant_row["restaurantid"], "paymentmethodid": payment_id}
-        for restaurant_row in restaurants
-        for payment_id in ([1, 2, 3] if restaurant_row["restaurantid"] % 2 else [1, 2, 4])
-    ]
+    restaurant_features = [{"restaurantid": 1000 + i, "featureid": feature_id} for i in range(1, restaurant_count + 1) for feature_id in ([1, 2, 3, 4] if i != 4 else [1, 2, 3])]
+    restaurant_payment_methods = [{"restaurantid": 1000 + i, "paymentmethodid": method_id} for i in range(1, restaurant_count + 1) for method_id in ([1, 2, 3] if i % 2 else [1, 2, 4])]
 
+    category_defs = [
+        ("starter", "前菜", "前菜"),
+        ("main", "主菜", "主菜"),
+        ("noodle", "麺料理", "麺料理"),
+        ("rice", "ご飯料理", "ご飯料理"),
+        ("drink", "飲み物", "飲み物"),
+    ]
     menu_categories = []
-    category_id = 1
     categories_by_restaurant: dict[int, list[int]] = {}
-    for restaurant_row in restaurants:
-        restaurant_id = int(restaurant_row["restaurantid"])
+    category_id = 1
+    for restaurant in restaurants:
+        restaurant_id = int(restaurant["restaurantid"])
         categories_by_restaurant[restaurant_id] = []
-        for i, (code, vn, jp) in enumerate([
-            ("main", "Món chính", "メイン料理"),
-            ("starter", "Khai vị", "スターター"),
-            ("dessert", "Tráng miệng", "デザート"),
-        ]):
-            cat_id = category_id
+        for sort_order, (code, name_vn, name_jp) in enumerate(category_defs):
+            menu_categories.append({"categoryid": category_id, "restaurantid": restaurant_id, "categorycode": code, "categorynamevn": name_vn, "categorynamejp": name_jp, "sortorder": sort_order, "isactive": True})
+            categories_by_restaurant[restaurant_id].append(category_id)
             category_id += 1
-            menu_categories.append({
-                "categoryid": cat_id,
-                "restaurantid": restaurant_id,
-                "categorycode": code,
-                "categorynamevn": vn,
-                "categorynamejp": jp,
-                "sortorder": i,
-                "isactive": True
-            })
-            categories_by_restaurant[restaurant_id].append(cat_id)
 
-    dish_names = [
-        ("Phở bò", "牛肉フォー"),
-        ("Gỏi cuốn", "生春巻き"),
-        ("Bún chả", "ブンチャー"),
-        ("Cơm tấm", "コムタム"),
-        ("Bánh mì", "バインミー"),
-        ("Mì Quảng", "ミークアン"),
-        ("Bánh xèo", "バインセオ"),
-        ("Chả giò", "揚げ春巻き"),
-        ("Bún bò Huế", "フエ牛肉麺"),
-        ("Cá kho tộ", "魚の土鍋煮"),
-        ("Gà nướng", "焼き鶏"),
-        ("Lẩu hải sản", "海鮮鍋"),
-        ("Rau muống xào", "空芯菜炒め"),
-        ("Chè đậu xanh", "緑豆チェー"),
-        ("Cà phê sữa đá", "ベトナムアイスコーヒー"),
-        ("Nem nướng", "焼き春巻き"),
-        ("Ốc xào bơ", "貝のバター炒め"),
-        ("Bò lúc lắc", "ベトナム風サイコロステーキ"),
+    dishes = [
+        ("牛肉フォー", "澄んだ牛骨スープと米麺の定番料理です。", "米麺、牛肉、ねぎ、香草"),
+        ("鶏肉フォー", "やさしい鶏スープで朝食にも合う一品です。", "米麺、鶏肉、玉ねぎ、香草"),
+        ("生春巻き", "海老と野菜を包んだ軽い前菜です。", "ライスペーパー、海老、豚肉、野菜"),
+        ("揚げ春巻き", "香ばしく揚げた北部風の春巻きです。", "豚肉、きくらげ、春雨、ライスペーパー"),
+        ("ブンチャー", "焼き豚と米麺を甘酸っぱいタレで味わいます。", "米麺、豚肉、野菜、魚醤"),
+        ("コムタム", "炭火焼き豚と砕き米の満足感ある皿です。", "砕き米、豚肉、卵、漬物"),
+        ("バインミー", "軽いパンに具材を重ねたベトナムサンドです。", "バゲット、豚肉、なます、香草"),
+        ("ミークアン", "ターメリック麺と濃いめのスープが特徴です。", "米麺、鶏肉、海老、ピーナッツ"),
+        ("バインセオ", "米粉の薄焼きに具材を包んで食べます。", "米粉、海老、豚肉、もやし"),
+        ("海鮮鍋", "魚介の旨みを楽しむ大人数向けの鍋です。", "海老、魚、貝、野菜"),
+        ("空芯菜炒め", "にんにくの香りを効かせた野菜料理です。", "空芯菜、にんにく、魚醤"),
+        ("ベトナムコーヒー", "練乳入りの濃厚なアイスコーヒーです。", "コーヒー、練乳、氷"),
+        ("緑豆チェー", "食後に合うやさしい甘さのデザートです。", "緑豆、ココナッツミルク、氷"),
+        ("魚の土鍋煮", "甘辛いタレで煮込んだ家庭料理です。", "魚、魚醤、砂糖、胡椒"),
+        ("焼き鶏レモングラス", "香草の香りが立つ炭火焼き料理です。", "鶏肉、レモングラス、にんにく"),
     ]
     menu_items = []
     menu_item_criteria = []
-    menu_items_by_restaurant: dict[int, list[int]] = {}
+    items_by_restaurant: dict[int, list[int]] = {}
     item_id = 5001
     criterion_id = 1
-    for restaurant_index, restaurant_row in enumerate(restaurants, start=1):
-        restaurant_id = int(restaurant_row["restaurantid"])
-        menu_items_by_restaurant[restaurant_id] = []
-        for dish_index, (name_vn, name_jp) in enumerate(dish_names, start=1):
+    for r_index, restaurant in enumerate(restaurants, start=1):
+        restaurant_id = int(restaurant["restaurantid"])
+        items_by_restaurant[restaurant_id] = []
+        for d_index, (name, description, ingredients) in enumerate(dishes, start=1):
             current_item_id = item_id
-            menu_items_by_restaurant[restaurant_id].append(current_item_id)
-            price = Decimal(45000 + ((restaurant_index * dish_index) % 16) * 10000)
-            cat_id = categories_by_restaurant[restaurant_id][dish_index % 3]
+            items_by_restaurant[restaurant_id].append(current_item_id)
             menu_items.append(
                 {
                     "itemid": current_item_id,
                     "restaurantid": restaurant_id,
-                    "categoryid": cat_id,
-                    "namevn": f"{name_vn} {restaurant_index:02d}",
-                    "namejp": f"{name_jp} {restaurant_index:02d}",
-                    "price": price,
-                    "descriptionvn": f"Món {name_vn.lower()} mock cho nhà hàng {restaurant_index:02d}.",
-                    "descriptionjp": f"{name_jp} のモックメニューです。",
-                    "ingredients": "Gia vị Việt Nam, rau thơm, nguyên liệu tươi",
-                    "isrecommendedforjp": dish_index % 3 != 0,
-                    "imageurl": f"https://images.example.test/menu/{current_item_id}.jpg",
+                    "categoryid": categories_by_restaurant[restaurant_id][d_index % len(category_defs)],
+                    "namevn": name,
+                    "namejp": name,
+                    "price": Decimal(55000 + ((r_index + d_index) % 12) * 10000),
+                    "descriptionvn": description,
+                    "descriptionjp": description,
+                    "ingredients": ingredients,
+                    "isrecommendedforjp": d_index % 4 != 0,
+                    "imageurl": unsplash(FOOD_IMAGES[(d_index - 1) % len(FOOD_IMAGES)], 900, 700),
                     "imagepublicid": f"tabelink/restaurants/{restaurant_id}/menus/{current_item_id}",
-                    "isactive": dish_index % 17 != 0,
+                    "isactive": True,
                     "deletedat": None,
-                    "createdat": base_created,
-                    "updatedat": base_created,
+                    "createdat": base,
+                    "updatedat": base,
                 }
             )
-            for criterion_name, rating_level, sort_order in [
-                ("Hương vị", 3 + ((dish_index + restaurant_index) % 3), 0),
-                ("Độ sạch", 3 + (dish_index % 3), 1),
-            ]:
-                menu_item_criteria.append(
-                    {
-                        "criterionid": criterion_id,
-                        "itemid": current_item_id,
-                        "criterionname": criterion_name,
-                        "ratinglevel": rating_level,
-                        "sortorder": sort_order,
-                        "createdat": base_created,
-                    }
-                )
+            for sort_order, criterion_name in enumerate(["味", "清潔感", "日本人向け"]):
+                menu_item_criteria.append({"criterionid": criterion_id, "itemid": current_item_id, "criterionname": criterion_name, "ratinglevel": 3 + ((d_index + sort_order + r_index) % 3), "sortorder": sort_order, "createdat": base})
                 criterion_id += 1
             item_id += 1
 
-    table_capacities = [2, 2, 4, 4, 6, 8]
     restaurant_tables = []
-    tables_by_restaurant: dict[int, list[dict[str, object]]] = {}
+    tables_by_restaurant: dict[int, list[Row]] = {}
     table_id = 7001
-    for restaurant_row in restaurants:
-        restaurant_id = int(restaurant_row["restaurantid"])
+    for restaurant in restaurants:
+        restaurant_id = int(restaurant["restaurantid"])
         tables_by_restaurant[restaurant_id] = []
-        for table_index, capacity in enumerate(table_capacities, start=1):
-            status = ["Empty", "Using", "Reserved", "Empty", "Reserved", "Empty"][table_index - 1]
-            table_row = {
-                "tableid": table_id,
-                "restaurantid": restaurant_id,
-                "tablename": f"{chr(64 + table_index)}{restaurant_id - 1000}",
-                "capacity": capacity,
-                "status": status,
-                "positionx": Decimal(40 + ((table_index - 1) % 3) * 120),
-                "positiony": Decimal(50 + ((table_index - 1) // 3) * 120),
-                "width": Decimal(80 + min(capacity, 6) * 10),
-                "height": Decimal("80.00"),
-                "zone": "Floor 1" if table_index <= 3 else "Floor 2",
-            }
-            restaurant_tables.append(table_row)
-            tables_by_restaurant[restaurant_id].append(table_row)
+        for t_index, capacity in enumerate([2, 2, 4, 4, 6, 8], start=1):
+            row = {"tableid": table_id, "restaurantid": restaurant_id, "tablename": f"{restaurant_id - 1000}番席-{t_index}", "capacity": capacity, "status": ["Empty", "Reserved", "Empty", "Using", "Empty", "Reserved"][t_index - 1], "positionx": Decimal(40 + ((t_index - 1) % 3) * 120), "positiony": Decimal(50 + ((t_index - 1) // 3) * 120), "width": Decimal(80 + capacity * 10), "height": Decimal("80.00"), "zone": "1階" if t_index <= 3 else "2階"}
+            restaurant_tables.append(row)
+            tables_by_restaurant[restaurant_id].append(row)
             table_id += 1
 
-    statuses = [
-        "Pending",
-        "Confirmed",
-        "Arrived",
-        "Completed",
-        "Completed",
-        "Cancelled",
-        "Confirmed",
-        "Arrived",
-        "Confirmed",
-    ]
-    active_keys: set[tuple[int, int, datetime]] = set()
     reservations = []
     reservation_items = []
     reservation_special_requests = []
-    for index in range(800):
-        reservation_id = 9001 + index
-        restaurant_row = restaurants[index % len(restaurants)]
-        restaurant_id = int(restaurant_row["restaurantid"])
+    active_slots: set[tuple[int, int, datetime]] = set()
+    statuses = ["Pending", "Confirmed", "Arrived", "Completed", "Completed", "Cancelled"]
+    for index in range(250):
+        restaurant = restaurants[index % len(restaurants)]
+        restaurant_id = int(restaurant["restaurantid"])
         status = statuses[index % len(statuses)]
-        candidate_tables = [
-            table_row
-            for table_row in tables_by_restaurant[restaurant_id]
-            if table_row["status"] != "Using"
-        ]
-        selected_table = candidate_tables[index % len(candidate_tables)]
-        day_offset = index % 90
-        slot = (index // 90) % 5
-        reservation_time = base_reservation.replace(
-            hour=[10, 12, 14, 18, 20][slot],
-            minute=30 if index % 2 else 0,
-        )
-        reservation_time = reservation_time.replace(day=base_reservation.day)
-        reservation_time = reservation_time + __import__("datetime").timedelta(days=day_offset)
+        table = tables_by_restaurant[restaurant_id][index % len(tables_by_restaurant[restaurant_id])]
+        reservation_time = datetime(2026, 5, 2 + (index % 20), [11, 12, 18, 19, 20][index % 5], 0, tzinfo=utc)
+        while status in {"Pending", "Confirmed", "Arrived"} and (restaurant_id, int(table["tableid"]), reservation_time) in active_slots:
+            reservation_time += timedelta(days=1)
         if status in {"Pending", "Confirmed", "Arrived"}:
-            while (restaurant_id, int(selected_table["tableid"]), reservation_time) in active_keys:
-                reservation_time = reservation_time + __import__("datetime").timedelta(hours=1)
-            active_keys.add((restaurant_id, int(selected_table["tableid"]), reservation_time))
-            table_id_value = selected_table["tableid"]
-            pax = min(int(selected_table["capacity"]), (index % int(selected_table["capacity"])) + 1)
-        else:
-            table_id_value = selected_table["tableid"] if index % 4 != 0 else None
-            pax = min(int(selected_table["capacity"]), (index % 6) + 1)
+            active_slots.add((restaurant_id, int(table["tableid"]), reservation_time))
+        reservation_id = 9001 + index
+        customer_id = 201 + (index % 30)
+        reservations.append({"reservationid": reservation_id, "customeraccountid": customer_id, "restaurantid": restaurant_id, "tableid": table["tableid"], "reservationdatetime": reservation_time, "durationminutes": 120, "pax": 1 + (index % 6), "customername": f"予約者{index + 1:03d}", "phonenumber": f"+81901234{index:04d}", "note": "窓側の席を希望します。" if index % 4 == 0 else None, "status": status, "createdat": base, "updatedat": base})
+        for order_offset in range(1 + (index % 3)):
+            menu_item_id = items_by_restaurant[restaurant_id][(index + order_offset) % len(items_by_restaurant[restaurant_id])]
+            menu_item = menu_items[menu_item_id - 5001]
+            reservation_items.append({"reservationitemid": len(reservation_items) + 1, "reservationid": reservation_id, "restaurantid": restaurant_id, "itemid": menu_item_id, "quantity": 1 + ((index + order_offset) % 3), "unitprice": menu_item["price"], "note": "辛さ控えめ" if order_offset == 0 and index % 5 == 0 else None, "createdat": base})
+        if index % 3 == 0:
+            reservation_special_requests.append({"requestid": len(reservation_special_requests) + 1, "reservationid": reservation_id, "templateid": 1 + (index % 4), "customtext": None})
+        if index % 10 == 0:
+            reservation_special_requests.append({"requestid": len(reservation_special_requests) + 1, "reservationid": reservation_id, "templateid": None, "customtext": "できれば静かな席をお願いします。"})
 
-        customer_id = 201 + (index % 75)
-        reservations.append(
-            {
-                "reservationid": reservation_id,
-                "customeraccountid": customer_id,
-                "restaurantid": restaurant_id,
-                "tableid": table_id_value,
-                "reservationdatetime": reservation_time,
-                "durationminutes": 120,
-                "pax": pax,
-                "note": f"Mock reservation {index + 1}",
-                "status": status,
-                "createdat": base_created,
-                "updatedat": base_created,
-            }
-        )
-
-        restaurant_menu = menu_items_by_restaurant[restaurant_id]
-        for item_offset in range(1 + (index % 3)):
-            item_id_for_order = restaurant_menu[(index + item_offset) % len(restaurant_menu)]
-            reservation_items.append(
-                {
-                    "reservationitemid": len(reservation_items) + 1,
-                    "reservationid": reservation_id,
-                    "restaurantid": restaurant_id,
-                    "itemid": item_id_for_order,
-                    "quantity": 1 + ((index + item_offset) % 3),
-                    "unitprice": menu_items[item_id_for_order - 5001]["price"],
-                    "note": None if item_offset else "Mock pre-order",
-                    "createdat": base_created,
-                }
-            )
-
-        if index % 2 == 0:
-            reservation_special_requests.append(
-                {
-                    "requestid": len(reservation_special_requests) + 1,
-                    "reservationid": reservation_id,
-                    "templateid": (index % 4) + 1,
-                    "customtext": None,
-                }
-            )
-        elif index % 5 == 0:
-            reservation_special_requests.append(
-                {
-                    "requestid": len(reservation_special_requests) + 1,
-                    "reservationid": reservation_id,
-                    "templateid": None,
-                    "customtext": "Mock custom request",
-                }
-            )
-
-    reviewable_reservations = [
-        row for row in reservations if row["status"] in {"Completed", "Confirmed", "Arrived"}
-    ][:400]
+    reviewable = [row for row in reservations if row["status"] in {"Completed", "Confirmed", "Arrived"}]
     reviews = []
-    review_media = []
-    review_tags = []
-    for index, reservation_row in enumerate(reviewable_reservations, start=1):
-        review_id = 3000 + index
-        rating = 3 + ((index * 7) % 3)
-        reviews.append(
-            {
-                "reviewid": review_id,
-                "customeraccountid": reservation_row["customeraccountid"],
-                "restaurantid": reservation_row["restaurantid"],
-                "reservationid": reservation_row["reservationid"],
-                "rating": rating,
-                "toiletcleanliness": 3 + (index % 3),
-                "dishcleanliness": 3 + ((index + 1) % 3),
-                "spacecleanliness": 3 + ((index + 2) % 3),
-                "content": f"Mock review {index}: rating {rating} with realistic variation.",
-                "isjapanesetag": index % 2 == 0,
-                "status": ["Visible", "Visible", "Visible", "Hidden"][index % 4],
-                "createdat": base_created,
-                "updatedat": base_created,
-            }
-        )
-        if index % 2 == 0:
-            review_media.append(
+    blog_posts = []
+    blog_media = []
+    blog_tags = []
+    blog_likes = []
+    blog_comments = []
+    blog_shares = []
+    for index, reservation in enumerate(reviewable[:120], start=1):
+        rating = [5, 5, 4, 4, 3, 5, 4, 2][index % 8]
+        reviews.append({"reviewid": 3000 + index, "customeraccountid": reservation["customeraccountid"], "restaurantid": reservation["restaurantid"], "reservationid": reservation["reservationid"], "rating": rating, "toiletcleanliness": max(1, min(5, rating)), "dishcleanliness": max(1, min(5, rating + (1 if index % 3 == 0 else 0))), "spacecleanliness": max(1, min(5, rating - (1 if index % 7 == 0 else 0))), "content": f"料理が出るまでの案内が丁寧で、味も日本人に分かりやすい説明でした。訪問記録{index:03d}。", "isjapanesetag": True, "status": ["Visible", "Visible", "Visible", "Hidden"][index % 4], "createdat": base + timedelta(days=index % 30), "updatedat": base + timedelta(days=index % 30)})
+        if index <= 60:
+            blog_id = 4000 + index
+            blog_posts.append({"blogid": blog_id, "customeraccountid": reservation["customeraccountid"], "restaurantid": reservation["restaurantid"], "title": f"ベトナム料理メモ{index:02d}", "content": "予約から会計まで分かりやすく、初めての人にも紹介しやすいお店でした。", "tasterating": rating, "hygienerating": max(1, min(5, rating)), "servicerating": max(1, min(5, rating + (1 if index % 5 == 0 else 0))), "status": ["Published", "Published", "Published", "Hidden"][index % 4], "createdat": base + timedelta(days=index % 20), "updatedat": base + timedelta(days=index % 20)})
+            blog_media.append({"mediaid": len(blog_media) + 1, "blogid": blog_id, "mediaurl": unsplash(FOOD_IMAGES[index % len(FOOD_IMAGES)], 1000, 750), "mediatype": "Photo", "sortorder": 0})
+            for tag_id in [1 + (index % 6), 1 + ((index + 2) % 6)]:
+                row = {"blogid": blog_id, "tagid": tag_id}
+                if row not in blog_tags:
+                    blog_tags.append(row)
+            liker = 201 + ((index + 3) % 30)
+            if liker != reservation["customeraccountid"]:
+                blog_likes.append({"blogid": blog_id, "customeraccountid": liker, "createdat": base})
+            blog_comments.append({"commentid": len(blog_comments) + 1, "blogid": blog_id, "customeraccountid": liker, "parentcommentid": None, "content": "詳しい記録で参考になりました。", "status": "Visible", "createdat": base, "updatedat": base})
+            blog_shares.append({"shareid": len(blog_shares) + 1, "blogid": blog_id, "customeraccountid": liker, "createdat": base})
+
+    detail_review_texts = [
+        "店内が明るく、料理の説明も日本語で分かりやすかったです。",
+        "予約時間どおりに案内され、初めてでも安心して利用できました。",
+        "大学周辺で短い昼休みにも使いやすい提供スピードでした。",
+        "香草の量を調整してくれて、日本人の友人にも紹介しやすいです。",
+        "テーブルと食器が清潔で、家族連れでも入りやすい雰囲気でした。",
+        "スタッフの対応が丁寧で、会計までスムーズでした。",
+        "メニュー写真と実際の料理が近く、注文しやすかったです。",
+        "辛さ控えめの相談ができて、最後までおいしく食べられました。",
+        "工科大学から歩きやすい場所で、待ち合わせにも便利でした。",
+        "量と価格のバランスが良く、普段使いしたいお店です。",
+        "混雑していても席の案内が落ち着いていて好印象でした。",
+        "料理の温度がちょうど良く、香りも豊かでした。",
+    ]
+    review_id = 5000
+    for restaurant_index, restaurant in enumerate(restaurants, start=1):
+        for offset, text in enumerate(detail_review_texts, start=1):
+            rating = [5, 5, 4, 4, 5, 3, 4, 5, 4, 5, 3, 4][offset - 1]
+            reviews.append(
                 {
-                    "mediaid": len(review_media) + 1,
                     "reviewid": review_id,
-                    "mediaurl": f"https://images.example.test/reviews/{review_id}/photo.jpg",
-                    "mediatype": "Photo",
-                    "sortorder": 0,
+                    "customeraccountid": 201 + ((restaurant_index * 3 + offset) % 30),
+                    "restaurantid": restaurant["restaurantid"],
+                    "reservationid": None,
+                    "rating": rating,
+                    "toiletcleanliness": max(1, min(5, rating)),
+                    "dishcleanliness": max(1, min(5, rating + (1 if offset % 4 == 0 else 0))),
+                    "spacecleanliness": max(1, min(5, rating - (1 if offset % 6 == 0 else 0))),
+                    "content": f"{text} 詳細レビュー{restaurant_index:02d}-{offset:02d}。",
+                    "isjapanesetag": True,
+                    "status": "Visible",
+                    "createdat": base + timedelta(days=35 + offset, minutes=restaurant_index),
+                    "updatedat": base + timedelta(days=35 + offset, minutes=restaurant_index),
                 }
             )
-        for tag_id in [1 + (index % 5), 1 + ((index + 2) % 5)]:
-            tag_row = {"reviewid": review_id, "tagid": tag_id}
-            if tag_row not in review_tags:
-                review_tags.append(tag_row)
+            review_id += 1
 
+    discount_cases = [
+        ("Percentage", "10%", "10パーセント割引"),
+        ("Percentage", "20%", "20パーセント割引"),
+        ("Percentage", "50%", "50パーセント割引"),
+        ("Percentage", "100%", "無料キャンペーン"),
+        ("FixedAmount", "50000VND", "5万VND割引"),
+        ("FixedAmount", "100000VND", "10万VND割引"),
+        ("FixedAmount", "200000VND", "20万VND割引"),
+    ]
     promotions = []
-    for index, restaurant_row in enumerate(restaurants, start=1):
-        is_active = index % 3 != 0
-        promotions.append(
-            {
-                "promotionid": 8000 + index,
-                "restaurantid": restaurant_row["restaurantid"],
-                "createdbyowneraccountid": restaurant_row["owneraccountid"],
-                "approvedbyadminid": 1 if is_active else None,
-                "promotiontype": "Campaign" if index % 2 else "Advertisement",
-                "targetaudience": "Japanese visitors and local food lovers",
-                "titlevn": f"Ưu đãi mock {index:02d}",
-                "titlejp": f"モックキャンペーン {index:02d}",
-                "contentvn": "Nội dung khuyến mãi mock.",
-                "contentjp": "モックキャンペーン内容。",
-                "mediaurl": f"https://images.example.test/promotions/{8000 + index}.jpg",
-                "termsvn": "Áp dụng trong thời gian mock.",
-                "termsjp": "モック期間中に適用。",
-                "startdate": datetime(2026, 5, 1, 0, 0, tzinfo=utc),
-                "enddate": datetime(2026, 8, 1, 0, 0, tzinfo=utc),
-                "status": "Active" if is_active else "Pending",
-                "impressions": 500 + index * 123,
-                "clicks": 50 + index * 9,
-                "totalcost": Decimal(500000 + index * 100000),
-            }
-        )
+    promotion_id = 8001
+    for restaurant_index, restaurant in enumerate(restaurants, start=1):
+        for discount_index, (discount_type, discount_value, label) in enumerate(discount_cases, start=1):
+            promotions.append(
+                {
+                    "promotionid": promotion_id,
+                    "restaurantid": restaurant["restaurantid"],
+                    "createdbyowneraccountid": restaurant["owneraccountid"],
+                    "approvedbyadminid": 1,
+                    "promotiontype": "Campaign",
+                    "targetaudience": "日本人利用者",
+                    "titlevn": f"{label}・工科大学エリア{restaurant_index:02d}-{discount_index:02d}",
+                    "titlejp": f"{label}・工科大学エリア{restaurant_index:02d}-{discount_index:02d}",
+                    "contentvn": "ハノイ工科大学周辺の店舗で使える予約限定キャンペーンです。",
+                    "contentjp": "ハノイ工科大学周辺の店舗で使える予約限定キャンペーンです。",
+                    "mediaurl": unsplash(RESTAURANT_IMAGES[(restaurant_index + discount_index) % len(RESTAURANT_IMAGES)], 1200, 700),
+                    "termsvn": "予約限定です。",
+                    "termsjp": "予約限定です。",
+                    "discounttype": discount_type,
+                    "discountvalue": discount_value,
+                    "advertisementtype": None,
+                    "targetradiuskm": None,
+                    "startdate": datetime(2026, 5, 1, 0, 0, tzinfo=utc),
+                    "enddate": datetime(2026, 8, 1, 0, 0, tzinfo=utc),
+                    "status": "Active",
+                    "impressions": 1500 + restaurant_index * 200 + discount_index * 50,
+                    "clicks": 120 + restaurant_index * 12 + discount_index * 6,
+                    "totalcost": Decimal(250000 + restaurant_index * 50000 + discount_index * 25000),
+                }
+            )
+            promotion_id += 1
+
+    for restaurant_index, restaurant in enumerate(restaurants, start=1):
+        for ad_type in ["SNS", "Notification"]:
+            promotions.append(
+                {
+                    "promotionid": promotion_id,
+                    "restaurantid": restaurant["restaurantid"],
+                    "createdbyowneraccountid": restaurant["owneraccountid"],
+                    "approvedbyadminid": 1,
+                    "promotiontype": "Advertisement",
+                    "targetaudience": "all",
+                    "titlevn": f"工科大学エリア広告{restaurant_index:02d}-{ad_type}",
+                    "titlejp": f"工科大学エリア広告{restaurant_index:02d}-{ad_type}",
+                    "contentvn": "ハノイ工科大学周辺の店舗情報を利用者に届ける広告です。",
+                    "contentjp": "ハノイ工科大学周辺の店舗情報を利用者に届ける広告です。",
+                    "mediaurl": unsplash(RESTAURANT_IMAGES[(restaurant_index + promotion_id) % len(RESTAURANT_IMAGES)], 1200, 700),
+                    "termsvn": "広告表示用の掲載です。",
+                    "termsjp": "広告表示用の掲載です。",
+                    "discounttype": None,
+                    "discountvalue": None,
+                    "advertisementtype": ad_type,
+                    "targetradiuskm": None,
+                    "startdate": datetime(2026, 5, 1, 0, 0, tzinfo=utc),
+                    "enddate": datetime(2026, 8, 1, 0, 0, tzinfo=utc),
+                    "status": "Active",
+                    "impressions": 2200 + restaurant_index * 150,
+                    "clicks": 180 + restaurant_index * 10,
+                    "totalcost": Decimal(350000 + restaurant_index * 40000),
+                }
+            )
+            promotion_id += 1
+
+    redemptions = []
+    redemption_id = 1
+    for promotion in promotions:
+        completed_for_restaurant = [
+            row
+            for row in reservations
+            if row["status"] == "Completed" and row["restaurantid"] == promotion["restaurantid"]
+        ][:2]
+        for reservation in completed_for_restaurant:
+            redemptions.append({"redemptionid": redemption_id, "promotionid": promotion["promotionid"], "restaurantid": promotion["restaurantid"], "reservationid": reservation["reservationid"], "customeraccountid": reservation["customeraccountid"], "redemptionstatus": "Redeemed", "redeemedat": base + timedelta(days=redemption_id), "createdat": base + timedelta(days=redemption_id)})
+            redemption_id += 1
 
     badge_applications = []
     restaurant_badges = []
-    for index, restaurant_row in enumerate(restaurants, start=1):
-        approved = index <= 10
-        badge_applications.append(
-            {
-                "appid": 6000 + index,
-                "restaurantid": restaurant_row["restaurantid"],
-                "badgeid": 1,
-                "submittedbyowneraccountid": restaurant_row["owneraccountid"],
-                "reviewedbyadminid": 1 if approved else None,
-                "businesslicenseurl": f"https://files.example.test/verification/{restaurant_row['restaurantid']}/license.pdf",
-                "businesslicensepublicid": f"tabelink/restaurants/{restaurant_row['restaurantid']}/verification/business-license/license",
-                "foodsafetycerturl": f"https://files.example.test/verification/{restaurant_row['restaurantid']}/food-safety.pdf",
-                "foodsafetycertpublicid": f"tabelink/restaurants/{restaurant_row['restaurantid']}/verification/food-safety/cert",
-                "status": "Approved" if approved else "Pending",
-                "submittedat": base_created,
-                "reviewedat": base_created if approved else None,
-                "reviewnote": "Mock verified." if approved else None,
-            }
-        )
-        if approved:
-            restaurant_badges.append(
-                {
-                    "restaurantid": restaurant_row["restaurantid"],
-                    "badgeid": 1,
-                    "grantedbyadminid": 1,
-                    "grantedat": base_created,
-                    "expiresat": datetime(2027, 5, 1, 1, 0, tzinfo=utc),
-                }
-            )
-            if index % 2 == 0:
-                restaurant_badges.append(
-                    {
-                        "restaurantid": restaurant_row["restaurantid"],
-                        "badgeid": 2,
-                        "grantedbyadminid": 1,
-                        "grantedat": base_created,
-                        "expiresat": None,
-                    }
-                )
+    for i, restaurant in enumerate(restaurants, start=1):
+        badge_applications.append({"appid": 6000 + i, "restaurantid": restaurant["restaurantid"], "badgeid": 1, "submittedbyowneraccountid": restaurant["owneraccountid"], "reviewedbyadminid": 1, "businesslicenseurl": f"https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", "businesslicensepublicid": f"tabelink/restaurants/{restaurant['restaurantid']}/verification/license", "foodsafetycerturl": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", "foodsafetycertpublicid": f"tabelink/restaurants/{restaurant['restaurantid']}/verification/food-safety", "status": "Approved", "submittedat": base, "reviewedat": base + timedelta(days=1), "reviewnote": "書類確認済みです。"})
+        restaurant_badges.append({"restaurantid": restaurant["restaurantid"], "badgeid": 1, "grantedbyadminid": 1, "grantedat": base + timedelta(days=1), "expiresat": datetime(2027, 5, 1, 0, 0, tzinfo=utc)})
+        if i <= 3:
+            restaurant_badges.append({"restaurantid": restaurant["restaurantid"], "badgeid": 2, "grantedbyadminid": 1, "grantedat": base + timedelta(days=1), "expiresat": None})
 
-    moderation_target_types = ["Review", "Promotion", "BadgeApplication", "Account", "RestaurantMedia"]
-    moderation_actions = ["Approve", "Reject", "Hide", "Delete", "Ban", "Unban"]
     moderation_logs = [
-        {
-            "logid": index,
-            "adminaccountid": 1 + (index % 5),
-            "targettype": moderation_target_types[index % len(moderation_target_types)],
-            "targetid": 1000 + index,
-            "actiontype": moderation_actions[index % len(moderation_actions)],
-            "reason": f"Mock audit log {index}",
-            "createdat": datetime(2026, 5, 1 + (index % 28), index % 24, index % 60, tzinfo=utc),
-        }
-        for index in range(1, 151)
+        {"logid": i, "adminaccountid": 1, "targettype": ["Review", "Promotion", "BadgeApplication", "RestaurantMedia"][i % 4], "targetid": 1000 + i, "actiontype": ["Approve", "Hide", "Reject", "Delete"][i % 4], "reason": "日本語シードデータの確認ログです。", "createdat": base + timedelta(hours=i)}
+        for i in range(1, 41)
     ]
 
     restaurant_analytics = []
     analytics_id = 1
-    analytics_start = date(2026, 2, 8)
-    for restaurant_row in restaurants:
-        for day_index in range(90):
-            stat_date = analytics_start + __import__("datetime").timedelta(days=day_index)
-            visits = 80 + ((int(restaurant_row["restaurantid"]) + day_index * 13) % 220)
-            japanese_visits = visits // (3 + (day_index % 3))
-            restaurant_analytics.append(
-                {
-                    "analyticsid": analytics_id,
-                    "restaurantid": restaurant_row["restaurantid"],
-                    "statdate": stat_date,
-                    "visitcount": visits,
-                    "japanesevisitcount": japanese_visits,
-                    "reviewcount": (day_index + int(restaurant_row["restaurantid"])) % 7,
-                    "reservationcount": 2 + ((day_index + int(restaurant_row["restaurantid"])) % 18),
-                    "peakhour": [11, 12, 18, 19, 20][day_index % 5],
-                }
-            )
+    for restaurant in restaurants:
+        for day_index in range(45):
+            visits = 90 + ((int(restaurant["restaurantid"]) + day_index * 11) % 160)
+            restaurant_analytics.append({"analyticsid": analytics_id, "restaurantid": restaurant["restaurantid"], "statdate": date(2026, 4, 1) + timedelta(days=day_index), "visitcount": visits, "japanesevisitcount": visits // 2, "reviewcount": day_index % 8, "reservationcount": 5 + (day_index % 20), "peakhour": [11, 12, 18, 19, 20][day_index % 5]})
             analytics_id += 1
-
     menu_analytics = []
     analytics_id = 1
-    for item_row in menu_items:
-        for day_index in range(90):
-            stat_date = analytics_start + __import__("datetime").timedelta(days=day_index)
-            views = 5 + ((int(item_row["itemid"]) + day_index * 5) % 95)
-            menu_analytics.append(
-                {
-                    "analyticsid": analytics_id,
-                    "itemid": item_row["itemid"],
-                    "statdate": stat_date,
-                    "viewcount": views,
-                    "ordercount": views // (4 + day_index % 4),
-                }
-            )
+    for item in menu_items:
+        for day_index in range(30):
+            views = 10 + ((int(item["itemid"]) + day_index * 7) % 90)
+            menu_analytics.append({"analyticsid": analytics_id, "itemid": item["itemid"], "statdate": date(2026, 4, 15) + timedelta(days=day_index), "viewcount": views, "ordercount": max(1, views // 6)})
             analytics_id += 1
 
     return [
@@ -1256,13 +540,9 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         ("user_follow", follows, ["followeraccountid", "followedaccountid"], None),
         ("restaurant", restaurants, ["restaurantid"], None),
         ("restaurant_media", restaurant_media, ["mediaid"], None),
+        ("restaurant_social_link", restaurant_social_links, ["sociallinkid"], None),
         ("restaurant_feature", restaurant_features, ["restaurantid", "featureid"], None),
-        (
-            "restaurant_payment_method",
-            restaurant_payment_methods,
-            ["restaurantid", "paymentmethodid"],
-            None,
-        ),
+        ("restaurant_payment_method", restaurant_payment_methods, ["restaurantid", "paymentmethodid"], None),
         ("menu_category", menu_categories, ["categoryid"], None),
         ("menu_item", menu_items, ["itemid"], None),
         ("menu_item_criterion", menu_item_criteria, ["criterionid"], None),
@@ -1271,40 +551,40 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
         ("reservation_item", reservation_items, ["reservationitemid"], None),
         ("reservation_special_request", reservation_special_requests, ["requestid"], None),
         ("review", reviews, ["reviewid"], None),
-        ("review_media", review_media, ["mediaid"], None),
-        ("review_tag", review_tags, ["reviewid", "tagid"], None),
+        ("blog_post", blog_posts, ["blogid"], None),
+        ("blog_media", blog_media, ["mediaid"], None),
+        ("blog_tag", blog_tags, ["blogid", "tagid"], None),
+        ("blog_like", blog_likes, ["blogid", "customeraccountid"], None),
+        ("blog_comment", blog_comments, ["commentid"], None),
+        ("blog_share", blog_shares, ["shareid"], None),
         ("promotion", promotions, ["promotionid"], None),
+        ("promotion_redemption", redemptions, ["redemptionid"], None),
         ("badge_application", badge_applications, ["appid"], None),
         ("restaurant_badge", restaurant_badges, ["restaurantid", "badgeid"], None),
         ("moderation_log", moderation_logs, ["logid"], None),
-        ("restaurant_analytics_daily", restaurant_analytics, ["analyticsid"], None),
-        ("menu_item_analytics_daily", menu_analytics, ["analyticsid"], None),
+        ("restaurant_analytics_daily", restaurant_analytics, ["restaurantid", "statdate"], ["visitcount", "japanesevisitcount", "reviewcount", "reservationcount", "peakhour"]),
+        ("menu_item_analytics_daily", menu_analytics, ["itemid", "statdate"], ["viewcount", "ordercount"]),
     ]
 
 
 def build_sql(include_truncate: bool) -> str:
-    sections: list[str] = [
+    sections = [
         "-- Generated by database/seeds/generate_mock_sql.py",
-        "-- Mock data follows database/inits.sql constraints and FK order.",
+        "-- Japanese mock data follows database/inits.sql constraints and FK order.",
         "BEGIN;",
         "SET CONSTRAINTS ALL IMMEDIATE;",
     ]
-
     if include_truncate:
-        sections.extend(
-            [
-                "-- Optional destructive reset requested by --truncate.",
-                "TRUNCATE TABLE "
-                "menu_item_analytics_daily, restaurant_analytics_daily, restaurant_badge, "
-                "badge_application, promotion, review_tag, review_media, review, "
-                "reservation_special_request, reservation_item, reservation, "
-                "restaurant_table, menu_item_criterion, menu_item, menu_category, "
-                "restaurant_payment_method, restaurant_feature, restaurant_media, "
-                "moderation_log, restaurant, user_follow, owner_profile, "
-                "customer_profile, badge_master, special_request_template, hashtag, "
-                "payment_method, feature_master, user_account "
-                "RESTART IDENTITY CASCADE;",
-            ]
+        sections.append(
+            "TRUNCATE TABLE "
+            "menu_item_analytics_daily, restaurant_analytics_daily, moderation_log, restaurant_badge, "
+            "badge_application, promotion_redemption, promotion, blog_share, blog_comment, blog_like, "
+            "blog_tag, blog_media, blog_post, review, reservation_special_request, reservation_item, "
+            "reservation, restaurant_table, menu_item_criterion, menu_item, menu_category, "
+            "restaurant_payment_method, restaurant_feature, restaurant_social_link, restaurant_media, "
+            "restaurant, user_follow, owner_profile, customer_profile, badge_master, "
+            "special_request_template, hashtag, payment_method, feature_master, user_account "
+            "RESTART IDENTITY CASCADE;"
         )
 
     for table, rows, conflict_columns, update_columns in build_rows():
@@ -1321,6 +601,7 @@ def build_sql(include_truncate: bool) -> str:
         ("moderation_log", "logid"),
         ("restaurant", "restaurantid"),
         ("restaurant_media", "mediaid"),
+        ("restaurant_social_link", "sociallinkid"),
         ("menu_category", "categoryid"),
         ("menu_item", "itemid"),
         ("menu_item_criterion", "criterionid"),
@@ -1329,8 +610,12 @@ def build_sql(include_truncate: bool) -> str:
         ("reservation_item", "reservationitemid"),
         ("reservation_special_request", "requestid"),
         ("review", "reviewid"),
-        ("review_media", "mediaid"),
+        ("blog_post", "blogid"),
+        ("blog_media", "mediaid"),
+        ("blog_comment", "commentid"),
+        ("blog_share", "shareid"),
         ("promotion", "promotionid"),
+        ("promotion_redemption", "redemptionid"),
         ("badge_application", "appid"),
         ("restaurant_analytics_daily", "analyticsid"),
         ("menu_item_analytics_daily", "analyticsid"),
@@ -1339,25 +624,13 @@ def build_sql(include_truncate: bool) -> str:
     sections.extend(sequence_sql(table, column) for table, column in identity_columns)
     sections.append("COMMIT;")
     sections.append("")
-
     return "\n\n".join(sections)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Generate Neon-ready mock SQL for Tabelink.",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=DEFAULT_OUTPUT,
-        help=f"Output SQL path. Default: {DEFAULT_OUTPUT}",
-    )
-    parser.add_argument(
-        "--truncate",
-        action="store_true",
-        help="Include a destructive TRUNCATE reset before inserting mock data.",
-    )
+    parser = argparse.ArgumentParser(description="Generate Japanese mock SQL for Tabelink.")
+    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help=f"Output SQL path. Default: {DEFAULT_OUTPUT}")
+    parser.add_argument("--truncate", action="store_true", help="Include destructive TRUNCATE before inserts.")
     return parser.parse_args()
 
 
@@ -1365,8 +638,7 @@ def main() -> None:
     args = parse_args()
     output_path = args.output.resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    sql = build_sql(include_truncate=args.truncate)
-    output_path.write_text(sql, encoding="utf-8")
+    output_path.write_text(build_sql(args.truncate), encoding="utf-8")
     print(f"Wrote {output_path}")
 
 

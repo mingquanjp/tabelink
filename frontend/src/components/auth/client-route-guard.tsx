@@ -4,9 +4,11 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  canAccessPathForRole,
   canAccessOwnerRoutes,
   canAccessUserRoutes,
   getAuthenticatedRedirectPath,
+  isGuestAccessiblePath,
 } from "@/lib/api/auth/routes";
 import { getAuthSession } from "@/lib/api/auth/session";
 
@@ -48,10 +50,14 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
 
       const session = await getAuthSession();
 
-      if (session) {
+      if (session && session.account.role !== "Guest") {
         router.replace(getAuthenticatedRedirectPath(session.account.role));
       }
 
+      return;
+    }
+
+    if (isUserPath(pathname) && isGuestAccessiblePath(pathname) && !hasSessionMarker()) {
       return;
     }
 
@@ -69,6 +75,11 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
 
     if (isUserPath(pathname) && !canAccessUserRoutes(session.account.role)) {
       router.replace(getAuthenticatedRedirectPath(session.account.role));
+      return;
+    }
+
+    if (!canAccessPathForRole(pathname, session.account.role)) {
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
     }
   }, [pathname, router]);
 

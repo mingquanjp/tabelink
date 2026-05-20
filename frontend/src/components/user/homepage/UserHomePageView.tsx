@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createUserFeedPostComment,
@@ -24,6 +25,15 @@ import {
   unfollowUserHomeReviewer,
 } from "@/lib/api/user-home/API";
 import { showErrorToast } from "@/lib/app-toast";
+import {
+  getAuthSession,
+  readCachedAuthSession,
+} from "@/lib/api/auth/session";
+import type { MeResponse } from "@/lib/api/auth/type";
+import {
+  isRealCustomerSession,
+  redirectToLogin,
+} from "@/lib/api/auth/login-redirect";
 import {
   homepageFeaturedRestaurants,
   homepageRecommendations,
@@ -201,11 +211,15 @@ function mapFeedComment(comment: UserFeedComment): HomepageComment {
 }
 
 export function UserHomePageView() {
+  const router = useRouter();
   const feedPageRef = useRef(0);
   const feedHasNextRef = useRef(true);
   const feedLoadingRef = useRef(false);
   const feedSentinelRef = useRef<HTMLDivElement | null>(null);
   const [homeUser, setHomeUser] = useState<HomepageUser>(() => homepageUser);
+  const [session, setSession] = useState<MeResponse | null>(
+    () => readCachedAuthSession() ?? null,
+  );
   const [hotRestaurants, setHotRestaurants] = useState<HomepageHotRestaurant[]>(
     () => [],
   );
@@ -247,11 +261,37 @@ export function UserHomePageView() {
   const [commentsByPostId, setCommentsByPostId] = useState<
     Record<number, HomepageComment[]>
   >(() => ({}));
+  const isCustomer = isRealCustomerSession(session);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSession() {
+      const nextSession = await getAuthSession();
+
+      if (!cancelled) {
+        setSession(nextSession);
+      }
+    }
+
+    void loadSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadUserHome() {
+      const currentSession = await getAuthSession();
+      const shouldLoadPrivateHome = isRealCustomerSession(currentSession);
+
+      if (!cancelled) {
+        setSession(currentSession);
+      }
+
       const [
         profileResult,
         hotRestaurantsResult,
@@ -259,9 +299,13 @@ export function UserHomePageView() {
         trendingTopicsResult,
         advertisedRestaurantsResult,
       ] = await Promise.allSettled([
-        getUserHomeProfile(),
+        shouldLoadPrivateHome
+          ? getUserHomeProfile()
+          : Promise.reject(new Error("Guest home profile is not loaded.")),
         getUserHomeHotRestaurants(),
-        getUserHomeSuggestedReviewers(),
+        shouldLoadPrivateHome
+          ? getUserHomeSuggestedReviewers()
+          : Promise.reject(new Error("Guest reviewers are not loaded.")),
         getUserHomeTrendingTopics(),
         getUserHomeAdvertisedRestaurants(),
       ]);
@@ -313,9 +357,10 @@ export function UserHomePageView() {
       }
 
       if (
-        profileResult.status === "rejected" ||
+        (shouldLoadPrivateHome && profileResult.status === "rejected") ||
         hotRestaurantsResult.status === "rejected" ||
-        suggestedReviewersResult.status === "rejected" ||
+        (shouldLoadPrivateHome &&
+          suggestedReviewersResult.status === "rejected") ||
         trendingTopicsResult.status === "rejected" ||
         advertisedRestaurantsResult.status === "rejected"
       ) {
@@ -508,6 +553,11 @@ export function UserHomePageView() {
   }
 
   async function togglePostVote(postId: number) {
+    if (!isCustomer) {
+      redirectToLogin(router);
+      return;
+    }
+
     if (pendingLikePostIds.has(postId)) {
       return;
     }
@@ -544,6 +594,11 @@ export function UserHomePageView() {
   }
 
   async function addPostComment(postId: number, text: string) {
+    if (!isCustomer) {
+      redirectToLogin(router);
+      return false;
+    }
+
     const trimmedText = text.trim();
 
     if (!trimmedText) {
@@ -709,6 +764,11 @@ export function UserHomePageView() {
       refreshProfileAfter?: boolean;
     } = {},
   ) {
+    if (!isCustomer) {
+      redirectToLogin(router);
+      return;
+    }
+
     if (pendingReviewerIds.has(accountId)) {
       return;
     }
@@ -776,6 +836,11 @@ export function UserHomePageView() {
   }
 
   function togglePostSave(postId: number) {
+    if (!isCustomer) {
+      redirectToLogin(router);
+      return;
+    }
+
     setSavedPostIds((current) => {
       const next = new Set(current);
 
@@ -854,10 +919,14 @@ export function UserHomePageView() {
   return (
     <main className="min-h-[calc(100vh-80px)] bg-[#f9f9f6]">
       <div className="mx-auto grid w-full max-w-[1360px] grid-cols-[280px_minmax(0,1fr)_280px] gap-8 px-8 py-8">
-        <HomeLeftSidebar hotRestaurants={hotRestaurants} user={homeUser} />
+        <HomeLeftSidebar
+          hotRestaurants={hotRestaurants}
+          isGuest={!isCustomer}
+          user={homeUser}
+        />
 
         <section className="min-w-0 space-y-5">
-          <ComposerCard user={homeUser} />
+          <ComposerCard isGuest={!isCustomer} user={homeUser} />
           <FeaturedPostCard
             activeIndex={featuredIndex}
             items={featuredRestaurants}

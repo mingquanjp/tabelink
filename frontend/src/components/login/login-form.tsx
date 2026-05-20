@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ForgotPasswordDialog } from "@/components/login/forgot-password-dialog";
 import { Input } from "@/components/ui/input";
 import { loginAccount } from "@/lib/api/auth/API";
-import { getAuthenticatedRedirectPath } from "@/lib/api/auth/routes";
+import { getPostLoginRedirectPath } from "@/lib/api/auth/routes";
 import { cn } from "@/lib/utils";
 import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import { isValidEmail } from "@/lib/auth-form-validation";
@@ -24,16 +24,24 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGuestSubmitting, setIsGuestSubmitting] = useState(false);
 
+  function getRedirectPath() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return new URLSearchParams(window.location.search).get("redirect");
+  }
+
   async function handleGuestLogin() {
     setIsGuestSubmitting(true);
     try {
       const { guestLogin } = await import("@/lib/api/auth/API");
-      const response = await guestLogin();
+      await guestLogin();
 
       showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
       clearAuthSessionCache();
       removeSessionCacheByPrefix("tabelink:owner:");
-      router.replace(getAuthenticatedRedirectPath("Guest"));
+      router.replace(getPostLoginRedirectPath(getRedirectPath(), "Guest"));
     } catch {
       showErrorToast();
     } finally {
@@ -60,7 +68,9 @@ export function LoginForm() {
       showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
       clearAuthSessionCache();
       removeSessionCacheByPrefix("tabelink:owner:");
-      router.replace(getAuthenticatedRedirectPath(response.account.role));
+      router.replace(
+        getPostLoginRedirectPath(getRedirectPath(), response.account.role),
+      );
     } catch {
       showErrorToast();
     } finally {

@@ -11,6 +11,7 @@ import {
   getAuthSession,
   readCachedAuthSession,
 } from "@/lib/api/auth/session";
+import { isRealCustomerSession } from "@/lib/api/auth/login-redirect";
 import type { MeResponse } from "@/lib/api/auth/type";
 import { removeSessionCacheByPrefix } from "@/lib/api/cache";
 import type { UserNotification } from "@/lib/api/notifications/type";
@@ -207,6 +208,14 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
 
   const displayName = useMemo(() => getDisplayName(session), [session]);
   const userHandle = useMemo(() => getUserHandle(session), [session]);
+  const isCustomer = isRealCustomerSession(session);
+  const visibleNavItems = useMemo(
+    () =>
+      isCustomer
+        ? navItems
+        : navItems.filter((item) => item.href !== "/user/campaigns"),
+    [isCustomer, navItems],
+  );
   const unreadCount = useMemo(
     () =>
       notifications.filter(
@@ -267,7 +276,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
           aria-label="User navigation"
           className="hidden items-center gap-8 lg:flex"
         >
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive =
               item.href === "/"
                 ? pathname === item.href
@@ -290,25 +299,26 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
         </nav>
 
         <div className="hidden items-center gap-4 lg:flex">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="Notifications"
-                className="relative inline-flex items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900"
+          {isCustomer ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Notifications"
+                  className="relative inline-flex items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900"
+                >
+                  <Bell size={20} strokeWidth={2} />
+                  {unreadCount > 0 ? (
+                    <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#af111c] px-1 text-center font-manrope text-[10px] font-bold leading-4 text-white">
+                      {Math.min(unreadCount, 9)}
+                    </span>
+                  ) : null}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-80 rounded-none border border-[#e2e3e0] bg-white p-0 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
               >
-                <Bell size={20} strokeWidth={2} />
-                {unreadCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-[#af111c] px-1 text-center font-manrope text-[10px] font-bold leading-4 text-white">
-                    {Math.min(unreadCount, 9)}
-                  </span>
-                ) : null}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-80 rounded-none border border-[#e2e3e0] bg-white p-0 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
-            >
               <div className="border-b border-[#eeeeeb] px-4 py-3">
                 <p className="font-jp text-sm font-semibold text-[#1a1c1b]">
                   通知
@@ -390,49 +400,67 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
                   新しい通知はありません。
                 </div>
               )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="User menu"
-                className="inline-flex items-center justify-center rounded-full border border-accent-foreground p-0 text-stone-700 transition-colors hover:text-stone-900"
+          {isCustomer ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="User menu"
+                  className="inline-flex items-center justify-center rounded-full border border-accent-foreground p-0 text-stone-700 transition-colors hover:text-stone-900"
+                >
+                  <UserRound size={20} strokeWidth={2} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-56 rounded-none border border-[#e2e3e0] bg-white p-3 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
               >
-                <UserRound size={20} strokeWidth={2} />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-56 rounded-none border border-[#e2e3e0] bg-white p-3 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
-            >
-              <div className="px-1 pb-2">
-                <p className="truncate text-sm font-semibold leading-5 text-[#1a1c1b]">
-                  {displayName}
-                </p>
-                <p className="truncate text-[11px] leading-4 text-[#5a6053]">
-                  {userHandle}
-                </p>
-              </div>
+                <div className="px-1 pb-2">
+                  <p className="truncate text-sm font-semibold leading-5 text-[#1a1c1b]">
+                    {displayName}
+                  </p>
+                  <p className="truncate text-[11px] leading-4 text-[#5a6053]">
+                    {userHandle}
+                  </p>
+                </div>
 
-              <DropdownMenuItem
-                className="mb-1 flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
-                onSelect={() => router.push("/user/profile")}
-              >
-                <UserRound className="size-4" strokeWidth={2} />
-                プロフィールを表示
-              </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="mb-1 flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#1a1c1b] focus:bg-[#af111c0d] focus:text-[#1a1c1b]"
+                  onSelect={() => router.push("/user/profile")}
+                >
+                  <UserRound className="size-4" strokeWidth={2} />
+                  プロフィールを表示
+                </DropdownMenuItem>
 
-              <DropdownMenuItem
-                className="flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
-                onSelect={handleLogout}
+                <DropdownMenuItem
+                  className="flex cursor-pointer items-center gap-2 rounded-none px-3 py-2 text-sm text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
+                  onSelect={handleLogout}
+                >
+                  <LogOut className="size-[18px]" strokeWidth={2} />
+                  ログアウト
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/register"
+                className="inline-flex h-9 items-center rounded-md border border-[#e2e3e0] px-4 font-jp text-sm font-semibold text-[#1a1c1b] transition-colors hover:bg-white"
               >
-                <LogOut className="size-[18px]" strokeWidth={2} />
-                ログアウト
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+                新規登録
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex h-9 items-center rounded-md bg-[#af111c] px-4 font-jp text-sm font-semibold text-white transition-colors hover:bg-[#980f19]"
+              >
+                ログイン
+              </Link>
+            </div>
+          )}
         </div>
 
         <button
@@ -450,7 +478,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
           aria-label="User mobile navigation"
           className="flex w-full flex-col gap-1 border-t border-[rgba(228,190,186,0.1)] bg-[#f9f9f6] px-8 py-4 lg:hidden"
         >
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const isActive =
               item.href === "/"
                 ? pathname === item.href
@@ -470,6 +498,24 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
             );
           })}
         </nav>
+      ) : null}
+      {isMobileMenuOpen && !isCustomer ? (
+        <div className="flex gap-2 border-t border-[rgba(228,190,186,0.1)] bg-[#f9f9f6] px-8 pb-4 lg:hidden">
+          <Link
+            href="/register"
+            className="inline-flex h-10 flex-1 items-center justify-center rounded-md border border-[#e2e3e0] font-jp text-sm font-semibold text-[#1a1c1b]"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            新規登録
+          </Link>
+          <Link
+            href="/login"
+            className="inline-flex h-10 flex-1 items-center justify-center rounded-md bg-[#af111c] font-jp text-sm font-semibold text-white"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            ログイン
+          </Link>
+        </div>
       ) : null}
     </header>
   );

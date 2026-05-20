@@ -49,6 +49,18 @@ function getAuthenticatedRedirectPath(role?: string) {
   return "/";
 }
 
+function isRestaurantDetailPath(pathname: string) {
+  return /^\/user\/restaurants\/[^/]+$/.test(pathname);
+}
+
+function isGuestAccessiblePath(pathname: string) {
+  return (
+    pathname === "/user/home" ||
+    pathname === "/user/map" ||
+    isRestaurantDetailPath(pathname)
+  );
+}
+
 function redirectToLogin(request: NextRequest) {
   const url = request.nextUrl.clone();
   const redirectPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
@@ -69,7 +81,7 @@ export function proxy(request: NextRequest) {
   const hasSessionCookie = Boolean(hasUsableAccessToken || refreshToken);
 
   if (pathname === "/login" || pathname.startsWith("/register")) {
-    if (hasUsableAccessToken && payload?.role) {
+    if (hasUsableAccessToken && payload?.role && payload.role !== "Guest") {
       const url = request.nextUrl.clone();
       url.pathname = getAuthenticatedRedirectPath(payload?.role);
       url.search = "";
@@ -98,6 +110,10 @@ export function proxy(request: NextRequest) {
   }
 
   if (pathname.startsWith("/user")) {
+    if (!hasSessionCookie && isGuestAccessiblePath(pathname)) {
+      return NextResponse.next();
+    }
+
     if (!hasSessionCookie) {
       return redirectToLogin(request);
     }
@@ -108,6 +124,10 @@ export function proxy(request: NextRequest) {
       url.search = "";
 
       return NextResponse.redirect(url);
+    }
+
+    if (payload?.role === "Guest" && !isGuestAccessiblePath(pathname)) {
+      return redirectToLogin(request);
     }
   }
 

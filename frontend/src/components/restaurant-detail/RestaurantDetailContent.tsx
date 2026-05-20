@@ -23,6 +23,10 @@ import {
   readCachedAuthSession,
 } from "@/lib/api/auth/session";
 import type { MeResponse } from "@/lib/api/auth/type";
+import {
+  isRealCustomerSession,
+  redirectToLogin,
+} from "@/lib/api/auth/login-redirect";
 import { fallbackGalleryImages } from "./restaurant-detail-assets";
 import {
   buildFeatures,
@@ -546,6 +550,10 @@ function CommentComposer({ restaurantId }: { restaurantId: number }) {
     const trimmed = comment.trim();
 
     if (!canComment || !trimmed || isSubmitting) {
+      if (!canComment) {
+        redirectToLogin(router);
+      }
+
       return;
     }
 
@@ -585,10 +593,16 @@ function CommentComposer({ restaurantId }: { restaurantId: number }) {
                   <button
                     key={score}
                     type="button"
-                    disabled={!canComment}
-                    onClick={() => setRating(score)}
+                    onClick={() => {
+                      if (!canComment) {
+                        redirectToLogin(router);
+                        return;
+                      }
+
+                      setRating(score);
+                    }}
                     aria-label={`${score} stars`}
-                    className="text-[#f5a400] disabled:cursor-not-allowed disabled:opacity-50"
+                    className="text-[#f5a400]"
                   >
                     <Star
                       className={`size-4 ${score <= rating ? "fill-current" : ""}`}
@@ -601,18 +615,23 @@ function CommentComposer({ restaurantId }: { restaurantId: number }) {
           <div className="mt-4 flex items-end gap-3 max-md:flex-col">
             <textarea
               value={comment}
-              disabled={!canComment}
+              readOnly={!canComment}
               onChange={(event) => setComment(event.target.value)}
+              onFocus={() => {
+                if (!canComment) {
+                  redirectToLogin(router);
+                }
+              }}
               placeholder={
                 canComment
                   ? "コメントを追加..."
                   : "ログイン済みのユーザーのみコメントできます。"
               }
-              className="min-h-20 flex-1 resize-none rounded-md border border-[#e4beba33] bg-[#f9f9f6] px-4 py-3 text-sm leading-6 text-[#1a1c1b] outline-none transition-shadow placeholder:text-[#8a8d85] focus:ring-1 focus:ring-[#af111c] disabled:cursor-not-allowed disabled:text-[#8a8d85] font-jp max-md:w-full"
+              className="min-h-20 flex-1 resize-none rounded-md border border-[#e4beba33] bg-[#f9f9f6] px-4 py-3 text-sm leading-6 text-[#1a1c1b] outline-none transition-shadow placeholder:text-[#8a8d85] focus:ring-1 focus:ring-[#af111c] read-only:cursor-pointer read-only:text-[#8a8d85] font-jp max-md:w-full"
             />
             <button
               type="button"
-              disabled={!canComment || !comment.trim() || isSubmitting}
+              disabled={canComment && (!comment.trim() || isSubmitting)}
               onClick={handleSubmit}
               className="inline-flex h-11 min-w-11 items-center justify-center rounded-md bg-[#af111c] px-4 text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 max-md:w-full"
             >
@@ -630,6 +649,7 @@ export function RestaurantDetailContent({
   canEdit = false,
   onEdit,
 }: RestaurantDetailContentProps) {
+  const router = useRouter();
   const restaurant = homeData.restaurant;
   const { coverImage, galleryImages } = useMemo(
     () => buildRestaurantImages(restaurant),
@@ -722,6 +742,18 @@ export function RestaurantDetailContent({
             ) : (
               <Link
                 href={`/user/reservations?restaurantId=${homeData.restaurantId}`}
+                onClick={async (event) => {
+                  event.preventDefault();
+                  const href = `/user/reservations?restaurantId=${homeData.restaurantId}`;
+                  const session = await getAuthSession();
+
+                  if (isRealCustomerSession(session)) {
+                    router.push(href);
+                    return;
+                  }
+
+                  redirectToLogin(router, href);
+                }}
                 className="inline-flex min-h-14 w-fit items-center gap-3 rounded-md bg-[#af111c] px-8 py-4 text-base font-bold text-white shadow-[0px_4px_6px_-4px_rgba(175,17,28,0.2),0px_10px_15px_-3px_rgba(175,17,28,0.2)] transition-colors hover:bg-[#980f19] font-jp max-sm:w-full max-sm:justify-center"
               >
                 <CalendarCheck className="size-5" />

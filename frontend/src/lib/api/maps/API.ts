@@ -41,6 +41,6 @@ export async function getRestaurantRoute(
 
   return apiRequest<RestaurantRouteResponse>(
     `/maps/restaurants/${restaurantId}/route?${params.toString()}`,
-    { auth: true },
+    { auth: false },
   );
 }

@@ -9,14 +9,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import type { AdvertisementRequest } from "./advertisement-management-data";
+import type { AdminPromotion } from "@/lib/api/admin-promotions/type";
 
 type ApproveAdvertisementDialogProps = {
-  request: AdvertisementRequest | null;
+  request: AdminPromotion | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (request: AdvertisementRequest) => void;
+  onConfirm: (request: AdminPromotion) => void | Promise<void>;
 };
+
+function getRestaurantName(request: AdminPromotion) {
+  return request.restaurantNameJP || request.restaurantNameVN;
+}
 
 export function ApproveAdvertisementDialog({
   request,
@@ -33,7 +37,7 @@ export function ApproveAdvertisementDialog({
           </DialogTitle>
           <DialogDescription className="font-jp text-sm font-medium leading-6 text-[#5a6053]">
             {request
-              ? `${request.restaurantName} の広告掲載リクエストを配信中に更新します。`
+              ? `${getRestaurantName(request)} の広告掲載リクエストを配信中に更新します。`
               : "広告掲載リクエストを承認します。"}
           </DialogDescription>
         </div>
@@ -50,9 +54,9 @@ export function ApproveAdvertisementDialog({
             type="button"
             disabled={!request}
             className="h-auto rounded bg-[#af111c] px-6 py-2 font-jp text-sm font-medium text-white hover:bg-[#960e18]"
-            onClick={() => {
+            onClick={async () => {
               if (request) {
-                onConfirm(request);
+                await onConfirm(request);
               }
             }}
           >
@@ -65,10 +69,10 @@ export function ApproveAdvertisementDialog({
 }
 
 type RejectAdvertisementDialogProps = {
-  request: AdvertisementRequest | null;
+  request: AdminPromotion | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (request: AdvertisementRequest, reason: string) => void;
+  onConfirm: (request: AdminPromotion, reason: string) => void | Promise<void>;
 };
 
 export function RejectAdvertisementDialog({
@@ -97,7 +101,7 @@ export function RejectAdvertisementDialog({
           </DialogTitle>
           <DialogDescription className="font-jp text-sm font-medium leading-6 text-[#5a6053]">
             {request
-              ? `${request.restaurantName} の広告掲載リクエストを却下します。理由を入力してください。`
+              ? `${getRestaurantName(request)} の広告掲載リクエストを却下します。理由を入力してください。`
               : "広告掲載リクエストの却下理由を入力してください。"}
           </DialogDescription>
         </div>
@@ -130,7 +134,7 @@ export function RejectAdvertisementDialog({
             type="button"
             disabled={!request}
             className="h-auto rounded bg-[#af111c] px-6 py-2 font-jp text-sm font-medium text-white hover:bg-[#960e18]"
-            onClick={() => {
+            onClick={async () => {
               const trimmedReason = reason.trim();
               if (!request) {
                 return;
@@ -139,8 +143,12 @@ export function RejectAdvertisementDialog({
                 setShowError(true);
                 return;
               }
-              onConfirm(request, trimmedReason);
-              handleOpenChange(false);
+              try {
+                await onConfirm(request, trimmedReason);
+                handleOpenChange(false);
+              } catch {
+                return;
+              }
             }}
           >
             却下

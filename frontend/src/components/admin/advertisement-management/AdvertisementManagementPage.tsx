@@ -1,12 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { showSuccessToast } from "@/lib/app-toast";
+import { useCallback, useEffect, useState } from "react";
 import {
-  advertisementManagementSummary,
-  initialAdvertisementRequests,
-  type AdvertisementRequest,
-} from "./advertisement-management-data";
+  approveAdminPromotion,
+  getAdminPromotions,
+  getAdminPromotionSummary,
+  rejectAdminPromotion,
+} from "@/lib/api/admin-promotions/API";
+import type {
+  AdminPromotion,
+  AdminPromotionsResponse,
+  AdminPromotionSummary,
+} from "@/lib/api/admin-promotions/type";
+import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import { AdvertisementManagementStatsGrid } from "./AdvertisementManagementStatsGrid";
 import { AdvertisementRequestsTable } from "./AdvertisementRequestsTable";
 import {
@@ -16,65 +22,122 @@ import {
 
 const pageSize = 3;
 
+const emptyPromotionsResponse: AdminPromotionsResponse = {
+  items: [],
+  pagination: {
+    page: 1,
+    limit: pageSize,
+    totalItems: 0,
+    totalPages: 1,
+  },
+};
+
 export function AdvertisementManagementPage() {
-  const [requests, setRequests] = useState<AdvertisementRequest[]>(
-    initialAdvertisementRequests,
+  const [summary, setSummary] = useState<AdminPromotionSummary | null>(null);
+  const [promotions, setPromotions] = useState<AdminPromotionsResponse>(
+    emptyPromotionsResponse,
   );
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [requestToApprove, setRequestToApprove] = useState<AdvertisementRequest | null>(null);
-  const [requestToReject, setRequestToReject] = useState<AdvertisementRequest | null>(null);
+  const [isLoadingPromotions, setIsLoadingPromotions] = useState(true);
+  const [requestToApprove, setRequestToApprove] =
+    useState<AdminPromotion | null>(null);
+  const [requestToReject, setRequestToReject] =
+    useState<AdminPromotion | null>(null);
 
-  const filteredRequests = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
-
-    if (!normalizedQuery) {
-      return requests;
+  const loadSummary = useCallback(async () => {
+    try {
+      const data = await getAdminPromotionSummary();
+      setSummary(data);
+    } catch {
+      showErrorToast();
     }
+  }, []);
 
-    return requests.filter((request) => {
-      return (
-        request.restaurantName.toLowerCase().includes(normalizedQuery) ||
-        request.campaignName.toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [query, requests]);
+  const loadPromotions = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setIsLoadingPromotions(true);
+      }
+
+      try {
+        const data = await getAdminPromotions({
+          search: debouncedQuery || undefined,
+          page: currentPage,
+          limit: pageSize,
+        });
+        setPromotions(data);
+
+        if (currentPage > data.pagination.totalPages) {
+          setCurrentPage(data.pagination.totalPages);
+        }
+      } catch {
+        showErrorToast();
+      } finally {
+        if (showLoading) {
+          setIsLoadingPromotions(false);
+        }
+      }
+    },
+    [currentPage, debouncedQuery],
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadSummary();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [loadSummary]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 300);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [query]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadPromotions();
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [loadPromotions]);
 
   const handleQueryChange = (value: string) => {
     setQuery(value);
     setCurrentPage(1);
   };
 
-  const handleApprove = (request: AdvertisementRequest) => {
-    setRequests((currentRequests) =>
-      currentRequests.map((item) =>
-        item.id === request.id
-          ? {
-              ...item,
-              status: "Active",
-              periodLabel: "掲載中",
-              rejectionReason: undefined,
-            }
-          : item,
-      ),
-    );
-    setRequestToApprove(null);
-    showSuccessToast();
+  const handleApprove = async (request: AdminPromotion) => {
+    try {
+      await approveAdminPromotion(request.promotionId);
+      setRequestToApprove(null);
+      showSuccessToast();
+      await Promise.all([loadSummary(), loadPromotions(false)]);
+    } catch {
+      showErrorToast();
+    }
   };
 
-  const handleReject = (request: AdvertisementRequest, reason: string) => {
-    setRequests((currentRequests) =>
-      currentRequests.map((item) =>
-        item.id === request.id
-          ? {
-              ...item,
-              status: "Rejected",
-              rejectionReason: reason,
-            }
-          : item,
-      ),
-    );
-    showSuccessToast();
+  const handleReject = async (request: AdminPromotion, reason: string) => {
+    try {
+      await rejectAdminPromotion(request.promotionId, reason);
+      showSuccessToast();
+      await Promise.all([loadSummary(), loadPromotions(false)]);
+    } catch (error) {
+      showErrorToast();
+      throw error;
+    }
   };
 
   return (
@@ -89,14 +152,13 @@ export function AdvertisementManagementPage() {
           </p>
         </section>
 
-        <AdvertisementManagementStatsGrid />
+        <AdvertisementManagementStatsGrid summary={summary} />
 
         <AdvertisementRequestsTable
-          currentPage={currentPage}
-          items={filteredRequests}
-          pageSize={pageSize}
+          isLoading={isLoadingPromotions}
+          items={promotions.items}
+          pagination={promotions.pagination}
           query={query}
-          totalCount={advertisementManagementSummary.totalCount}
           onApprove={setRequestToApprove}
           onPageChange={setCurrentPage}
           onQueryChange={handleQueryChange}

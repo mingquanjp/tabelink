@@ -1,7 +1,4 @@
-import {
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
@@ -128,6 +125,9 @@ describe('UserHomeService', () => {
 
     expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining("p.AdvertisementType = 'SNS'"),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('p.ApprovedByAdminID IS NOT NULL'),
     );
     expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining('p.ContentVN AS "contentVN"'),

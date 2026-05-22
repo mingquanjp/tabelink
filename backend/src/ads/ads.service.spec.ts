@@ -32,6 +32,11 @@ describe('AdsService', () => {
     email: 'owner@example.com',
     role: AuthRole.Owner,
   };
+  const adminUser = {
+    sub: 1,
+    email: 'admin@example.com',
+    role: AuthRole.Admin,
+  };
 
   const promotionRow = {
     promotionId: 12,
@@ -56,6 +61,12 @@ describe('AdsService', () => {
     impressions: '100',
     clicks: '10',
     totalCost: '0',
+  };
+  const adminPromotionRow = {
+    ...promotionRow,
+    restaurantNameVN: 'Sushi Tokyo VN',
+    restaurantNameJP: 'Sushi Tokyo JP',
+    restaurantImageUrl: 'https://example.com/restaurant-cover.jpg',
   };
 
   it('lists available active campaigns for screen ID9', async () => {
@@ -114,6 +125,9 @@ describe('AdsService', () => {
       expect.stringContaining("p.Status = 'Active'"),
     );
     expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('p.ApprovedByAdminID IS NOT NULL'),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining("rm.MediaType = 'Cover'"),
     );
   });
@@ -147,6 +161,31 @@ describe('AdsService', () => {
         campaignCount: 1,
         totalImpressions: 150,
         totalClicks: 15,
+        monthOverMonth: {
+          currentMonth: {
+            activeCount: 0,
+            totalImpressions: 150,
+            campaignClicks: 10,
+            ctr: 10,
+          },
+          previousMonth: {
+            activeCount: 0,
+            totalImpressions: 0,
+            campaignClicks: 0,
+            ctr: 0,
+          },
+          change: {
+            activeCount: 0,
+            totalImpressions: 150,
+            campaignClicks: 10,
+            ctr: 10,
+          },
+          percentChange: {
+            activeCount: 0,
+            totalImpressions: 100,
+            campaignClicks: 100,
+          },
+        },
       },
       items: [
         {
@@ -216,6 +255,287 @@ describe('AdsService', () => {
       1,
       expect.stringContaining('WHERE OwnerAccountID = $1'),
       [7],
+    );
+  });
+
+  it('builds admin promotion moderation summary across campaigns and advertisements', async () => {
+    dataSource.query.mockResolvedValueOnce([
+      {
+        pendingCount: '2',
+        activeCount: '3',
+        totalImpressions: '1200',
+        totalClicks: '60',
+        averageCtr: '5.0',
+      },
+    ]);
+
+    await expect(service.getAdminPromotionSummary(adminUser)).resolves.toEqual({
+      pendingCount: 2,
+      activeCount: 3,
+      totalImpressions: 1200,
+      totalClicks: 60,
+      averageCtr: 5,
+    });
+
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("PromotionType IN ('Advertisement', 'Campaign')"),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("Status = 'Pending'"),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('EndDate >= CURRENT_TIMESTAMP'),
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('ApprovedByAdminID IS NOT NULL'),
+    );
+  });
+
+  it('returns zero admin CTR when there are no active impressions', async () => {
+    dataSource.query.mockResolvedValueOnce([
+      {
+        pendingCount: '0',
+        activeCount: '0',
+        totalImpressions: null,
+        totalClicks: null,
+        averageCtr: null,
+      },
+    ]);
+
+    await expect(service.getAdminPromotionSummary(adminUser)).resolves.toEqual({
+      pendingCount: 0,
+      activeCount: 0,
+      totalImpressions: 0,
+      totalClicks: 0,
+      averageCtr: 0,
+    });
+  });
+
+  it('rejects non-admin access to admin promotion summary', async () => {
+    await expect(service.getAdminPromotionSummary(ownerUser)).rejects.toThrow(
+      'Only admins can review promotions.',
+    );
+  });
+
+  it('lists admin promotions with restaurant search and status filters', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ totalItems: '57' }])
+      .mockResolvedValueOnce([adminPromotionRow]);
+
+    await expect(
+      service.listAdminPromotions(
+        { search: 'Sushi', status: 'Pending', page: 1, limit: 3 },
+        adminUser,
+      ),
+    ).resolves.toEqual({
+      items: [
+        {
+          promotionId: 12,
+          restaurantId: 1,
+          createdByOwnerAccountId: 7,
+          promotionType: 'Campaign',
+          campaignName: 'Autumn offer',
+          campaignDescription: '10% off for TABELINK bookings.',
+          targetAudience: 'all',
+          discountType: 'Percentage',
+          discountValue: '10%',
+          note: null,
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+          status: 'Pending',
+          impressions: null,
+          clicks: null,
+          totalCost: 0,
+          restaurantNameVN: 'Sushi Tokyo VN',
+          restaurantNameJP: 'Sushi Tokyo JP',
+          imageUrl: 'https://example.com/restaurant-cover.jpg',
+          displayTitle: 'Autumn offer',
+          displayContent: '10% off for TABELINK bookings.',
+          periodLabel: '12日間',
+          displayStatus: '審査待ち',
+          ctr: null,
+        },
+      ],
+      pagination: {
+        page: 1,
+        limit: 3,
+        totalItems: 57,
+        totalPages: 19,
+      },
+    });
+
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining('r.NameVN ILIKE $1'),
+      ['%Sushi%', 'Pending'],
+    );
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('p.Status = $2'),
+      ['%Sushi%', 'Pending', 3, 0],
+    );
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('LIMIT $3'),
+      ['%Sushi%', 'Pending', 3, 0],
+    );
+  });
+
+  it('maps active admin promotion detail to Figma display status', async () => {
+    const now = Date.now();
+    dataSource.query.mockResolvedValueOnce([
+      {
+        ...adminPromotionRow,
+        promotionType: 'Advertisement',
+        mediaUrl: 'https://example.com/ad.jpg',
+        discountType: null,
+        discountValue: null,
+        advertisementType: 'SNS',
+        status: 'Active',
+        startDate: new Date(now - 86_400_000).toISOString(),
+        endDate: new Date(now + 12 * 86_400_000).toISOString(),
+      },
+    ]);
+
+    await expect(
+      service.getAdminPromotion(12, adminUser),
+    ).resolves.toMatchObject({
+      promotionId: 12,
+      promotionType: 'Advertisement',
+      restaurantNameVN: 'Sushi Tokyo VN',
+      imageUrl: 'https://example.com/ad.jpg',
+      advertisementType: 'SNS',
+      displayStatus: '配信中',
+      periodLabel: '掲載中 (残り12日)',
+      ctr: 10,
+    });
+  });
+
+  it('maps scheduled, rejected, and ended admin display statuses', async () => {
+    const now = Date.now();
+    dataSource.query
+      .mockResolvedValueOnce([
+        {
+          ...adminPromotionRow,
+          status: 'Active',
+          startDate: new Date(now + 86_400_000).toISOString(),
+          endDate: new Date(now + 10 * 86_400_000).toISOString(),
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          ...adminPromotionRow,
+          status: 'Rejected',
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          ...adminPromotionRow,
+          status: 'Ended',
+        },
+      ]);
+
+    await expect(
+      service.getAdminPromotion(12, adminUser),
+    ).resolves.toMatchObject({
+      displayStatus: '開始前',
+      periodLabel: '予約済み',
+      impressions: null,
+      clicks: null,
+      ctr: null,
+    });
+    await expect(
+      service.getAdminPromotion(12, adminUser),
+    ).resolves.toMatchObject({
+      displayStatus: '却下済み',
+      periodLabel: '却下済み',
+      impressions: 100,
+      clicks: 10,
+      ctr: 10,
+    });
+    await expect(
+      service.getAdminPromotion(12, adminUser),
+    ).resolves.toMatchObject({
+      displayStatus: '終了済み',
+      periodLabel: '終了済み',
+      impressions: 100,
+      clicks: 10,
+      ctr: 10,
+    });
+  });
+
+  it('approves a pending campaign or advertisement and records a moderation log', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([adminPromotionRow])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          ...adminPromotionRow,
+          status: 'Active',
+        },
+      ]);
+
+    await expect(
+      service.approveAdminPromotion(12, adminUser),
+    ).resolves.toMatchObject({
+      promotionId: 12,
+      status: 'Active',
+    });
+
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("Status = 'Active'"),
+      [12, 1],
+    );
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('INSERT INTO MODERATION_LOG'),
+      [1, 12, 'Approve', null],
+    );
+  });
+
+  it('rejects a pending campaign or advertisement with a reason and log', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([adminPromotionRow])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          ...adminPromotionRow,
+          status: 'Rejected',
+        },
+      ]);
+
+    await expect(
+      service.rejectAdminPromotion(12, ' Policy violation. ', adminUser),
+    ).resolves.toMatchObject({
+      promotionId: 12,
+      status: 'Rejected',
+    });
+
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("Status = 'Rejected'"),
+      [12, 1],
+    );
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('INSERT INTO MODERATION_LOG'),
+      [1, 12, 'Reject', 'Policy violation.'],
+    );
+  });
+
+  it('does not approve non-pending promotions', async () => {
+    dataSource.query.mockResolvedValueOnce([
+      {
+        ...adminPromotionRow,
+        status: 'Active',
+      },
+    ]);
+
+    await expect(service.approveAdminPromotion(12, adminUser)).rejects.toThrow(
+      'Only pending promotions can be approved.',
     );
   });
 
@@ -713,6 +1033,10 @@ describe('AdsService', () => {
     );
     expect(dataSource.query).toHaveBeenCalledWith(
       expect.stringContaining("Status = 'Active'"),
+      [12],
+    );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('ApprovedByAdminID IS NOT NULL'),
       [12],
     );
   });

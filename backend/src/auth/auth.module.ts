@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CustomerProfile } from './entities/customer-profile.entity';
 import { OwnerProfile } from './entities/owner-profile.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
+import { AdminActionLog } from '../admin/entities/admin-action-log.entity';
 import { UserAccount } from './entities/user-account.entity';
 import { MailModule } from '../mail/mail.module';
 import { AuthController } from './auth.controller';
@@ -18,6 +19,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
       CustomerProfile,
       OwnerProfile,
       Restaurant,
+      AdminActionLog,
     ]),
     PassportModule,
     JwtModule.register({}),

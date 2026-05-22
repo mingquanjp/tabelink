@@ -393,3 +393,47 @@ export class UpdatePromotionDto {
   @Min(0)
   totalCost?: number;
 }
+
+export class AdminPromotionsQueryDto {
+  @ApiPropertyOptional({
+    example: 'Sushi Tokyo',
+    description: 'Searches restaurant names and promotion titles.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  search?: string;
+
+  @ApiPropertyOptional({
+    enum: ['Pending', 'Active', 'Rejected', 'Ended'],
+    example: 'Pending',
+  })
+  @IsOptional()
+  @IsIn(['Pending', 'Active', 'Rejected', 'Ended'])
+  status?: 'Pending' | 'Active' | 'Rejected' | 'Ended';
+
+  @ApiPropertyOptional({ example: 1, minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @ApiPropertyOptional({ example: 3, minimum: 1, maximum: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
+}
+
+export class RejectPromotionDto {
+  @ApiProperty({
+    example: 'Creative text violates the advertising policy.',
+    maxLength: 2000,
+  })
+  @IsString()
+  @MaxLength(2000)
+  reason!: string;
+}

@@ -512,6 +512,10 @@ describe('RestaurantsService', () => {
       expect.stringContaining("Status = 'Active'"),
       [1],
     );
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining('ApprovedByAdminID IS NOT NULL'),
+      [1],
+    );
   });
 
   it('allows guest users to view restaurant detail but disables review submission', async () => {

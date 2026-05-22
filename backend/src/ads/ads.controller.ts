@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseInterceptors,
@@ -31,10 +32,12 @@ import { Request } from 'express';
 import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
+  AdminPromotionsQueryDto,
   CreateAdRequestDto,
   CreateCampaignDto,
   CreatePromotionDto,
   PromotionType,
+  RejectPromotionDto,
   UpdatePromotionDto,
 } from './dto/create-promotion.dto';
 import { AdsMediaService } from './ads-media.service';
@@ -107,6 +110,108 @@ export class AdsController {
   })
   listUserNotifications(@Req() request: AuthenticatedRequest) {
     return this.adsService.listUserNotifications(request.user);
+  }
+
+  @Get('admin/promotions/summary')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Get admin promotion moderation KPI summary',
+    description:
+      'Screen ID14 summary. Counts both Advertisement and Campaign promotions because owner create/edit flows put both into Pending review.',
+  })
+  @ApiOkResponse({ description: 'Admin promotion moderation KPI summary.' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({ description: 'Only admins can review promotions.' })
+  getAdminPromotionSummary(@Req() request: AuthenticatedRequest) {
+    return this.adsService.getAdminPromotionSummary(request.user);
+  }
+
+  @Get('admin/promotions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'List promotions for admin moderation',
+    description:
+      'Screen ID14 list data. Returns Advertisement and Campaign promotions with restaurant context, optional status filtering, and restaurant/title search.',
+  })
+  @ApiOkResponse({ description: 'Admin promotion moderation list.' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({ description: 'Only admins can review promotions.' })
+  listAdminPromotions(
+    @Query() query: AdminPromotionsQueryDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.adsService.listAdminPromotions(query, request.user);
+  }
+
+  @Get('admin/promotions/:promotionId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Get one promotion for admin moderation',
+    description:
+      'Screen ID14 detail data for either an Advertisement or Campaign promotion.',
+  })
+  @ApiOkResponse({ description: 'Admin promotion moderation detail.' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({ description: 'Only admins can review promotions.' })
+  @ApiNotFoundResponse({ description: 'Promotion not found.' })
+  getAdminPromotion(
+    @Param('promotionId', ParseIntPipe) promotionId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.adsService.getAdminPromotion(promotionId, request.user);
+  }
+
+  @Patch('admin/promotions/:promotionId/approve')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Approve a pending promotion',
+    description:
+      'Approves a Pending Advertisement or Campaign and records a moderation log.',
+  })
+  @ApiOkResponse({ description: 'Promotion approved.' })
+  @ApiBadRequestResponse({
+    description: 'Only pending promotions can be approved.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({ description: 'Only admins can review promotions.' })
+  @ApiNotFoundResponse({ description: 'Promotion not found.' })
+  approveAdminPromotion(
+    @Param('promotionId', ParseIntPipe) promotionId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.adsService.approveAdminPromotion(promotionId, request.user);
+  }
+
+  @Patch('admin/promotions/:promotionId/reject')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Reject a pending promotion',
+    description:
+      'Rejects a Pending Advertisement or Campaign, stores the rejection reason, and records a moderation log.',
+  })
+  @ApiBody({ type: RejectPromotionDto })
+  @ApiOkResponse({ description: 'Promotion rejected.' })
+  @ApiBadRequestResponse({
+    description: 'Only pending promotions can be rejected.',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
+  @ApiForbiddenResponse({ description: 'Only admins can review promotions.' })
+  @ApiNotFoundResponse({ description: 'Promotion not found.' })
+  rejectAdminPromotion(
+    @Param('promotionId', ParseIntPipe) promotionId: number,
+    @Body() dto: RejectPromotionDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.adsService.rejectAdminPromotion(
+      promotionId,
+      dto.reason,
+      request.user,
+    );
   }
 
   @Get('owner/promotions')

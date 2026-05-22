@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdsModule } from './ads/ads.module';
+import { AdminModule } from './admin/admin.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -34,6 +35,7 @@ import { VerificationModule } from './verification/verification.module';
         synchronize: false,
       }),
     }),
+    AdminModule,
     AuthModule,
     BlogsModule,
     FeedModule,

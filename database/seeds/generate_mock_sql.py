@@ -144,7 +144,7 @@ def build_rows() -> list[tuple[str, list[Row], list[str], list[str] | None]]:
             "email": f"user{i:02d}@tabelink.test",
             "passwordhash": PASSWORD_HASH,
             "role": "User",
-            "status": ["Active", "Active", "Active", "Pending", "Banned"][i % 5],
+            "status": ["Active", "Active", "Active", "Disabled", "Banned"][i % 5],
             "createdat": base + timedelta(minutes=i),
             "updatedat": base + timedelta(minutes=i),
         }

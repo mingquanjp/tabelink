@@ -17,8 +17,8 @@ CREATE TABLE USER_ACCOUNT (
     Email VARCHAR(255) NOT NULL,
     PasswordHash VARCHAR(255) NOT NULL,
     Role VARCHAR(50) NOT NULL CHECK (Role IN ('Admin', 'User', 'Owner')),
-    Status VARCHAR(50) NOT NULL DEFAULT 'Pending'
-        CHECK (Status IN ('Active', 'Banned', 'Pending', 'Disabled')),
+    Status VARCHAR(50) NOT NULL DEFAULT 'Active'
+        CHECK (Status IN ('Active', 'Banned', 'Disabled')),
     CreatedAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CHECK (BTRIM(Email) <> '')

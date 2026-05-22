@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,6 +11,7 @@ import {
   Min,
 } from 'class-validator';
 import { AccountStatus, UserRole } from '../../auth/auth.constants';
+import { ADMIN_ACCOUNT_STATUSES } from '../admin.constants';
 
 export class ListAdminUsersQueryDto {
   @ApiPropertyOptional({ example: 'tanaka@example.com' })
@@ -23,9 +25,9 @@ export class ListAdminUsersQueryDto {
   @IsEnum(UserRole)
   role?: UserRole;
 
-  @ApiPropertyOptional({ enum: AccountStatus })
+  @ApiPropertyOptional({ enum: ADMIN_ACCOUNT_STATUSES })
   @IsOptional()
-  @IsEnum(AccountStatus)
+  @IsIn(ADMIN_ACCOUNT_STATUSES)
   status?: AccountStatus;
 
   @ApiPropertyOptional({ example: 1, minimum: 1, default: 1 })

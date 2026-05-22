@@ -14,7 +14,6 @@ export enum AuthRole {
 export enum AccountStatus {
   Active = 'Active',
   Banned = 'Banned',
-  Pending = 'Pending',
   Disabled = 'Disabled',
 }
 

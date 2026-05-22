@@ -24,7 +24,7 @@ export class UserAccount {
   @Column({ name: 'role', length: 50 })
   role!: UserRole;
 
-  @Column({ name: 'status', length: 50, default: AccountStatus.Pending })
+  @Column({ name: 'status', length: 50, default: AccountStatus.Active })
   status!: AccountStatus;
 
   @CreateDateColumn({ name: 'createdat', type: 'timestamptz' })

@@ -2,11 +2,13 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEmail,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
 import { AccountStatus, UserRole } from '../../auth/auth.constants';
+import { ADMIN_ACCOUNT_STATUSES } from '../admin.constants';
 
 export class UpdateAdminUserDto {
   @ApiPropertyOptional({ example: 'user@example.com' })
@@ -20,9 +22,9 @@ export class UpdateAdminUserDto {
   @IsEnum(UserRole)
   role?: UserRole;
 
-  @ApiPropertyOptional({ enum: AccountStatus })
+  @ApiPropertyOptional({ enum: ADMIN_ACCOUNT_STATUSES })
   @IsOptional()
-  @IsEnum(AccountStatus)
+  @IsIn(ADMIN_ACCOUNT_STATUSES)
   status?: AccountStatus;
 
   @ApiPropertyOptional({ example: 'Tanaka Taro' })

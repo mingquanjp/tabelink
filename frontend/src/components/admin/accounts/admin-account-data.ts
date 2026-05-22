@@ -17,7 +17,6 @@ export const adminStatusOptions: Array<AdminAccountStatus | "all"> = [
   "all",
   "Active",
   "Banned",
-  "Pending",
   "Disabled",
 ];
 
@@ -32,7 +31,6 @@ export const statusLabels: Record<AdminAccountStatus | "all", string> = {
   all: "すべて",
   Active: "Active",
   Banned: "Banned",
-  Pending: "Pending",
   Disabled: "Disabled",
 };
 
@@ -105,14 +103,12 @@ const fallbackKpi: AdminUserKpis = {
   byStatus: {
     Active: 2411,
     Banned: 18,
-    Pending: 42,
     Disabled: 15,
   },
   activeUsers: 2292,
   activeOwners: 186,
   banned: 18,
   disabled: 15,
-  pending: 42,
 };
 
 export const fallbackAdminUsersResponse: AdminUsersResponse = {
@@ -126,6 +122,6 @@ export const fallbackAdminUsersResponse: AdminUsersResponse = {
   kpi: fallbackKpi,
   filters: {
     roles: ["Admin", "Owner", "User"],
-    statuses: ["Active", "Banned", "Pending", "Disabled"],
+    statuses: ["Active", "Banned", "Disabled"],
   },
 };

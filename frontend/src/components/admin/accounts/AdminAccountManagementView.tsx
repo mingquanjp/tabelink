@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  approvePendingAdminUser,
   banAdminUser,
   listAdminUsers,
   restoreAdminUser,
@@ -46,20 +45,25 @@ const emptyAdminUsersResponse: AdminUsersResponse = {
     byStatus: {
       Active: 0,
       Banned: 0,
-      Pending: 0,
       Disabled: 0,
     },
     activeUsers: 0,
     activeOwners: 0,
     banned: 0,
     disabled: 0,
-    pending: 0,
   },
   filters: {
     roles: ["Admin", "Owner", "User"],
-    statuses: ["Active", "Banned", "Pending", "Disabled"],
+    statuses: ["Active", "Banned", "Disabled"],
   },
 };
+
+function toAdminAccountStatuses(statuses: string[]) {
+  return statuses.filter(
+    (entry): entry is AdminAccountStatus =>
+      entry === "Active" || entry === "Banned" || entry === "Disabled"
+  );
+}
 
 function getApiErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -182,23 +186,6 @@ export function AdminAccountManagementView() {
     }
   }
 
-  async function approvePendingUser(user: AdminUser) {
-    setIsSaving(true);
-
-    try {
-      await approvePendingAdminUser(user.accountId);
-
-      const response = await listAdminUsers(query);
-      setData(response);
-      setLoadError(null);
-      showSuccessToast();
-    } catch (error) {
-      showErrorToast(getApiErrorMessage(error));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
   return (
     <main className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 px-5 pb-7 pt-24 md:px-8 lg:px-10">
       <section className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -228,7 +215,7 @@ export function AdminAccountManagementView() {
         />
         <AdminKpiCard
           title="今月の新規登録"
-          value={data.kpi.pending}
+          value={data.kpi.activeUsers}
           status="+5%"
           progress={50}
           statusTone="positive"
@@ -259,7 +246,7 @@ export function AdminAccountManagementView() {
           role={role}
           status={status}
           roleOptions={data.filters.roles}
-          statusOptions={data.filters.statuses}
+          statusOptions={toAdminAccountStatuses(data.filters.statuses)}
           isLoading={isLoading}
           onSearchChange={setSearchInput}
           onRoleChange={(value) => {
@@ -278,7 +265,6 @@ export function AdminAccountManagementView() {
             isLoading={isLoading}
             onEdit={setEditingUser}
             onStatusAction={setStatusUser}
-            onApprovePending={approvePendingUser}
           />
           <AdminPagination
             page={data.pagination.page}

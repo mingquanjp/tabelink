@@ -1,6 +1,6 @@
 export type AdminUserRole = "Admin" | "Owner" | "User";
 
-export type AdminAccountStatus = "Active" | "Banned" | "Pending" | "Disabled";
+export type AdminAccountStatus = "Active" | "Banned" | "Disabled";
 
 export type AdminUserProfile = {
   fullName?: string | null;
@@ -29,7 +29,6 @@ export type AdminUserKpis = {
   activeOwners: number;
   banned: number;
   disabled: number;
-  pending: number;
 };
 
 export type AdminUsersQuery = {

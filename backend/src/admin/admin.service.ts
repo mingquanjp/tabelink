@@ -12,6 +12,7 @@ import { JwtPayload } from '../auth/auth.types';
 import { CustomerProfile } from '../auth/entities/customer-profile.entity';
 import { OwnerProfile } from '../auth/entities/owner-profile.entity';
 import { UserAccount } from '../auth/entities/user-account.entity';
+import { ADMIN_ACCOUNT_STATUSES } from './admin.constants';
 import { AdminUserActionDto } from './dto/admin-user-action.dto';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { ListAdminActionLogsQueryDto } from './dto/list-admin-action-logs-query.dto';
@@ -92,7 +93,7 @@ export class AdminService {
       kpi,
       filters: {
         roles: Object.values(UserRole),
-        statuses: Object.values(AccountStatus),
+        statuses: ADMIN_ACCOUNT_STATUSES,
       },
     };
   }
@@ -117,7 +118,7 @@ export class AdminService {
     ]);
 
     const byRole = this.toCountMap(roleRows, Object.values(UserRole));
-    const byStatus = this.toCountMap(statusRows, Object.values(AccountStatus));
+    const byStatus = this.toCountMap(statusRows, ADMIN_ACCOUNT_STATUSES);
 
     return {
       total,
@@ -127,7 +128,6 @@ export class AdminService {
       activeOwners: byRole.Owner,
       banned: byStatus.Banned,
       disabled: byStatus.Disabled,
-      pending: byStatus.Pending,
     };
   }
 
@@ -436,7 +436,7 @@ export class AdminService {
     }
   }
 
-  private toCountMap<T extends string>(rows: CountRow[], keys: T[]) {
+  private toCountMap<T extends string>(rows: CountRow[], keys: readonly T[]) {
     return keys.reduce(
       (acc, key) => ({
         ...acc,

@@ -1,4 +1,4 @@
-import { Ban, CircleCheck, Pencil, RotateCcw, X } from "lucide-react";
+import { Ban, Pencil, RotateCcw } from "lucide-react";
 import type {
   AdminAccountStatus,
   AdminUser,
@@ -10,7 +10,6 @@ type AdminUserTableProps = {
   isLoading: boolean;
   onEdit: (user: AdminUser) => void;
   onStatusAction: (user: AdminUser) => void;
-  onApprovePending: (user: AdminUser) => void;
 };
 
 const roleTone: Record<AdminUserRole, string> = {
@@ -22,7 +21,6 @@ const roleTone: Record<AdminUserRole, string> = {
 const statusDotTone: Record<AdminAccountStatus, string> = {
   Active: "bg-[#3d5f46]",
   Banned: "bg-[#ba1a1a]",
-  Pending: "bg-[#e4beba]",
   Disabled: "bg-[#8a8d85]",
 };
 
@@ -96,7 +94,6 @@ export function AdminUserTable({
   isLoading,
   onEdit,
   onStatusAction,
-  onApprovePending,
 }: AdminUserTableProps) {
   return (
     <section
@@ -132,7 +129,6 @@ export function AdminUserTable({
             {users.map((user) => {
               const name = getUserName(user);
               const isBanned = user.status === "Banned";
-              const isPending = user.status === "Pending";
 
               return (
                 <tr
@@ -189,47 +185,27 @@ export function AdminUserTable({
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex justify-end gap-5">
-                      {isPending ? (
-                        <>
-                          <ActionButton
-                            label={`${name}を確認`}
-                            onClick={() => onApprovePending(user)}
-                          >
-                            <CircleCheck className="size-5" />
-                          </ActionButton>
-                          <ActionButton
-                            label={`${name}をブロック`}
-                            onClick={() => onStatusAction(user)}
-                            tone="danger"
-                          >
-                            <X className="size-5" />
-                          </ActionButton>
-                        </>
-                      ) : (
-                        <>
-                          <ActionButton
-                            label={`${name}を編集`}
-                            onClick={() => onEdit(user)}
-                          >
-                            <Pencil className="size-5" />
-                          </ActionButton>
-                          <ActionButton
-                            label={
-                              isBanned
-                                ? `${name}を復元`
-                                : `${name}をブロック`
-                            }
-                            onClick={() => onStatusAction(user)}
-                            tone={isBanned ? "default" : "danger"}
-                          >
-                            {isBanned ? (
-                              <RotateCcw className="size-5" />
-                            ) : (
-                              <Ban className="size-5" />
-                            )}
-                          </ActionButton>
-                        </>
-                      )}
+                      <ActionButton
+                        label={`${name}を編集`}
+                        onClick={() => onEdit(user)}
+                      >
+                        <Pencil className="size-5" />
+                      </ActionButton>
+                      <ActionButton
+                        label={
+                          isBanned
+                            ? `${name}を復元`
+                            : `${name}をブロック`
+                        }
+                        onClick={() => onStatusAction(user)}
+                        tone={isBanned ? "default" : "danger"}
+                      >
+                        {isBanned ? (
+                          <RotateCcw className="size-5" />
+                        ) : (
+                          <Ban className="size-5" />
+                        )}
+                      </ActionButton>
                     </div>
                   </td>
                 </tr>

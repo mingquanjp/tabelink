@@ -1,5 +1,5 @@
 import { TrendingUp } from "lucide-react";
-import { advertisementManagementSummary } from "./advertisement-management-data";
+import type { AdminPromotionSummary } from "@/lib/api/admin-promotions/type";
 
 type StatItem = {
   label: string;
@@ -8,29 +8,45 @@ type StatItem = {
   showUnit?: boolean;
 };
 
-const stats: StatItem[] = [
-  {
-    label: "審査待ち",
-    value: advertisementManagementSummary.pendingCount,
-    highlighted: true,
-    showUnit: true,
-  },
-  {
-    label: "配信中",
-    value: advertisementManagementSummary.activeCount,
-    showUnit: true,
-  },
-  {
-    label: "総インプレッション",
-    value: advertisementManagementSummary.totalImpressions,
-  },
-  {
-    label: "平均 CTR",
-    value: advertisementManagementSummary.averageCtr,
-  },
-];
+type AdvertisementManagementStatsGridProps = {
+  summary: AdminPromotionSummary | null;
+};
 
-export function AdvertisementManagementStatsGrid() {
+const numberFormatter = new Intl.NumberFormat("en");
+const compactNumberFormatter = new Intl.NumberFormat("en", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function buildStats(summary: AdminPromotionSummary | null): StatItem[] {
+  return [
+    {
+      label: "審査待ち",
+      value: numberFormatter.format(summary?.pendingCount ?? 0),
+      highlighted: true,
+      showUnit: true,
+    },
+    {
+      label: "配信中",
+      value: numberFormatter.format(summary?.activeCount ?? 0),
+      showUnit: true,
+    },
+    {
+      label: "総インプレッション",
+      value: compactNumberFormatter.format(summary?.totalImpressions ?? 0),
+    },
+    {
+      label: "平均 CTR",
+      value: `${(summary?.averageCtr ?? 0).toFixed(1)}%`,
+    },
+  ];
+}
+
+export function AdvertisementManagementStatsGrid({
+  summary,
+}: AdvertisementManagementStatsGridProps) {
+  const stats = buildStats(summary);
+
   return (
     <section className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
       {stats.map((stat) => (

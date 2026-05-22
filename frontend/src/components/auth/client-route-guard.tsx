@@ -21,12 +21,12 @@ function isPublicAuthPath(pathname: string) {
   return pathname === "/login" || pathname.startsWith("/register");
 }
 
-function isOwnerPath(pathname: string) {
-  return pathname.startsWith("/owner");
-}
-
 function isAdminPath(pathname: string) {
   return pathname.startsWith("/admin");
+}
+
+function isOwnerPath(pathname: string) {
+  return pathname.startsWith("/owner");
 }
 
 function isUserPath(pathname: string) {

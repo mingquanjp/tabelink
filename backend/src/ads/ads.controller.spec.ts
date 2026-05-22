@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdsController } from './ads.controller';
+import { AdsMediaService } from './ads-media.service';
 import { AdsService } from './ads.service';
 import {
   AdvertisementType,
@@ -12,6 +13,11 @@ describe('AdsController', () => {
   let controller: AdsController;
   let service: {
     listOwnerPromotions: jest.Mock;
+    getAdminPromotionSummary: jest.Mock;
+    listAdminPromotions: jest.Mock;
+    getAdminPromotion: jest.Mock;
+    approveAdminPromotion: jest.Mock;
+    rejectAdminPromotion: jest.Mock;
     createOwnerPromotion: jest.Mock;
     getOwnerPromotion: jest.Mock;
     updateOwnerPromotion: jest.Mock;
@@ -31,6 +37,29 @@ describe('AdsController', () => {
         restaurantId: 1,
         count: 1,
         items: [],
+      }),
+      getAdminPromotionSummary: jest.fn().mockResolvedValue({
+        pendingCount: 2,
+        activeCount: 3,
+        totalImpressions: 1200,
+        totalClicks: 60,
+        averageCtr: 5,
+      }),
+      listAdminPromotions: jest.fn().mockResolvedValue({
+        count: 1,
+        items: [],
+      }),
+      getAdminPromotion: jest.fn().mockResolvedValue({
+        promotionId: 12,
+        restaurantId: 1,
+      }),
+      approveAdminPromotion: jest.fn().mockResolvedValue({
+        promotionId: 12,
+        status: 'Active',
+      }),
+      rejectAdminPromotion: jest.fn().mockResolvedValue({
+        promotionId: 12,
+        status: 'Rejected',
       }),
       createOwnerPromotion: jest.fn().mockResolvedValue({
         promotionId: 12,
@@ -68,6 +97,12 @@ describe('AdsController', () => {
           provide: AdsService,
           useValue: service,
         },
+        {
+          provide: AdsMediaService,
+          useValue: {
+            upload: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
@@ -83,6 +118,71 @@ describe('AdsController', () => {
       items: [],
     });
     expect(service.listOwnerPromotions).toHaveBeenCalledWith(user);
+  });
+
+  it('delegates admin promotion KPI summary to the service', async () => {
+    const admin = {
+      sub: 1,
+      email: 'admin@example.com',
+      role: 'Admin' as const,
+    };
+
+    await expect(
+      controller.getAdminPromotionSummary({ user: admin } as never),
+    ).resolves.toEqual({
+      pendingCount: 2,
+      activeCount: 3,
+      totalImpressions: 1200,
+      totalClicks: 60,
+      averageCtr: 5,
+    });
+    expect(service.getAdminPromotionSummary).toHaveBeenCalledWith(admin);
+  });
+
+  it('delegates admin promotion list filters to the service', async () => {
+    const admin = {
+      sub: 1,
+      email: 'admin@example.com',
+      role: 'Admin' as const,
+    };
+    const query = { search: 'Sushi', status: 'Pending' as const };
+
+    await expect(
+      controller.listAdminPromotions(query, { user: admin } as never),
+    ).resolves.toEqual({
+      count: 1,
+      items: [],
+    });
+    expect(service.listAdminPromotions).toHaveBeenCalledWith(query, admin);
+  });
+
+  it('delegates admin approval and rejection to the service', async () => {
+    const admin = {
+      sub: 1,
+      email: 'admin@example.com',
+      role: 'Admin' as const,
+    };
+
+    await expect(
+      controller.approveAdminPromotion(12, { user: admin } as never),
+    ).resolves.toEqual({
+      promotionId: 12,
+      status: 'Active',
+    });
+    await expect(
+      controller.rejectAdminPromotion(12, { reason: 'Policy violation.' }, {
+        user: admin,
+      } as never),
+    ).resolves.toEqual({
+      promotionId: 12,
+      status: 'Rejected',
+    });
+    expect(service.approveAdminPromotion).toHaveBeenCalledWith(12, admin);
+    expect(service.rejectAdminPromotion).toHaveBeenCalledWith(
+      12,
+      'Policy violation.',
+      admin,
+    );
   });
 
   it('creates campaigns through the owner-context campaign popup endpoint', async () => {

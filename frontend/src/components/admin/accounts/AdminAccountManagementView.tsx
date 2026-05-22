@@ -15,6 +15,7 @@ import type {
   AdminUsersResponse,
   UpdateAdminUserPayload,
 } from "@/lib/api/admin/type";
+import { ApiError } from "@/lib/api/client";
 import { AdminAccountFilters } from "@/components/admin/accounts/AdminAccountFilters";
 import { AdminKpiCard } from "@/components/admin/accounts/AdminKpiCard";
 import { AdminPagination } from "@/components/admin/accounts/AdminPagination";
@@ -60,6 +61,14 @@ const emptyAdminUsersResponse: AdminUsersResponse = {
   },
 };
 
+function getApiErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    return error.message;
+  }
+
+  return "エラーが発生しました";
+}
+
 export function AdminAccountManagementView() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -99,10 +108,18 @@ export function AdminAccountManagementView() {
           setData(response);
           setLoadError(null);
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setData(emptyAdminUsersResponse);
-          setLoadError("管理者APIからアカウント一覧を取得できませんでした。");
+          if (error instanceof ApiError && error.status === 401) {
+            setLoadError(
+              "Admin session is required. Please log in with an Admin account."
+            );
+          } else if (error instanceof ApiError && error.status === 403) {
+            setLoadError("This account does not have Admin permission.");
+          } else {
+            setLoadError(getApiErrorMessage(error));
+          }
         }
       } finally {
         if (!cancelled) {
@@ -136,8 +153,8 @@ export function AdminAccountManagementView() {
       setEditingUser(null);
       setLoadError(null);
       showSuccessToast();
-    } catch {
-      showErrorToast();
+    } catch (error) {
+      showErrorToast(getApiErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -158,8 +175,8 @@ export function AdminAccountManagementView() {
       setStatusUser(null);
       setLoadError(null);
       showSuccessToast();
-    } catch {
-      showErrorToast();
+    } catch (error) {
+      showErrorToast(getApiErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
@@ -175,15 +192,15 @@ export function AdminAccountManagementView() {
       setData(response);
       setLoadError(null);
       showSuccessToast();
-    } catch {
-      showErrorToast();
+    } catch (error) {
+      showErrorToast(getApiErrorMessage(error));
     } finally {
       setIsSaving(false);
     }
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 px-5 py-7 md:px-8 lg:px-10">
+    <main className="mx-auto flex w-full max-w-screen-2xl flex-col gap-6 px-5 pb-7 pt-24 md:px-8 lg:px-10">
       <section className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="text-[28px] font-semibold leading-tight text-[#1a1c1b] md:text-[34px]">

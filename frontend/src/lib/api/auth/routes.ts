@@ -28,12 +28,12 @@ export function getAuthenticatedRedirectPath(role: AuthAccountRole) {
   return "/";
 }
 
-export function canAccessOwnerRoutes(role: AuthAccountRole) {
-  return role === "Owner";
-}
-
 export function canAccessAdminRoutes(role: AuthAccountRole) {
   return role === "Admin";
+}
+
+export function canAccessOwnerRoutes(role: AuthAccountRole) {
+  return role === "Owner";
 }
 
 export function canAccessUserRoutes(role: AuthAccountRole) {

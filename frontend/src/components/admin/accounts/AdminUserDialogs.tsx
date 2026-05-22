@@ -38,6 +38,12 @@ function getEditableName(user: AdminUser | null) {
   );
 }
 
+function toOptionalField(value: string) {
+  const trimmed = value.trim();
+
+  return trimmed ? trimmed : undefined;
+}
+
 export function AdminUserEditDialog({
   user,
   isSaving,
@@ -204,17 +210,26 @@ function AdminUserEditDialogContent({
           </button>
           <button
             type="button"
-            onClick={() =>
-              onSave(user.accountId, {
-                email,
+            onClick={() => {
+              const payload: UpdateAdminUserPayload = {
+                email: email.trim(),
                 role,
                 status,
-                fullName,
-                businessName,
-                phone,
-                reason,
-              })
-            }
+                reason: toOptionalField(reason),
+              };
+              const trimmedFullName = toOptionalField(fullName);
+
+              if (trimmedFullName) {
+                payload.fullName = trimmedFullName;
+              }
+
+              if (role === "Owner") {
+                payload.businessName = toOptionalField(businessName);
+                payload.phone = toOptionalField(phone);
+              }
+
+              onSave(user.accountId, payload);
+            }}
             disabled={isSaving}
             className="h-10 rounded-[6px] bg-[#af111c] px-7 text-[14px] font-semibold text-white transition hover:bg-[#970f18] disabled:opacity-60"
           >

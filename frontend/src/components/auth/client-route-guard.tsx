@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  canAccessPathForRole,
   canAccessAdminRoutes,
+  canAccessPathForRole,
   canAccessOwnerRoutes,
   canAccessUserRoutes,
   getAuthenticatedRedirectPath,
@@ -21,12 +21,12 @@ function isPublicAuthPath(pathname: string) {
   return pathname === "/login" || pathname.startsWith("/register");
 }
 
-function isOwnerPath(pathname: string) {
-  return pathname.startsWith("/owner");
-}
-
 function isAdminPath(pathname: string) {
   return pathname.startsWith("/admin");
+}
+
+function isOwnerPath(pathname: string) {
+  return pathname.startsWith("/owner");
 }
 
 function isUserPath(pathname: string) {
@@ -44,7 +44,12 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
   const router = useRouter();
 
   const verifyCurrentRoute = useCallback(async () => {
-    if (!isPublicAuthPath(pathname) && !isAdminPath(pathname) && !isOwnerPath(pathname) && !isUserPath(pathname)) {
+    if (
+      !isPublicAuthPath(pathname) &&
+      !isAdminPath(pathname) &&
+      !isOwnerPath(pathname) &&
+      !isUserPath(pathname)
+    ) {
       return;
     }
 

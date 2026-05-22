@@ -13,18 +13,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type AdminNavItem = {
+type NavItem = {
   label: string;
   href: string;
 };
 
-const navItems: AdminNavItem[] = [
+const navItems: NavItem[] = [
   { label: "アカウント管理", href: "/admin/accounts" },
-  { label: "広告管理", href: "/admin/advertisements" },
-  { label: "バッジ審査", href: "/admin/badges" },
+  { label: "広告管理", href: "/admin/ads" },
+  { label: "バッジ審査", href: "/admin/verifications" },
 ];
 
-export function AdminNavbar() {
+export function AdminHeader() {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -32,7 +32,7 @@ export function AdminNavbar() {
     try {
       await logoutAccount();
     } catch {
-      // Logout should still clear the local session and leave the admin area.
+      // Local cleanup and navigation should still happen if the server session is gone.
     } finally {
       clearAuthSessionCache();
       removeSessionCacheByPrefix("tabelink:admin:");
@@ -42,16 +42,22 @@ export function AdminNavbar() {
   }
 
   return (
-    <header className="fixed left-0 top-0 z-30 w-full border-b border-[#f1f1ee] bg-[#f9f9f6cc] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] backdrop-blur-[6px]">
-      <div className="mx-auto flex h-14 w-full max-w-[1440px] items-center justify-between px-8">
+    <header className="sticky top-0 z-30 border-b border-[#e4beba1a] bg-[#fbfaf7]/95 backdrop-blur-[6px]">
+      <div className="mx-auto flex h-20 w-full max-w-screen-2xl items-center justify-between px-6 lg:px-8">
         <Link
           href="/admin/accounts"
-          className="font-brand text-2xl font-bold leading-8 tracking-[-1.2px] text-[#af111c]"
+          className="flex shrink-0 items-center"
+          aria-label="TABELINK admin home"
         >
-          TABELINK
+          <span className="font-brand text-[24px] font-bold leading-8 tracking-normal text-[#af111c]">
+            TABELINK
+          </span>
         </Link>
 
-        <nav aria-label="Admin primary" className="flex items-center gap-8">
+        <nav
+          aria-label="Admin navigation"
+          className="hidden items-center gap-8 lg:flex"
+        >
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href);
 
@@ -59,7 +65,7 @@ export function AdminNavbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`inline-flex h-10 items-center border-b-2 font-jp text-sm font-medium leading-5 tracking-[0.35px] transition-colors ${
+                className={`inline-flex h-20 items-center border-b-2 font-jp text-[14px] font-medium leading-5 tracking-[0.35px] transition-colors ${
                   isActive
                     ? "border-[#af111c] text-[#af111c]"
                     : "border-transparent text-[#5a6053] hover:text-[#1a1c1b]"
@@ -71,30 +77,39 @@ export function AdminNavbar() {
           })}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-4">
           <button
             type="button"
             aria-label="Notifications"
-            className="inline-flex size-9 items-center justify-center rounded text-[#5a6053] transition-colors hover:bg-[#f1f1ee] hover:text-[#1a1c1b]"
+            className="inline-flex size-9 items-center justify-center rounded-[4px] text-[#5a6053] transition-colors hover:bg-[#f4f4f1] hover:text-[#1a1c1b]"
           >
-            <Bell className="size-5" />
+            <Bell className="size-5" strokeWidth={2} />
           </button>
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
                 aria-label="Admin account menu"
-                className="inline-flex size-9 items-center justify-center rounded-full text-[#5a6053] transition-colors hover:bg-[#f1f1ee] hover:text-[#1a1c1b]"
+                className="inline-flex size-9 items-center justify-center rounded-full border border-[#d8d1ca] bg-white text-[#5a6053] transition-colors hover:border-[#af111c] hover:text-[#af111c]"
               >
-                <User className="size-5" />
+                <User className="size-5" strokeWidth={2} />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="end"
-              className="w-48 rounded border border-[#e2e3e0] bg-white p-2 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
+              className="w-56 rounded-[6px] border border-[#e2e3e0] bg-white p-3 shadow-[0_12px_24px_rgba(26,28,27,0.12)]"
             >
+              <div className="px-1 pb-2">
+                <p className="truncate font-jp text-[14px] font-semibold leading-5 text-[#1a1c1b]">
+                  System Admin
+                </p>
+                <p className="truncate font-manrope text-[11px] leading-4 text-[#5a6053]">
+                  @tabelink_admin
+                </p>
+              </div>
               <DropdownMenuItem
-                className="flex cursor-pointer items-center gap-2 rounded px-3 py-2 font-jp text-sm text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
+                className="flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 font-jp text-[14px] text-[#af111c] focus:bg-[#af111c0d] focus:text-[#af111c]"
                 onSelect={handleLogout}
               >
                 <LogOut className="size-4" />

@@ -26,8 +26,8 @@ const TARGET_AUDIENCE_LABELS: Record<string, string> = {
   new: "新規ユーザー対象",
 };
 const TARGET_FILTER_OPTIONS = [
-  TARGET_AUDIENCE_LABELS.all,
-  TARGET_AUDIENCE_LABELS.new,
+  { label: TARGET_AUDIENCE_LABELS.all, value: "all" },
+  { label: TARGET_AUDIENCE_LABELS.new, value: "new" },
 ];
 
 type FilterKey = "category" | "benefit" | "target";
@@ -37,7 +37,12 @@ type CampaignFilters = Record<FilterKey, string>;
 type FilterConfig = {
   key: FilterKey;
   label: string;
-  options: string[];
+  options: FilterOption[];
+};
+
+type FilterOption = {
+  label: string;
+  value: string;
 };
 
 type CampaignViewModel = {
@@ -49,6 +54,7 @@ type CampaignViewModel = {
   name: string;
   description: string;
   target: string;
+  targetValue: string;
   period: string;
   condition: string;
   imageUrl: string;
@@ -123,7 +129,15 @@ function formatDiscountType(discountType: string | null) {
 }
 
 function formatTargetAudience(targetAudience: string | null) {
-  return TARGET_AUDIENCE_LABELS[targetAudience ?? "all"] ?? targetAudience ?? "ALL";
+  const normalizedTargetAudience = normalizeTargetAudience(targetAudience);
+
+  return TARGET_AUDIENCE_LABELS[normalizedTargetAudience] ?? targetAudience ?? "ALL";
+}
+
+function normalizeTargetAudience(targetAudience: string | null) {
+  const normalized = targetAudience?.trim().toLowerCase();
+
+  return normalized === "new" ? "new" : "all";
 }
 
 function toCampaignViewModel(campaign: UserCampaign): CampaignViewModel {
@@ -141,6 +155,7 @@ function toCampaignViewModel(campaign: UserCampaign): CampaignViewModel {
       campaign.campaignDescriptionVN,
     ),
     target: formatTargetAudience(campaign.targetAudience),
+    targetValue: normalizeTargetAudience(campaign.targetAudience),
     period: formatDateRange(campaign.startDate, campaign.endDate),
     condition: pickText(campaign.noteJP, campaign.noteVN) || "条件なし",
     imageUrl: campaign.imageUrl || FALLBACK_IMAGE_URL,
@@ -154,11 +169,14 @@ function FilterSelect({
   onChange,
 }: {
   label: string;
-  options: string[];
+  options: FilterOption[];
   value: string;
   onChange: (value: string) => void;
 }) {
-  const selectedLabel = value === ALL_VALUE ? "すべて" : value;
+  const selectedLabel =
+    value === ALL_VALUE
+      ? "すべて"
+      : (options.find((option) => option.value === value)?.label ?? value);
 
   return (
     <div className="flex flex-col gap-2">
@@ -181,8 +199,8 @@ function FilterSelect({
               すべて
             </DropdownMenuRadioItem>
             {options.map((option) => (
-              <DropdownMenuRadioItem key={option} value={option}>
-                {option}
+              <DropdownMenuRadioItem key={option.value} value={option.value}>
+                {option.label}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -268,6 +286,18 @@ function matchesFilter(value: string, filter: string) {
   return filter === ALL_VALUE || value === filter;
 }
 
+function matchesTargetFilter(targetValue: string, filter: string) {
+  if (filter === ALL_VALUE) {
+    return true;
+  }
+
+  if (filter === "new") {
+    return targetValue === "new" || targetValue === "all";
+  }
+
+  return targetValue === filter;
+}
+
 export function CampaignList({
   campaigns,
 }: {
@@ -299,12 +329,14 @@ export function CampaignList({
       {
         key: "category",
         label: "カテゴリー",
-        options: uniqueOptions(campaignCards.map((campaign) => campaign.category)),
+        options: uniqueOptions(
+          campaignCards.map((campaign) => campaign.category),
+        ).map((value) => ({ label: value, value })),
       },
       {
         key: "benefit",
         label: "特典内容",
-        options: benefitOptions,
+        options: benefitOptions.map((value) => ({ label: value, value })),
       },
       {
         key: "target",
@@ -320,7 +352,7 @@ export function CampaignList({
         (campaign) =>
           matchesFilter(campaign.category, appliedFilters.category) &&
           matchesFilter(campaign.badge, appliedFilters.benefit) &&
-          matchesFilter(campaign.target, appliedFilters.target),
+          matchesTargetFilter(campaign.targetValue, appliedFilters.target),
       ),
     [appliedFilters, campaignCards],
   );

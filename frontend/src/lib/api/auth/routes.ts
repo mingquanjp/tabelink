@@ -14,7 +14,7 @@ export function isGuestAccessiblePath(pathname: string) {
 
 export function getAuthenticatedRedirectPath(role: AuthAccountRole) {
   if (role === "Admin") {
-    return "/admin/advertisements";
+    return "/admin/accounts";
   }
 
   if (role === "Owner") {

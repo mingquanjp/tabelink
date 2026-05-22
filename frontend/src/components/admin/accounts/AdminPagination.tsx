@@ -15,8 +15,12 @@ function getVisiblePages(page: number, totalPages: number): PageItem[] {
     return Array.from({ length: totalPages }, (_, index) => index + 1);
   }
 
-  if (page <= 3) {
+  if (page <= 2) {
     return [1, 2, 3, "...", totalPages];
+  }
+
+  if (page === 3) {
+    return [1, 2, 3, 4, "...", totalPages];
   }
 
   if (page >= totalPages - 2) {

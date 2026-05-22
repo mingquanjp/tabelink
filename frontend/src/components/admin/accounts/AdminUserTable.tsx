@@ -10,6 +10,7 @@ type AdminUserTableProps = {
   isLoading: boolean;
   onEdit: (user: AdminUser) => void;
   onStatusAction: (user: AdminUser) => void;
+  onApprovePending: (user: AdminUser) => void;
 };
 
 const roleTone: Record<AdminUserRole, string> = {
@@ -95,6 +96,7 @@ export function AdminUserTable({
   isLoading,
   onEdit,
   onStatusAction,
+  onApprovePending,
 }: AdminUserTableProps) {
   return (
     <section
@@ -191,7 +193,7 @@ export function AdminUserTable({
                         <>
                           <ActionButton
                             label={`${name}を確認`}
-                            onClick={() => onEdit(user)}
+                            onClick={() => onApprovePending(user)}
                           >
                             <CircleCheck className="size-5" />
                           </ActionButton>

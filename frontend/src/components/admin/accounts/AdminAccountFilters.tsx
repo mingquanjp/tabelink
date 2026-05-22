@@ -1,8 +1,6 @@
 import { ChevronDown, ListFilter, Search } from "lucide-react";
 import type { AdminAccountStatus, AdminUserRole } from "@/lib/api/admin/type";
 import {
-  adminRoleOptions,
-  adminStatusOptions,
   roleLabels,
   statusLabels,
 } from "@/components/admin/accounts/admin-account-data";
@@ -11,6 +9,8 @@ type AdminAccountFiltersProps = {
   search: string;
   role: AdminUserRole | "all";
   status: AdminAccountStatus | "all";
+  roleOptions: AdminUserRole[];
+  statusOptions: AdminAccountStatus[];
   isLoading: boolean;
   onSearchChange: (value: string) => void;
   onRoleChange: (value: AdminUserRole | "all") => void;
@@ -22,6 +22,8 @@ export function AdminAccountFilters({
   search,
   role,
   status,
+  roleOptions,
+  statusOptions,
   isLoading,
   onSearchChange,
   onRoleChange,
@@ -68,7 +70,7 @@ export function AdminAccountFilters({
             className="h-11 w-full cursor-pointer appearance-none rounded-[4px] bg-white px-4 pr-10 font-jp text-[14px] font-medium leading-5 text-[#1a1c1b] shadow-[0_0_0_1px_#e4beba33] outline-none transition focus:shadow-[0_0_0_1px_#af111c]"
             aria-label="ロール"
           >
-            {adminRoleOptions.map((option) => (
+            {(["all", ...roleOptions] as Array<AdminUserRole | "all">).map((option) => (
               <option key={option} value={option}>
                 {roleLabels[option]}
               </option>
@@ -91,7 +93,9 @@ export function AdminAccountFilters({
             className="h-11 w-full cursor-pointer appearance-none rounded-[4px] bg-white px-4 pr-10 font-jp text-[14px] font-medium leading-5 text-[#1a1c1b] shadow-[0_0_0_1px_#e4beba33] outline-none transition focus:shadow-[0_0_0_1px_#af111c]"
             aria-label="ステータス"
           >
-            {adminStatusOptions.map((option) => (
+            {(["all", ...statusOptions] as Array<
+              AdminAccountStatus | "all"
+            >).map((option) => (
               <option key={option} value={option}>
                 {statusLabels[option]}
               </option>

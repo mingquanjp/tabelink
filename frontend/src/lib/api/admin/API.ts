@@ -52,3 +52,10 @@ export function restoreAdminUser(accountId: number, reason: string) {
     body: JSON.stringify({ reason }),
   });
 }
+
+export function approvePendingAdminUser(accountId: number) {
+  return updateAdminUser(accountId, {
+    status: "Active",
+    reason: "Admin approved pending account.",
+  });
+}

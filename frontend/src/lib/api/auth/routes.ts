@@ -13,6 +13,10 @@ export function isGuestAccessiblePath(pathname: string) {
 }
 
 export function getAuthenticatedRedirectPath(role: AuthAccountRole) {
+  if (role === "Admin") {
+    return "/admin/accounts";
+  }
+
   if (role === "Owner") {
     return "/owner/home";
   }
@@ -28,11 +32,19 @@ export function canAccessOwnerRoutes(role: AuthAccountRole) {
   return role === "Owner";
 }
 
+export function canAccessAdminRoutes(role: AuthAccountRole) {
+  return role === "Admin";
+}
+
 export function canAccessUserRoutes(role: AuthAccountRole) {
   return role === "User" || role === "Guest";
 }
 
 export function canAccessPathForRole(pathname: string, role: AuthAccountRole) {
+  if (pathname.startsWith("/admin")) {
+    return role === "Admin";
+  }
+
   if (pathname.startsWith("/owner")) {
     return role === "Owner";
   }

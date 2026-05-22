@@ -38,6 +38,10 @@ function isExpired(payload: JwtPayload | null) {
 }
 
 function getAuthenticatedRedirectPath(role?: string) {
+  if (role === "Admin") {
+    return "/admin/accounts";
+  }
+
   if (role === "Owner") {
     return "/owner/home";
   }
@@ -109,6 +113,20 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/admin")) {
+    if (!hasSessionCookie) {
+      return redirectToLogin(request);
+    }
+
+    if (payload?.role && payload.role !== "Admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = getAuthenticatedRedirectPath(payload.role);
+      url.search = "";
+
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (pathname.startsWith("/user")) {
     if (!hasSessionCookie && isGuestAccessiblePath(pathname)) {
       return NextResponse.next();
@@ -135,5 +153,11 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/register/:path*", "/owner/:path*", "/user/:path*"],
+  matcher: [
+    "/login",
+    "/register/:path*",
+    "/admin/:path*",
+    "/owner/:path*",
+    "/user/:path*",
+  ],
 };

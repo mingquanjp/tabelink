@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  approvePendingAdminUser,
   banAdminUser,
   listAdminUsers,
   restoreAdminUser,
@@ -14,7 +15,6 @@ import type {
   AdminUsersResponse,
   UpdateAdminUserPayload,
 } from "@/lib/api/admin/type";
-import { fallbackAdminUsersResponse } from "@/components/admin/accounts/admin-account-data";
 import { AdminAccountFilters } from "@/components/admin/accounts/AdminAccountFilters";
 import { AdminKpiCard } from "@/components/admin/accounts/AdminKpiCard";
 import { AdminPagination } from "@/components/admin/accounts/AdminPagination";
@@ -25,7 +25,40 @@ import {
 import { AdminUserTable } from "@/components/admin/accounts/AdminUserTable";
 import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 
-const pageLimit = 10;
+const pageLimit = 4;
+
+const emptyAdminUsersResponse: AdminUsersResponse = {
+  items: [],
+  pagination: {
+    page: 1,
+    limit: pageLimit,
+    total: 0,
+    totalPages: 1,
+  },
+  kpi: {
+    total: 0,
+    byRole: {
+      Admin: 0,
+      Owner: 0,
+      User: 0,
+    },
+    byStatus: {
+      Active: 0,
+      Banned: 0,
+      Pending: 0,
+      Disabled: 0,
+    },
+    activeUsers: 0,
+    activeOwners: 0,
+    banned: 0,
+    disabled: 0,
+    pending: 0,
+  },
+  filters: {
+    roles: ["Admin", "Owner", "User"],
+    statuses: ["Active", "Banned", "Pending", "Disabled"],
+  },
+};
 
 export function AdminAccountManagementView() {
   const [searchInput, setSearchInput] = useState("");
@@ -34,10 +67,10 @@ export function AdminAccountManagementView() {
   const [status, setStatus] = useState<AdminAccountStatus | "all">("all");
   const [page, setPage] = useState(1);
   const [data, setData] = useState<AdminUsersResponse>(
-    fallbackAdminUsersResponse
+    emptyAdminUsersResponse
   );
   const [isLoading, setIsLoading] = useState(true);
-  const [isFallback, setIsFallback] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [statusUser, setStatusUser] = useState<AdminUser | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -64,12 +97,12 @@ export function AdminAccountManagementView() {
 
         if (!cancelled) {
           setData(response);
-          setIsFallback(false);
+          setLoadError(null);
         }
       } catch {
         if (!cancelled) {
-          setData(fallbackAdminUsersResponse);
-          setIsFallback(true);
+          setData(emptyAdminUsersResponse);
+          setLoadError("管理者APIからアカウント一覧を取得できませんでした。");
         }
       } finally {
         if (!cancelled) {
@@ -101,7 +134,7 @@ export function AdminAccountManagementView() {
       const response = await listAdminUsers(query);
       setData(response);
       setEditingUser(null);
-      setIsFallback(false);
+      setLoadError(null);
       showSuccessToast();
     } catch {
       showErrorToast();
@@ -123,7 +156,24 @@ export function AdminAccountManagementView() {
       const response = await listAdminUsers(query);
       setData(response);
       setStatusUser(null);
-      setIsFallback(false);
+      setLoadError(null);
+      showSuccessToast();
+    } catch {
+      showErrorToast();
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function approvePendingUser(user: AdminUser) {
+    setIsSaving(true);
+
+    try {
+      await approvePendingAdminUser(user.accountId);
+
+      const response = await listAdminUsers(query);
+      setData(response);
+      setLoadError(null);
       showSuccessToast();
     } catch {
       showErrorToast();
@@ -143,9 +193,9 @@ export function AdminAccountManagementView() {
             システム内の管理者、店舗オーナー、ユーザーアカウントを検索し、権限とステータスを管理します。
           </p>
         </div>
-        {isFallback ? (
+        {loadError ? (
           <div className="rounded-[6px] border border-[#f3d5a7] bg-[#fff7ed] px-4 py-3 text-[13px] font-semibold text-[#9a4d00]">
-            API未接続のためサンプルデータを表示しています。
+            {loadError}
           </div>
         ) : null}
       </section>
@@ -191,6 +241,8 @@ export function AdminAccountManagementView() {
           search={searchInput}
           role={role}
           status={status}
+          roleOptions={data.filters.roles}
+          statusOptions={data.filters.statuses}
           isLoading={isLoading}
           onSearchChange={setSearchInput}
           onRoleChange={(value) => {
@@ -209,6 +261,7 @@ export function AdminAccountManagementView() {
             isLoading={isLoading}
             onEdit={setEditingUser}
             onStatusAction={setStatusUser}
+            onApprovePending={approvePendingUser}
           />
           <AdminPagination
             page={data.pagination.page}

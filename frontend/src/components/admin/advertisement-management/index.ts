@@ -1,0 +1,1 @@
+export { AdvertisementManagementPage } from "./AdvertisementManagementPage";

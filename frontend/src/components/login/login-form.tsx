@@ -14,6 +14,7 @@ import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app
 import { isValidEmail } from "@/lib/auth-form-validation";
 import { clearAuthSessionCache } from "@/lib/api/auth/session";
 import { removeSessionCacheByPrefix } from "@/lib/api/cache";
+import { ApiError } from "@/lib/api/client";
 
 export function LoginForm() {
   const router = useRouter();
@@ -42,8 +43,10 @@ export function LoginForm() {
       clearAuthSessionCache();
       removeSessionCacheByPrefix("tabelink:owner:");
       router.replace(getPostLoginRedirectPath(getRedirectPath(), "Guest"));
-    } catch {
-      showErrorToast();
+    } catch (error) {
+      showErrorToast(
+        error instanceof ApiError ? error.message : undefined
+      );
     } finally {
       setIsGuestSubmitting(false);
     }
@@ -71,8 +74,10 @@ export function LoginForm() {
       router.replace(
         getPostLoginRedirectPath(getRedirectPath(), response.account.role),
       );
-    } catch {
-      showErrorToast();
+    } catch (error) {
+      showErrorToast(
+        error instanceof ApiError ? error.message : undefined
+      );
     } finally {
       setIsSubmitting(false);
     }

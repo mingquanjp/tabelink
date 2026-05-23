@@ -14,7 +14,7 @@ export function isGuestAccessiblePath(pathname: string) {
 
 export function getAuthenticatedRedirectPath(role: AuthAccountRole) {
   if (role === "Admin") {
-    return "/admin/badge";
+    return "/admin/accounts";
   }
 
   if (role === "Owner") {
@@ -26,6 +26,10 @@ export function getAuthenticatedRedirectPath(role: AuthAccountRole) {
   }
 
   return "/";
+}
+
+export function canAccessAdminRoutes(role: AuthAccountRole) {
+  return role === "Admin";
 }
 
 export function canAccessOwnerRoutes(role: AuthAccountRole) {

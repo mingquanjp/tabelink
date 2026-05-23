@@ -916,6 +916,7 @@ export class RestaurantsService {
         WHERE RestaurantID = $1
           AND PromotionType = 'Campaign'
           AND Status = 'Active'
+          AND ApprovedByAdminID IS NOT NULL
           AND StartDate <= CURRENT_TIMESTAMP
           AND EndDate >= CURRENT_TIMESTAMP
         ORDER BY EndDate ASC, StartDate DESC, PromotionID DESC

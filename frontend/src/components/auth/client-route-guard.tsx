@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useCallback, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  canAccessAdminRoutes,
   canAccessPathForRole,
   canAccessOwnerRoutes,
   canAccessUserRoutes,
@@ -18,6 +19,10 @@ type ClientRouteGuardProps = {
 
 function isPublicAuthPath(pathname: string) {
   return pathname === "/login" || pathname.startsWith("/register");
+}
+
+function isAdminPath(pathname: string) {
+  return pathname.startsWith("/admin");
 }
 
 function isOwnerPath(pathname: string) {
@@ -77,7 +82,7 @@ export function ClientRouteGuard({ children }: ClientRouteGuardProps) {
       return;
     }
 
-    if (isAdminPath(pathname) && session.account.role !== "Admin") {
+    if (isAdminPath(pathname) && !canAccessAdminRoutes(session.account.role)) {
       router.replace(getAuthenticatedRedirectPath(session.account.role));
       return;
     }

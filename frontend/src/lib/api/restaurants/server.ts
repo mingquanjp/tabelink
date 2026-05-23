@@ -38,3 +38,17 @@ export async function getUserRestaurantDetail(restaurantId: number) {
 
   return normalizeRestaurantDetail(data);
 }
+
+export async function getAdminRestaurantDetail(restaurantId: number) {
+  const cookieHeader = (await cookies()).toString();
+
+  const data = await apiRequest<PublicRestaurantDetailResponse>(
+    `/admin/restaurants/${restaurantId}/detail`,
+    {
+      auth: true,
+      headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+    },
+  );
+
+  return normalizeRestaurantDetail(data);
+}

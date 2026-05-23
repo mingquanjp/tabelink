@@ -21,7 +21,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "アカウント管理", href: "/admin/accounts" },
   { label: "広告管理", href: "/admin/ads" },
-  { label: "バッジ審査", href: "/admin/verifications" },
+  { label: "バッジ審査", href: "/admin/badge" },
 ];
 
 export function AdminHeader() {

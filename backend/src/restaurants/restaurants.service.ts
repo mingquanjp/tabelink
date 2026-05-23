@@ -262,6 +262,35 @@ export class RestaurantsService {
     };
   }
 
+  async getAdminRestaurantDetail(restaurantId: number, user: JwtPayload) {
+    if (user.role !== AuthRole.Admin) {
+      throw new ForbiddenException('Only admins can view this restaurant.');
+    }
+
+    const restaurant = await this.findRestaurantWithRelations(restaurantId);
+
+    const [menu, promotions, reviews, badges] = await Promise.all([
+      this.getOwnerHomeMenu(restaurantId),
+      this.getPublicRestaurantPromotions(restaurantId),
+      this.getOwnerHomeReviews(restaurantId),
+      this.getOwnerHomeBadges(restaurantId),
+    ]);
+
+    return {
+      restaurantId,
+      restaurant: this.toHomeRestaurantResponse(restaurant),
+      menu,
+      promotions,
+      reviews,
+      badges,
+      reviewSubmission: {
+        enabled: false,
+        method: 'POST',
+        endpoint: `/restaurants/${restaurantId}/reviews`,
+      },
+    };
+  }
+
   async update(dto: UpdateRestaurantDto, user: JwtPayload) {
     const existing = await this.assertOwnerRestaurant(user);
     const restaurantId = existing.restaurantId;
@@ -571,6 +600,30 @@ export class RestaurantsService {
 
     if (!restaurant) {
       throw new NotFoundException('Active restaurant was not found.');
+    }
+
+    return restaurant;
+  }
+
+  private async findRestaurantWithRelations(restaurantId: number) {
+    const restaurant = await this.restaurantRepo.findOne({
+      where: { restaurantId },
+      relations: {
+        media: true,
+        socialLinks: true,
+        featureLinks: { feature: true },
+        paymentMethodLinks: { paymentMethod: true },
+      },
+      order: {
+        media: { sortOrder: 'ASC', mediaId: 'ASC' },
+        socialLinks: { sortOrder: 'ASC', socialLinkId: 'ASC' },
+        featureLinks: { featureId: 'ASC' },
+        paymentMethodLinks: { paymentMethodId: 'ASC' },
+      },
+    });
+
+    if (!restaurant) {
+      throw new NotFoundException('Restaurant was not found.');
     }
 
     return restaurant;

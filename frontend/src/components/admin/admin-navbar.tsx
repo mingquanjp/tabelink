@@ -21,7 +21,7 @@ type AdminNavItem = {
 const navItems: AdminNavItem[] = [
   { label: "アカウント管理", href: "/admin/accounts" },
   { label: "広告管理", href: "/admin/advertisements" },
-  { label: "バッジ審査", href: "/admin/badges" },
+  { label: "バッジ審査", href: "/admin/badge" },
 ];
 
 export function AdminNavbar() {
@@ -45,7 +45,7 @@ export function AdminNavbar() {
     <header className="fixed left-0 top-0 z-30 w-full border-b border-[#f1f1ee] bg-[#f9f9f6cc] shadow-[0px_1px_2px_rgba(0,0,0,0.05)] backdrop-blur-[6px]">
       <div className="mx-auto flex h-14 w-full max-w-[1440px] items-center justify-between px-8">
         <Link
-          href="/admin/accounts"
+          href="/admin/badge"
           className="font-brand text-2xl font-bold leading-8 tracking-[-1.2px] text-[#af111c]"
         >
           TABELINK

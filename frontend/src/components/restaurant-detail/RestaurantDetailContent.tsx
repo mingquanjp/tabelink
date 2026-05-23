@@ -18,10 +18,7 @@ import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import { createRestaurantReview } from "@/lib/api/restaurants/API";
 import type { OwnerHomeResponse } from "@/lib/api/owner-home/type";
 import type { PublicRestaurantPromotion } from "@/lib/api/restaurants/type";
-import {
-  getAuthSession,
-  readCachedAuthSession,
-} from "@/lib/api/auth/session";
+import { getAuthSession, readCachedAuthSession } from "@/lib/api/auth/session";
 import type { MeResponse } from "@/lib/api/auth/type";
 import {
   isRealCustomerSession,
@@ -45,6 +42,7 @@ import {
 type RestaurantDetailContentProps = {
   homeData: OwnerHomeResponse;
   canEdit?: boolean;
+  adminReadOnly?: boolean;
   onEdit?: () => void;
 };
 
@@ -80,7 +78,10 @@ function PhotoTile({
       aria-label={alt}
       className={`overflow-hidden rounded bg-cover ${className}`}
       role="img"
-      style={{ backgroundImage: `url(${src})`, backgroundPosition: imagePosition }}
+      style={{
+        backgroundImage: `url(${src})`,
+        backgroundPosition: imagePosition,
+      }}
     />
   );
 }
@@ -160,7 +161,11 @@ function DotScale({
             className="size-1.5 rounded-full"
             style={{
               backgroundColor:
-                level <= value ? color : color === "#af111c" ? "#f0d8da" : "#d8e1d7",
+                level <= value
+                  ? color
+                  : color === "#af111c"
+                    ? "#f0d8da"
+                    : "#d8e1d7",
             }}
           />
         ))}
@@ -183,7 +188,9 @@ function MenuCard({ item }: { item: MenuDisplayItem }) {
         className={`w-[34%] min-w-40 bg-cover bg-center max-md:h-52 max-md:w-full ${item.soldOut ? "opacity-60 grayscale" : ""}`}
         style={{ backgroundImage: `url(${item.image})` }}
       />
-      <div className={`flex flex-1 flex-col justify-between p-6 ${item.soldOut ? "opacity-45 grayscale" : ""}`}>
+      <div
+        className={`flex flex-1 flex-col justify-between p-6 ${item.soldOut ? "opacity-45 grayscale" : ""}`}
+      >
         <div>
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -194,7 +201,9 @@ function MenuCard({ item }: { item: MenuDisplayItem }) {
                 {item.nameVn}
               </p>
             </div>
-            <p className={`shrink-0 text-base font-medium leading-6 font-jp ${item.soldOut ? "text-[#5b403d]/50 line-through" : "text-[#af111c]"}`}>
+            <p
+              className={`shrink-0 text-base font-medium leading-6 font-jp ${item.soldOut ? "text-[#5b403d]/50 line-through" : "text-[#af111c]"}`}
+            >
               {item.price}
             </p>
           </div>
@@ -242,10 +251,12 @@ function MenuSection({
     (category) => category.code === activeCategory,
   )
     ? activeCategory
-    : categories[0]?.code ?? "main";
-  const visibleItems = items.filter(
-    (item) => (item.categoryCode || "uncategorized") === selectedCategory,
-  ).slice(0, 4);
+    : (categories[0]?.code ?? "main");
+  const visibleItems = items
+    .filter(
+      (item) => (item.categoryCode || "uncategorized") === selectedCategory,
+    )
+    .slice(0, 4);
 
   return (
     <section className="mx-auto flex max-w-[1280px] flex-col gap-12 px-8 py-20 max-md:px-4">
@@ -288,11 +299,23 @@ function MenuSection({
   );
 }
 
-function StarRating({ rating, size = "size-3.5" }: { rating: number; size?: string }) {
+function StarRating({
+  rating,
+  size = "size-3.5",
+}: {
+  rating: number;
+  size?: string;
+}) {
   return (
-    <div className="flex items-center gap-0.5 text-[#f5a400]" aria-label={`${rating} out of 5 stars`}>
+    <div
+      className="flex items-center gap-0.5 text-[#f5a400]"
+      aria-label={`${rating} out of 5 stars`}
+    >
       {[1, 2, 3, 4, 5].map((score) => (
-        <Star key={score} className={`${size} ${score <= rating ? "fill-current" : ""}`} />
+        <Star
+          key={score}
+          className={`${size} ${score <= rating ? "fill-current" : ""}`}
+        />
       ))}
     </div>
   );
@@ -302,7 +325,9 @@ function ReviewCard({ review }: { review: ReviewDisplayItem }) {
   return (
     <article className="flex min-h-[240px] flex-col rounded-lg border border-[#e4beba1a] bg-white p-8 shadow-[0_1px_1px_rgba(0,0,0,0.05)]">
       <div className="flex items-start">
-        <div className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-base font-medium font-jp ${review.avatarClass}`}>
+        <div
+          className={`flex size-10 shrink-0 items-center justify-center rounded-xl text-base font-medium font-jp ${review.avatarClass}`}
+        >
           {review.initial}
         </div>
         <div className="min-w-0 pl-3">
@@ -310,7 +335,9 @@ function ReviewCard({ review }: { review: ReviewDisplayItem }) {
             <h3 className="text-sm font-medium leading-5 text-[#1a1c1b] font-jp">
               {review.name}
             </h3>
-            <span className={`rounded-sm border px-2 py-0.5 text-[10px] font-medium leading-[15px] font-jp ${review.typeClass}`}>
+            <span
+              className={`rounded-sm border px-2 py-0.5 text-[10px] font-medium leading-[15px] font-jp ${review.typeClass}`}
+            >
               {review.type}
             </span>
           </div>
@@ -647,6 +674,7 @@ function CommentComposer({ restaurantId }: { restaurantId: number }) {
 export function RestaurantDetailContent({
   homeData,
   canEdit = false,
+  adminReadOnly = false,
   onEdit,
 }: RestaurantDetailContentProps) {
   const router = useRouter();
@@ -656,9 +684,7 @@ export function RestaurantDetailContent({
     [restaurant],
   );
   const displayGalleryImages =
-    galleryImages.length > 0
-      ? galleryImages
-      : fallbackGalleryImages;
+    galleryImages.length > 0 ? galleryImages : fallbackGalleryImages;
   const dynamicInfoItems = useMemo(() => buildInfoItems(homeData), [homeData]);
   const dynamicFeatures = useMemo(() => buildFeatures(homeData), [homeData]);
   const dynamicMenuItems = useMemo(
@@ -673,10 +699,12 @@ export function RestaurantDetailContent({
     () => toReviewDisplayItems(homeData.reviews.items ?? []),
     [homeData],
   );
-  const promotionItems = homeData.promotions.items as PublicRestaurantPromotion[];
+  const promotionItems = homeData.promotions
+    .items as PublicRestaurantPromotion[];
   const restaurantName = restaurant.nameVn || restaurant.nameJp || "Restaurant";
   const googleMapsUrl = buildGoogleMapsUrl(restaurant);
   const googleMapsEmbedUrl = buildGoogleMapsEmbedUrl(restaurant);
+  const showCustomerActions = !canEdit && !adminReadOnly;
 
   return (
     <main className="min-h-screen bg-[#f9f9f6] pb-12">
@@ -739,7 +767,7 @@ export function RestaurantDetailContent({
                 <PencilLine className="size-3.5" />
                 店舗情報を編集
               </button>
-            ) : (
+            ) : showCustomerActions ? (
               <Link
                 href={`/user/reservations?restaurantId=${homeData.restaurantId}`}
                 onClick={async (event) => {
@@ -759,7 +787,7 @@ export function RestaurantDetailContent({
                 <CalendarCheck className="size-5" />
                 定型文で日本語予約 (Booking)
               </Link>
-            )}
+            ) : null}
           </div>
 
           <div className="relative min-h-[280px] overflow-hidden rounded-lg border border-[#e4beba33] bg-[#e8e8e5] shadow-inner max-lg:min-h-[260px]">
@@ -815,13 +843,18 @@ export function RestaurantDetailContent({
         </div>
       </section>
 
-      {!canEdit ? <OffersSection offers={promotionItems} /> : null}
-      <MenuSection categories={dynamicMenuCategories} items={dynamicMenuItems} />
+      {showCustomerActions ? <OffersSection offers={promotionItems} /> : null}
+      <MenuSection
+        categories={dynamicMenuCategories}
+        items={dynamicMenuItems}
+      />
       <CommunityReviewsSection
         items={dynamicReviews}
         summary={homeData.reviews.summary}
       />
-      {!canEdit ? <CommentComposer restaurantId={homeData.restaurantId} /> : null}
+      {showCustomerActions ? (
+        <CommentComposer restaurantId={homeData.restaurantId} />
+      ) : null}
     </main>
   );
 }

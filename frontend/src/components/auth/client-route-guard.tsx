@@ -29,10 +29,6 @@ function isOwnerPath(pathname: string) {
   return pathname.startsWith("/owner");
 }
 
-function isAdminPath(pathname: string) {
-  return pathname.startsWith("/admin");
-}
-
 function isUserPath(pathname: string) {
   return pathname.startsWith("/user");
 }

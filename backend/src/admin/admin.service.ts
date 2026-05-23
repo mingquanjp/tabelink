@@ -14,8 +14,10 @@ import { OwnerProfile } from '../auth/entities/owner-profile.entity';
 import { UserAccount } from '../auth/entities/user-account.entity';
 import { ADMIN_ACCOUNT_STATUSES } from './admin.constants';
 import { AdminUserActionDto } from './dto/admin-user-action.dto';
+import { AdminVerificationActionDto } from './dto/admin-verification-action.dto';
 import { ChangeUserRoleDto } from './dto/change-user-role.dto';
 import { ListAdminActionLogsQueryDto } from './dto/list-admin-action-logs-query.dto';
+import { ListAdminVerificationApplicationsQueryDto } from './dto/list-admin-verification-applications-query.dto';
 import { ListAdminUsersQueryDto } from './dto/list-admin-users-query.dto';
 import { UpdateAdminUserDto } from './dto/update-admin-user.dto';
 import {
@@ -26,6 +28,58 @@ import {
 interface CountRow {
   key: string;
   count: number | string;
+}
+
+interface TotalCountRow {
+  totalItems: number | string;
+}
+
+interface AdminVerificationCountsRow {
+  allCount: number | string;
+  pendingCount: number | string;
+  approvedCount: number | string;
+  rejectedCount: number | string;
+}
+
+interface AdminVerificationApplicationRow {
+  appId: number | string;
+  restaurantId: number | string;
+  badgeId: number | string;
+  submittedByOwnerAccountId: number | string;
+  reviewedByAdminId: number | string | null;
+  businessLicenseUrl: string | null;
+  foodSafetyCertUrl: string | null;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  submittedAt: Date | string;
+  reviewedAt: Date | string | null;
+  reviewNote: string | null;
+  badgeCode: string | null;
+  badgeNameVn: string | null;
+  badgeNameJp: string | null;
+  nameVn: string;
+  nameJp: string;
+  address: string;
+  issuesVat: boolean;
+  thumbnailUrl: string | null;
+  mainImageUrl: string | null;
+  ratingAverage: number | string | null;
+  reviewCount: number | string;
+  hasActiveBadge: boolean;
+  evidencePhotos: string[] | string | null;
+}
+
+interface AdminVerificationDocumentRow {
+  businessLicenseUrl: string | null;
+  businessLicensePublicId: string | null;
+  foodSafetyCertUrl: string | null;
+  foodSafetyCertPublicId: string | null;
+}
+
+interface VerificationApplicationLockRow {
+  appId: number | string;
+  restaurantId: number | string;
+  badgeId: number | string;
+  status: 'Pending' | 'Approved' | 'Rejected';
 }
 
 @Injectable()
@@ -296,6 +350,349 @@ export class AdminService {
     };
   }
 
+  async listVerificationApplications(
+    query: ListAdminVerificationApplicationsQueryDto,
+    admin: JwtPayload,
+  ) {
+    this.assertAdmin(admin);
+
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 24;
+    const offset = (page - 1) * limit;
+    const params: Array<string | number> = [];
+    const whereClauses: string[] = [];
+
+    if (query.status && query.status !== 'all') {
+      params.push(query.status);
+      whereClauses.push(`ba.Status = $${params.length}`);
+    }
+
+    const whereSql = whereClauses.length
+      ? `WHERE ${whereClauses.join(' AND ')}`
+      : '';
+
+    const [countRows, statusRows] = await Promise.all([
+      this.dataSource.query<TotalCountRow[]>(
+        `
+          SELECT COUNT(*) AS "totalItems"
+          FROM BADGE_APPLICATION ba
+          ${whereSql}
+        `,
+        params,
+      ),
+      this.dataSource.query<AdminVerificationCountsRow[]>(
+        `
+          SELECT
+            COUNT(*) AS "allCount",
+            COUNT(*) FILTER (WHERE Status = 'Pending') AS "pendingCount",
+            COUNT(*) FILTER (WHERE Status = 'Approved') AS "approvedCount",
+            COUNT(*) FILTER (WHERE Status = 'Rejected') AS "rejectedCount"
+          FROM BADGE_APPLICATION
+        `,
+      ),
+    ]);
+
+    const totalItems = Number(countRows[0]?.totalItems ?? 0);
+    const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+    const rows = await this.dataSource.query<AdminVerificationApplicationRow[]>(
+      `
+        ${this.adminVerificationApplicationSelectSql()}
+        ${whereSql}
+        ORDER BY
+          CASE ba.Status
+            WHEN 'Pending' THEN 1
+            WHEN 'Approved' THEN 2
+            WHEN 'Rejected' THEN 3
+            ELSE 4
+          END,
+          ba.SubmittedAt DESC,
+          ba.AppID DESC
+        LIMIT $${params.length + 1}
+        OFFSET $${params.length + 2}
+      `,
+      [...params, limit, offset],
+    );
+
+    const counts = statusRows[0] ?? {
+      allCount: 0,
+      pendingCount: 0,
+      approvedCount: 0,
+      rejectedCount: 0,
+    };
+
+    return {
+      items: rows.map((row) => this.toAdminVerificationApplication(row)),
+      pagination: {
+        page,
+        limit,
+        totalItems,
+        totalPages,
+      },
+      counts: {
+        all: Number(counts.allCount),
+        pending: Number(counts.pendingCount),
+        approved: Number(counts.approvedCount),
+        rejected: Number(counts.rejectedCount),
+      },
+    };
+  }
+
+  async getVerificationApplication(appId: number, admin: JwtPayload) {
+    this.assertAdmin(admin);
+
+    const row = await this.findVerificationApplicationRow(appId);
+    return this.toAdminVerificationApplication(row);
+  }
+
+  async getVerificationDocument(
+    appId: number,
+    documentType: 'business-license' | 'food-safety-certificate',
+    admin: JwtPayload,
+  ) {
+    this.assertAdmin(admin);
+
+    const rows = await this.dataSource.query<AdminVerificationDocumentRow[]>(
+      `
+        SELECT
+          BusinessLicenseURL AS "businessLicenseUrl",
+          BusinessLicensePublicID AS "businessLicensePublicId",
+          FoodSafetyCertURL AS "foodSafetyCertUrl",
+          FoodSafetyCertPublicID AS "foodSafetyCertPublicId"
+        FROM BADGE_APPLICATION
+        WHERE AppID = $1
+      `,
+      [appId],
+    );
+    const row = rows[0];
+
+    if (!row) {
+      throw new NotFoundException('Badge application was not found.');
+    }
+
+    const sourceUrl =
+      documentType === 'business-license'
+        ? row.businessLicenseUrl
+        : row.foodSafetyCertUrl;
+    const publicId =
+      documentType === 'business-license'
+        ? row.businessLicensePublicId
+        : row.foodSafetyCertPublicId;
+
+    if (!sourceUrl) {
+      throw new NotFoundException('Verification document was not found.');
+    }
+
+    return {
+      fileName:
+        documentType === 'business-license'
+          ? 'business-license'
+          : 'food-safety-certificate',
+      contentType: this.inferVerificationDocumentContentType(
+        sourceUrl,
+        publicId,
+      ),
+      urls: this.toVerificationDocumentUrlCandidates(sourceUrl, publicId),
+    };
+  }
+
+  async approveVerificationApplication(
+    appId: number,
+    dto: AdminVerificationActionDto,
+    admin: JwtPayload,
+  ) {
+    this.assertAdmin(admin);
+
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.findVerificationApplicationForUpdate(
+        manager,
+        appId,
+      );
+
+      if (current.status !== 'Pending') {
+        throw new BadRequestException(
+          'Only pending badge applications can be approved.',
+        );
+      }
+
+      await manager.query(
+        `
+          UPDATE BADGE_APPLICATION
+          SET
+            Status = 'Approved',
+            ReviewedByAdminID = $2,
+            ReviewedAt = CURRENT_TIMESTAMP,
+            ReviewNote = $3
+          WHERE AppID = $1
+        `,
+        [appId, admin.sub, this.optionalTrim(dto.reason) ?? null],
+      );
+
+      await manager.query(
+        `
+          INSERT INTO RESTAURANT_BADGE (
+            RestaurantID,
+            BadgeID,
+            GrantedByAdminID,
+            GrantedAt,
+            ExpiresAt
+          )
+          VALUES ($1, $2, $3, CURRENT_TIMESTAMP, NULL)
+          ON CONFLICT (RestaurantID, BadgeID)
+          DO UPDATE SET
+            GrantedByAdminID = EXCLUDED.GrantedByAdminID,
+            GrantedAt = CURRENT_TIMESTAMP,
+            ExpiresAt = NULL
+        `,
+        [current.restaurantId, current.badgeId, admin.sub],
+      );
+
+      await this.insertBadgeModerationLog(
+        manager,
+        admin.sub,
+        appId,
+        'Approve',
+        this.optionalTrim(dto.reason) ?? null,
+      );
+    });
+
+    return this.getVerificationApplication(appId, admin);
+  }
+
+  async rejectVerificationApplication(
+    appId: number,
+    dto: AdminVerificationActionDto,
+    admin: JwtPayload,
+  ) {
+    this.assertAdmin(admin);
+    const reason = this.requiredTrim(dto.reason ?? '', 'rejection reason');
+
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.findVerificationApplicationForUpdate(
+        manager,
+        appId,
+      );
+
+      if (current.status !== 'Pending') {
+        throw new BadRequestException(
+          'Only pending badge applications can be rejected.',
+        );
+      }
+
+      await manager.query(
+        `
+          UPDATE BADGE_APPLICATION
+          SET
+            Status = 'Rejected',
+            ReviewedByAdminID = $2,
+            ReviewedAt = CURRENT_TIMESTAMP,
+            ReviewNote = $3
+          WHERE AppID = $1
+        `,
+        [appId, admin.sub, reason],
+      );
+
+      await this.insertBadgeModerationLog(
+        manager,
+        admin.sub,
+        appId,
+        'Reject',
+        reason,
+      );
+    });
+
+    return this.getVerificationApplication(appId, admin);
+  }
+
+  async requestVerificationInformation(
+    appId: number,
+    dto: AdminVerificationActionDto,
+    admin: JwtPayload,
+  ) {
+    this.assertAdmin(admin);
+    const reason = this.requiredTrim(dto.reason ?? '', 'message');
+
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.findVerificationApplicationForUpdate(
+        manager,
+        appId,
+      );
+
+      if (current.status !== 'Pending') {
+        throw new BadRequestException(
+          'Only pending badge applications can request additional information.',
+        );
+      }
+
+      await manager.query(
+        `
+          UPDATE BADGE_APPLICATION
+          SET
+            ReviewedByAdminID = $2,
+            ReviewedAt = CURRENT_TIMESTAMP,
+            ReviewNote = $3
+          WHERE AppID = $1
+        `,
+        [appId, admin.sub, reason],
+      );
+    });
+
+    return this.getVerificationApplication(appId, admin);
+  }
+
+  async revokeVerificationBadge(
+    appId: number,
+    dto: AdminVerificationActionDto,
+    admin: JwtPayload,
+  ) {
+    this.assertAdmin(admin);
+    const reason = this.requiredTrim(dto.reason ?? '', 'revoke reason');
+
+    await this.dataSource.transaction(async (manager) => {
+      const current = await this.findVerificationApplicationForUpdate(
+        manager,
+        appId,
+      );
+
+      if (current.status !== 'Approved') {
+        throw new BadRequestException(
+          'Only approved badge applications can be revoked.',
+        );
+      }
+
+      await manager.query(
+        `
+          DELETE FROM RESTAURANT_BADGE
+          WHERE RestaurantID = $1
+            AND BadgeID = $2
+        `,
+        [current.restaurantId, current.badgeId],
+      );
+
+      await manager.query(
+        `
+          UPDATE BADGE_APPLICATION
+          SET
+            Status = 'Rejected',
+            ReviewedByAdminID = $2,
+            ReviewedAt = CURRENT_TIMESTAMP,
+            ReviewNote = $3
+          WHERE AppID = $1
+        `,
+        [appId, admin.sub, `Badge revoked: ${reason}`],
+      );
+
+      await this.insertBadgeModerationLog(
+        manager,
+        admin.sub,
+        appId,
+        'Delete',
+        reason,
+      );
+    });
+
+    return this.getVerificationApplication(appId, admin);
+  }
+
   private async setStatusWithReason(
     accountId: number,
     status: AccountStatus,
@@ -434,6 +831,276 @@ export class AdminService {
     ) {
       throw new BadRequestException('Admins cannot ban or disable themselves.');
     }
+  }
+
+  private adminVerificationApplicationSelectSql() {
+    return `
+      SELECT
+        ba.AppID AS "appId",
+        ba.RestaurantID AS "restaurantId",
+        ba.BadgeID AS "badgeId",
+        ba.SubmittedByOwnerAccountID AS "submittedByOwnerAccountId",
+        ba.ReviewedByAdminID AS "reviewedByAdminId",
+        ba.BusinessLicenseURL AS "businessLicenseUrl",
+        ba.FoodSafetyCertURL AS "foodSafetyCertUrl",
+        ba.Status AS "status",
+        ba.SubmittedAt AS "submittedAt",
+        ba.ReviewedAt AS "reviewedAt",
+        ba.ReviewNote AS "reviewNote",
+        bm.BadgeCode AS "badgeCode",
+        bm.BadgeNameVN AS "badgeNameVn",
+        bm.BadgeNameJP AS "badgeNameJp",
+        r.NameVN AS "nameVn",
+        r.NameJP AS "nameJp",
+        r.Address AS "address",
+        r.IssuesVAT AS "issuesVat",
+        (
+          SELECT rm.MediaURL
+          FROM RESTAURANT_MEDIA rm
+          WHERE rm.RestaurantID = r.RestaurantID
+          ORDER BY
+            CASE rm.MediaType
+              WHEN 'Cover' THEN 0
+              WHEN 'Photo' THEN 1
+              ELSE 2
+            END,
+            rm.SortOrder ASC,
+            rm.MediaID ASC
+          LIMIT 1
+        ) AS "thumbnailUrl",
+        (
+          SELECT rm.MediaURL
+          FROM RESTAURANT_MEDIA rm
+          WHERE rm.RestaurantID = r.RestaurantID
+          ORDER BY
+            CASE rm.MediaType
+              WHEN 'Cover' THEN 0
+              WHEN 'Photo' THEN 1
+              ELSE 2
+            END,
+            rm.SortOrder ASC,
+            rm.MediaID ASC
+          LIMIT 1
+        ) AS "mainImageUrl",
+        (
+          SELECT ROUND(AVG(rv.Rating)::numeric, 1)
+          FROM REVIEW rv
+          WHERE rv.RestaurantID = r.RestaurantID
+            AND rv.Status = 'Visible'
+        ) AS "ratingAverage",
+        (
+          SELECT COUNT(*)::int
+          FROM REVIEW rv
+          WHERE rv.RestaurantID = r.RestaurantID
+            AND rv.Status = 'Visible'
+        ) AS "reviewCount",
+        EXISTS (
+          SELECT 1
+          FROM RESTAURANT_BADGE rb
+          WHERE rb.RestaurantID = ba.RestaurantID
+            AND rb.BadgeID = ba.BadgeID
+            AND (rb.ExpiresAt IS NULL OR rb.ExpiresAt > CURRENT_TIMESTAMP)
+        ) AS "hasActiveBadge",
+        COALESCE(
+          (
+            SELECT json_agg(photo.MediaURL ORDER BY photo.SortOrder, photo.MediaID)
+            FROM (
+              SELECT rm.MediaURL, rm.SortOrder, rm.MediaID
+              FROM RESTAURANT_MEDIA rm
+              WHERE rm.RestaurantID = r.RestaurantID
+              ORDER BY
+                CASE rm.MediaType
+                  WHEN 'Photo' THEN 0
+                  WHEN 'Cover' THEN 1
+                  ELSE 2
+                END,
+                rm.SortOrder ASC,
+                rm.MediaID ASC
+              LIMIT 2
+            ) photo
+          ),
+          '[]'::json
+        ) AS "evidencePhotos"
+      FROM BADGE_APPLICATION ba
+      INNER JOIN RESTAURANT r
+        ON r.RestaurantID = ba.RestaurantID
+      LEFT JOIN BADGE_MASTER bm
+        ON bm.BadgeID = ba.BadgeID
+    `;
+  }
+
+  private async findVerificationApplicationRow(appId: number) {
+    const rows = await this.dataSource.query<AdminVerificationApplicationRow[]>(
+      `
+        ${this.adminVerificationApplicationSelectSql()}
+        WHERE ba.AppID = $1
+      `,
+      [appId],
+    );
+
+    const row = rows[0];
+
+    if (!row) {
+      throw new NotFoundException('Badge application was not found.');
+    }
+
+    return row;
+  }
+
+  private async findVerificationApplicationForUpdate(
+    manager: EntityManager,
+    appId: number,
+  ) {
+    const rows = await manager.query<VerificationApplicationLockRow[]>(
+      `
+        SELECT
+          AppID AS "appId",
+          RestaurantID AS "restaurantId",
+          BadgeID AS "badgeId",
+          Status AS "status"
+        FROM BADGE_APPLICATION
+        WHERE AppID = $1
+        FOR UPDATE
+      `,
+      [appId],
+    );
+
+    const row = rows[0];
+
+    if (!row) {
+      throw new NotFoundException('Badge application was not found.');
+    }
+
+    return row;
+  }
+
+  private async insertBadgeModerationLog(
+    manager: EntityManager,
+    adminAccountId: number,
+    appId: number,
+    actionType: 'Approve' | 'Reject' | 'Delete',
+    reason: string | null,
+  ) {
+    await manager.query(
+      `
+        INSERT INTO MODERATION_LOG (
+          AdminAccountID,
+          TargetType,
+          TargetID,
+          ActionType,
+          Reason
+        )
+        VALUES ($1, 'BadgeApplication', $2, $3, $4)
+      `,
+      [adminAccountId, appId, actionType, reason],
+    );
+  }
+
+  private toAdminVerificationApplication(row: AdminVerificationApplicationRow) {
+    const evidencePhotos =
+      typeof row.evidencePhotos === 'string'
+        ? (JSON.parse(row.evidencePhotos) as string[])
+        : (row.evidencePhotos ?? []);
+
+    return {
+      appId: Number(row.appId),
+      restaurantId: Number(row.restaurantId),
+      badgeId: Number(row.badgeId),
+      status: row.status,
+      submittedAt: row.submittedAt,
+      reviewedAt: row.reviewedAt,
+      reviewNote: row.reviewNote,
+      submittedByOwnerAccountId: Number(row.submittedByOwnerAccountId),
+      reviewedByAdminId:
+        row.reviewedByAdminId === null ? null : Number(row.reviewedByAdminId),
+      badge: {
+        badgeId: Number(row.badgeId),
+        badgeCode: row.badgeCode,
+        badgeNameVn: row.badgeNameVn,
+        badgeNameJp: row.badgeNameJp,
+      },
+      restaurant: {
+        restaurantId: Number(row.restaurantId),
+        nameVn: row.nameVn,
+        nameJp: row.nameJp,
+        address: row.address,
+        areaLabel: this.toAreaLabel(row.address),
+        issuesVat: row.issuesVat,
+        thumbnailUrl: row.thumbnailUrl,
+        mainImageUrl: row.mainImageUrl,
+        publicUrl: `/user/restaurants/${row.restaurantId}`,
+        ratingAverage:
+          row.ratingAverage === null ? null : Number(row.ratingAverage),
+        reviewCount: Number(row.reviewCount ?? 0),
+      },
+      documents: {
+        businessLicenseUrl: row.businessLicenseUrl,
+        businessLicenseViewUrl: `/admin/verification/applications/${row.appId}/documents/business-license`,
+        foodSafetyCertUrl: row.foodSafetyCertUrl,
+        foodSafetyCertViewUrl: `/admin/verification/applications/${row.appId}/documents/food-safety-certificate`,
+      },
+      evidencePhotos,
+      details: {
+        hasJapaneseStaff: true,
+        canIssueVatInvoice: row.issuesVat,
+      },
+      hasActiveBadge: row.hasActiveBadge,
+    };
+  }
+
+  private toAreaLabel(address: string) {
+    return address
+      .split(',')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('・');
+  }
+
+  private toVerificationDocumentUrlCandidates(
+    sourceUrl: string,
+    publicId: string | null,
+  ) {
+    const candidates = [sourceUrl];
+
+    if (/\/image\/upload\//.test(sourceUrl) && /\.pdf($|\?)/i.test(sourceUrl)) {
+      candidates.unshift(sourceUrl.replace('/image/upload/', '/raw/upload/'));
+    }
+
+    if (/\/raw\/upload\//.test(sourceUrl) && /\.pdf($|\?)/i.test(sourceUrl)) {
+      candidates.push(sourceUrl.replace('/raw/upload/', '/image/upload/'));
+    }
+
+    if (
+      publicId &&
+      /\.pdf$/i.test(publicId) &&
+      /\/image\/upload\//.test(sourceUrl)
+    ) {
+      candidates.unshift(sourceUrl.replace('/image/upload/', '/raw/upload/'));
+    }
+
+    return [...new Set(candidates)];
+  }
+
+  private inferVerificationDocumentContentType(
+    sourceUrl: string,
+    publicId: string | null,
+  ) {
+    const value = `${sourceUrl} ${publicId ?? ''}`.toLowerCase();
+
+    if (value.includes('.pdf')) {
+      return 'application/pdf';
+    }
+
+    if (value.includes('.png')) {
+      return 'image/png';
+    }
+
+    if (value.includes('.jpg') || value.includes('.jpeg')) {
+      return 'image/jpeg';
+    }
+
+    return 'application/octet-stream';
   }
 
   private toCountMap<T extends string>(rows: CountRow[], keys: readonly T[]) {

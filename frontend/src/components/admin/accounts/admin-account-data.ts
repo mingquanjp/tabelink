@@ -22,16 +22,16 @@ export const adminStatusOptions: Array<AdminAccountStatus | "all"> = [
 
 export const roleLabels: Record<AdminUserRole | "all", string> = {
   all: "すべて",
-  Admin: "ADMIN",
-  Owner: "OWNER",
-  User: "USER",
+  Admin: "管理者",
+  Owner: "店舗オーナー",
+  User: "ユーザー",
 };
 
 export const statusLabels: Record<AdminAccountStatus | "all", string> = {
   all: "すべて",
-  Active: "Active",
-  Banned: "Banned",
-  Disabled: "Disabled",
+  Active: "有効",
+  Banned: "停止中",
+  Disabled: "無効",
 };
 
 const fallbackUsers: AdminUser[] = [

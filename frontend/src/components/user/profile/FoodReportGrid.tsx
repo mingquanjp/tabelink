@@ -177,7 +177,7 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
               else await followUserHomeReviewer(accountId);
               onFollowToggle();
             } catch {
-              alert("Follow operation failed");
+              alert("フォロー操作に失敗しました。");
             } finally {
               setIsFollowLoading(false);
             }

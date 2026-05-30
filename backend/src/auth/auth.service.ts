@@ -371,10 +371,14 @@ export class AuthService {
     const reason = latestLog?.reason?.trim();
 
     if (reason) {
-      return `Account is ${account.status}. Reason: ${reason}`;
+      return account.status === AccountStatus.Banned
+        ? `このアカウントは停止されています。理由: ${reason}`
+        : `このアカウントは無効化されています。理由: ${reason}`;
     }
 
-    return `Account is ${account.status}.`;
+    return account.status === AccountStatus.Banned
+      ? 'このアカウントは停止されています。'
+      : 'このアカウントは無効化されています。';
   }
 
   private async getRestaurantContext(

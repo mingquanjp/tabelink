@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { AdminPagination } from "@/components/admin/accounts/AdminPagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type {
@@ -90,10 +91,6 @@ export function AdvertisementRequestsTable({
   onQueryChange,
   onReject,
 }: AdvertisementRequestsTableProps) {
-  const pageStart =
-    pagination.totalItems === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
-  const pageEnd = Math.min(pagination.page * pagination.limit, pagination.totalItems);
-
   return (
     <section className="overflow-hidden rounded-lg bg-white pt-2 shadow-[0px_1px_2px_rgba(0,0,0,0.05)]">
       <div className="flex flex-col gap-4 border-b border-[#e2e3e0] px-6 pb-[25px] pt-6 md:flex-row md:items-center md:justify-between md:px-8">
@@ -117,10 +114,16 @@ export function AdvertisementRequestsTable({
         <table className="w-full min-w-[980px] border-collapse">
           <thead className="bg-[#f4f4f1]">
             <tr className="font-jp text-xs font-medium uppercase leading-4 tracking-[0.6px] text-[#5a6053]">
-              <th className="w-[420px] px-8 py-4 text-left">レストラン / 広告内容</th>
+              <th className="w-[420px] px-8 py-4 text-left">
+                レストラン / 広告内容
+              </th>
               <th className="w-[218px] px-6 py-4 text-left">掲載期間</th>
-              <th className="w-[172px] px-6 py-4 text-left">パフォーマンス</th>
-              <th className="w-[124px] px-6 py-4 text-center">ステータス</th>
+              <th className="w-[172px] px-6 py-4 text-left">
+                パフォーマンス
+              </th>
+              <th className="w-[124px] px-6 py-4 text-center">
+                ステータス
+              </th>
               <th className="w-[202px] px-8 py-4 text-right">アクション</th>
             </tr>
           </thead>
@@ -156,102 +159,113 @@ export function AdvertisementRequestsTable({
                   </tr>
                 ))
               : items.map((request) => (
-              <tr key={request.promotionId} className="border-t border-[#e2e3e0] first:border-t-0">
-                <td className="px-8 py-[18px]">
-                  <div className="flex min-w-0 items-center">
-                    <div className="h-12 w-16 shrink-0 overflow-hidden rounded">
-                      {request.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt=""
-                          src={request.imageUrl}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full w-full bg-[#e7dfd3]" />
-                      )}
-                    </div>
-                    <div className="min-w-0 pl-4">
-                      <p className="truncate font-jp text-base font-medium leading-[22px] text-[#1a1c1b]">
-                        {getRestaurantName(request)}
-                      </p>
-                      <p className="mt-1 truncate font-jp text-xs font-medium leading-4 text-[#5a6053]">
-                        {request.displayTitle}
-                      </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-[18px]">
-                  <p className="font-manrope text-sm font-normal leading-5 text-[#1a1c1b]">
-                    {formatPeriod(request.startDate, request.endDate)}
-                  </p>
-                  <p
-                    className={`mt-1 font-jp text-xs font-medium leading-4 ${
-                      request.displayStatus === "配信中"
-                        ? "text-[#3d5f46]"
-                        : "text-[#5a6053]"
-                    }`}
+                  <tr
+                    key={request.promotionId}
+                    className="border-t border-[#e2e3e0] first:border-t-0"
                   >
-                    {request.periodLabel}
-                  </p>
-                </td>
-                <td className="px-6 py-[18px]">
-                  <div className="flex gap-6">
-                    <div>
-                      <p className="font-manrope text-xs font-normal leading-4 text-[#5a6053]">
-                        Imp
-                      </p>
-                      <p className="mt-1 font-jp text-sm font-medium leading-5 text-[#1a1c1b]">
-                        {formatImpressions(request.impressions)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="font-manrope text-xs font-normal leading-4 text-[#5a6053]">
-                        CTR
+                    <td className="px-8 py-[18px]">
+                      <div className="flex min-w-0 items-center">
+                        <div className="h-12 w-16 shrink-0 overflow-hidden rounded">
+                          {request.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              alt=""
+                              src={request.imageUrl}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-[#e7dfd3]" />
+                          )}
+                        </div>
+                        <div className="min-w-0 pl-4">
+                          <p className="truncate font-jp text-base font-medium leading-[22px] text-[#1a1c1b]">
+                            {getRestaurantName(request)}
+                          </p>
+                          <p className="mt-1 truncate font-jp text-xs font-medium leading-4 text-[#5a6053]">
+                            {request.displayTitle}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-[18px]">
+                      <p className="font-manrope text-sm font-normal leading-5 text-[#1a1c1b]">
+                        {formatPeriod(request.startDate, request.endDate)}
                       </p>
                       <p
-                        className={`mt-1 font-jp text-sm font-medium leading-5 ${
+                        className={`mt-1 font-jp text-xs font-medium leading-4 ${
                           request.displayStatus === "配信中"
                             ? "text-[#3d5f46]"
-                            : "text-[#1a1c1b]"
+                            : "text-[#5a6053]"
                         }`}
                       >
-                        {formatCtr(request.ctr)}
+                        {request.periodLabel}
                       </p>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-[18px] text-center">
-                  <StatusBadge status={request.displayStatus} />
-                </td>
-                <td className="px-8 py-[18px]">
-                  <div className="flex justify-end gap-2">
-                    {request.status === "Pending" ? (
-                      <Button
-                        type="button"
-                        className="h-9 rounded bg-[#af111c] px-4 font-jp text-xs font-medium text-white hover:bg-[#960e18]"
-                        onClick={() => onApprove(request)}
-                      >
-                        承認
-                      </Button>
-                    ) : null}
-                    {request.status === "Pending" ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="h-9 rounded border-[#e4beba] px-4 font-jp text-xs font-medium text-[#5a6053] hover:bg-[#af111c0d] hover:text-[#5a6053]"
-                        onClick={() => onReject(request)}
-                      >
-                        却下
-                      </Button>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ))}
+                    </td>
+                    <td className="px-6 py-[18px]">
+                      <div className="flex gap-6">
+                        <div>
+                          <p className="font-manrope text-xs font-normal leading-4 text-[#5a6053]">
+                            Imp
+                          </p>
+                          <p className="mt-1 font-jp text-sm font-medium leading-5 text-[#1a1c1b]">
+                            {formatImpressions(request.impressions)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-manrope text-xs font-normal leading-4 text-[#5a6053]">
+                            CTR
+                          </p>
+                          <p
+                            className={`mt-1 font-jp text-sm font-medium leading-5 ${
+                              request.displayStatus === "配信中"
+                                ? "text-[#3d5f46]"
+                                : "text-[#1a1c1b]"
+                            }`}
+                          >
+                            {formatCtr(request.ctr)}
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-[18px] text-center">
+                      <StatusBadge status={request.displayStatus} />
+                    </td>
+                    <td className="px-8 py-[18px]">
+                      <div className="flex justify-end gap-2">
+                        {request.status === "Pending" ? (
+                          <Button
+                            type="button"
+                            className="h-9 rounded bg-[#af111c] px-4 font-jp text-xs font-medium text-white hover:bg-[#960e18]"
+                            onClick={() => onApprove(request)}
+                          >
+                            承認
+                          </Button>
+                        ) : null}
+                        {request.status === "Pending" ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="h-9 rounded border-[#e4beba] px-4 font-jp text-xs font-medium text-[#5a6053] hover:bg-[#af111c0d] hover:text-[#5a6053]"
+                            onClick={() => onReject(request)}
+                          >
+                            却下
+                          </Button>
+                        ) : null}
+                        {request.status !== "Pending" ? (
+                          <span className="inline-flex h-9 items-center justify-center rounded px-4 font-jp text-xs font-medium text-[#8a8d85]">
+                            対応不要
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             {!isLoading && items.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-8 py-10 text-center font-jp text-sm text-[#5a6053]">
+                <td
+                  colSpan={5}
+                  className="px-8 py-10 text-center font-jp text-sm text-[#5a6053]"
+                >
                   条件に一致する広告掲載リクエストはありません。
                 </td>
               </tr>
@@ -260,40 +274,14 @@ export function AdvertisementRequestsTable({
         </table>
       </div>
 
-      <div className="flex items-center justify-between border-t border-[#e2e3e0] bg-[rgba(244,244,241,0.3)] px-8 pb-4 pt-[17px]">
-        <p className="font-manrope text-xs font-normal leading-4 text-[#5a6053]">
-          全 {pagination.totalItems} 件中 {pageStart}-{pageEnd} 件を表示
-        </p>
-        <div className="flex items-center gap-4">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            disabled={pagination.page === 1 || isLoading}
-            className="rounded-md text-[#1a1c1b] disabled:opacity-30"
-            onClick={() => onPageChange(Math.max(1, pagination.page - 1))}
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <span className="font-jp text-xs font-medium leading-4 text-[#af111c]">
-            {pagination.page}
-          </span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            disabled={pagination.page === pagination.totalPages || isLoading}
-            className="rounded-md text-[#1a1c1b] disabled:opacity-30"
-            onClick={() =>
-              onPageChange(Math.min(pagination.totalPages, pagination.page + 1))
-            }
-            aria-label="Next page"
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
-      </div>
+      <AdminPagination
+        page={pagination.page}
+        limit={pagination.limit}
+        total={pagination.totalItems}
+        totalPages={pagination.totalPages}
+        itemLabel="広告"
+        onPageChange={onPageChange}
+      />
     </section>
   );
 }

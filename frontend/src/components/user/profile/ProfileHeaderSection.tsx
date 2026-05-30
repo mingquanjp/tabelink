@@ -3,6 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
 import { UserProfileResponse } from "@/lib/api/user-profile/type";
+import { normalizeErrorToastMessage } from "@/lib/app-toast";
 import { useState } from "react";
 import { ProfileEditModal } from "./ProfileEditModal";
 import type { UserProfileBadge } from "./profile-data";
@@ -45,8 +46,10 @@ export function ProfileHeaderSection({ profile, setProfile }: ProfileHeaderSecti
           followerCount: isNowFollowing ? prev.followerCount + 1 : Math.max(0, prev.followerCount - 1),
         };
       });
-    } catch (err: any) {
-      alert(err.message || "エラーが発生しました");
+    } catch (err: unknown) {
+      alert(
+        normalizeErrorToastMessage(err instanceof Error ? err.message : undefined),
+      );
     } finally {
       setIsFollowLoading(false);
     }

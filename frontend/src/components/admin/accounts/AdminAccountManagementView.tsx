@@ -23,7 +23,11 @@ import {
   AdminUserStatusDialog,
 } from "@/components/admin/accounts/AdminUserDialogs";
 import { AdminUserTable } from "@/components/admin/accounts/AdminUserTable";
-import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
+import {
+  normalizeErrorToastMessage,
+  showErrorToast,
+  showSuccessToast,
+} from "@/lib/app-toast";
 
 const pageLimit = 4;
 
@@ -67,7 +71,7 @@ function toAdminAccountStatuses(statuses: string[]) {
 
 function getApiErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
-    return error.message;
+    return normalizeErrorToastMessage(error.message);
   }
 
   return "エラーが発生しました";
@@ -116,11 +120,9 @@ export function AdminAccountManagementView() {
         if (!cancelled) {
           setData(emptyAdminUsersResponse);
           if (error instanceof ApiError && error.status === 401) {
-            setLoadError(
-              "Admin session is required. Please log in with an Admin account."
-            );
+            setLoadError("管理者アカウントでログインしてください。");
           } else if (error instanceof ApiError && error.status === 403) {
-            setLoadError("This account does not have Admin permission.");
+            setLoadError("このアカウントには管理者権限がありません。");
           } else {
             setLoadError(getApiErrorMessage(error));
           }

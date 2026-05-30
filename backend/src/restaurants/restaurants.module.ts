@@ -28,5 +28,6 @@ import { RestaurantsService } from './restaurants.service';
   ],
   controllers: [RestaurantsController, PublicRestaurantsController],
   providers: [RestaurantsService, RestaurantImagesService],
+  exports: [RestaurantsService],
 })
 export class RestaurantsModule {}

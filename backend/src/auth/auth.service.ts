@@ -29,6 +29,10 @@ import { OwnerProfile } from './entities/owner-profile.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { UserAccount } from './entities/user-account.entity';
 import { MailService } from '../mail/mail.service';
+import {
+  AdminActionLog,
+  AdminActionType,
+} from '../admin/entities/admin-action-log.entity';
 
 @Injectable()
 export class AuthService {
@@ -41,6 +45,8 @@ export class AuthService {
     private readonly ownerRepo: Repository<OwnerProfile>,
     @InjectRepository(Restaurant)
     private readonly restaurantRepo: Repository<Restaurant>,
+    @InjectRepository(AdminActionLog)
+    private readonly adminActionLogRepo: Repository<AdminActionLog>,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly mailService: MailService,
@@ -139,7 +145,9 @@ export class AuthService {
       account.status === AccountStatus.Banned ||
       account.status === AccountStatus.Disabled
     ) {
-      throw new ForbiddenException('Account is not active.');
+      throw new ForbiddenException(
+        await this.getInactiveAccountMessage(account),
+      );
     }
 
     const tokens = await this.issueTokens(account, dto.rememberMe);
@@ -191,7 +199,9 @@ export class AuthService {
       account.status === AccountStatus.Banned ||
       account.status === AccountStatus.Disabled
     ) {
-      throw new ForbiddenException('Account is not active.');
+      throw new ForbiddenException(
+        await this.getInactiveAccountMessage(account),
+      );
     }
 
     const tokens = await this.issueTokens(account);
@@ -341,6 +351,34 @@ export class AuthService {
       role: account.role,
       status: account.status,
     };
+  }
+
+  private async getInactiveAccountMessage(account: UserAccount) {
+    const actionType =
+      account.status === AccountStatus.Banned
+        ? AdminActionType.Ban
+        : AdminActionType.SoftDelete;
+    const latestLog = await this.adminActionLogRepo.findOne({
+      where: {
+        targetAccountId: account.accountId,
+        actionType,
+      },
+      order: {
+        createdAt: 'DESC',
+        logId: 'DESC',
+      },
+    });
+    const reason = latestLog?.reason?.trim();
+
+    if (reason) {
+      return account.status === AccountStatus.Banned
+        ? `このアカウントは停止されています。理由: ${reason}`
+        : `このアカウントは無効化されています。理由: ${reason}`;
+    }
+
+    return account.status === AccountStatus.Banned
+      ? 'このアカウントは停止されています。'
+      : 'このアカウントは無効化されています。';
   }
 
   private async getRestaurantContext(

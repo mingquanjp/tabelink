@@ -38,6 +38,10 @@ function isExpired(payload: JwtPayload | null) {
 }
 
 function getAuthenticatedRedirectPath(role?: string) {
+  if (role === "Admin") {
+    return "/admin/accounts";
+  }
+
   if (role === "Owner") {
     return "/owner/home";
   }
@@ -47,6 +51,18 @@ function getAuthenticatedRedirectPath(role?: string) {
   }
 
   return "/";
+}
+
+function isRestaurantDetailPath(pathname: string) {
+  return /^\/user\/restaurants\/[^/]+$/.test(pathname);
+}
+
+function isGuestAccessiblePath(pathname: string) {
+  return (
+    pathname === "/user/home" ||
+    pathname === "/user/map" ||
+    isRestaurantDetailPath(pathname)
+  );
 }
 
 function redirectToLogin(request: NextRequest) {
@@ -69,7 +85,7 @@ export function proxy(request: NextRequest) {
   const hasSessionCookie = Boolean(hasUsableAccessToken || refreshToken);
 
   if (pathname === "/login" || pathname.startsWith("/register")) {
-    if (hasUsableAccessToken && payload?.role) {
+    if (hasUsableAccessToken && payload?.role && payload.role !== "Guest") {
       const url = request.nextUrl.clone();
       url.pathname = getAuthenticatedRedirectPath(payload?.role);
       url.search = "";
@@ -97,7 +113,25 @@ export function proxy(request: NextRequest) {
     }
   }
 
+  if (pathname.startsWith("/admin")) {
+    if (!hasSessionCookie) {
+      return redirectToLogin(request);
+    }
+
+    if (payload?.role && payload.role !== "Admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = getAuthenticatedRedirectPath(payload.role);
+      url.search = "";
+
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (pathname.startsWith("/user")) {
+    if (!hasSessionCookie && isGuestAccessiblePath(pathname)) {
+      return NextResponse.next();
+    }
+
     if (!hasSessionCookie) {
       return redirectToLogin(request);
     }
@@ -109,11 +143,21 @@ export function proxy(request: NextRequest) {
 
       return NextResponse.redirect(url);
     }
+
+    if (payload?.role === "Guest" && !isGuestAccessiblePath(pathname)) {
+      return redirectToLogin(request);
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/login", "/register/:path*", "/owner/:path*", "/user/:path*"],
+  matcher: [
+    "/login",
+    "/register/:path*",
+    "/admin/:path*",
+    "/owner/:path*",
+    "/user/:path*",
+  ],
 };

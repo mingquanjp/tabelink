@@ -4,6 +4,7 @@ import type { HomepageHotRestaurant, HomepageUser } from "./homepage-data";
 
 type HomeLeftSidebarProps = {
   hotRestaurants: HomepageHotRestaurant[];
+  isGuest?: boolean;
   user: HomepageUser;
 };
 
@@ -19,10 +20,15 @@ function formatCount(value: number | undefined, fallback: string) {
   return String(value);
 }
 
-export function HomeLeftSidebar({ hotRestaurants, user }: HomeLeftSidebarProps) {
+export function HomeLeftSidebar({
+  hotRestaurants,
+  isGuest = false,
+  user,
+}: HomeLeftSidebarProps) {
   return (
     <aside className="space-y-5 max-md:order-2 lg:sticky lg:top-28 lg:self-start">
-      <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
+      {!isGuest ? (
+        <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
         <CardContent className="px-6 py-6 text-center">
           <div
             className="mx-auto size-[66px] rounded-xl bg-cover bg-center shadow-[0_4px_12px_rgba(26,28,27,0.16)]"
@@ -55,7 +61,8 @@ export function HomeLeftSidebar({ hotRestaurants, user }: HomeLeftSidebarProps) 
             </div>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      ) : null}
 
       <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
         <CardContent className="px-5 py-5">

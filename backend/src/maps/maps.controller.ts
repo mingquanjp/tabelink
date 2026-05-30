@@ -9,32 +9,34 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
-  ApiBearerAuth,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
-  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import type { JwtPayload } from '../auth/auth.types';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { AuthRole } from '../auth/auth.constants';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { GetRestaurantRouteQueryDto } from './dto/get-restaurant-route-query.dto';
 import { SearchRestaurantDto } from './dto/restaurant-map-search.dto';
 import { MapsService } from './maps.service';
 
 interface AuthenticatedRequest extends Request {
-  user: JwtPayload;
+  user?: JwtPayload;
 }
 
 @ApiTags('maps')
-@ApiBearerAuth('access-token')
-@ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-@UseGuards(JwtAuthGuard)
+@UseGuards(OptionalJwtAuthGuard)
 @Controller('maps')
 export class MapsController {
   constructor(private readonly mapsService: MapsService) {}
+
+  private getGuestAwareUser(request: AuthenticatedRequest): JwtPayload {
+    return request.user ?? { sub: 0, email: 'guest', role: AuthRole.Guest };
+  }
+
   @Get('advanced-search')
   @ApiOperation({
     summary: 'Search for restaurants',
@@ -48,7 +50,10 @@ export class MapsController {
     @Query() query: SearchRestaurantDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.mapsService.searchRestaurants(query, request.user);
+    return this.mapsService.searchRestaurants(
+      query,
+      this.getGuestAwareUser(request),
+    );
   }
 
   @Get('restaurants')
@@ -61,7 +66,7 @@ export class MapsController {
     description: 'List of restaurants for the map.',
   })
   getMapRestaurants(@Req() request: AuthenticatedRequest) {
-    return this.mapsService.getMapRestaurants(request.user);
+    return this.mapsService.getMapRestaurants(this.getGuestAwareUser(request));
   }
 
   @Get('restaurants/:restaurantId/route')
@@ -110,7 +115,7 @@ export class MapsController {
     return this.mapsService.getRestaurantRoute(
       restaurantId,
       query,
-      request.user,
+      this.getGuestAwareUser(request),
     );
   }
 }

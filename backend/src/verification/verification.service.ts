@@ -214,7 +214,7 @@ export class VerificationService {
       const stream = cloudinary.uploader.upload_stream(
         {
           folder: `tabelink/restaurants/${restaurantId}/verification/${folderSegment}`,
-          resource_type: 'auto',
+          resource_type: file.mimetype === 'application/pdf' ? 'raw' : 'image',
           use_filename: true,
           unique_filename: true,
           overwrite: false,

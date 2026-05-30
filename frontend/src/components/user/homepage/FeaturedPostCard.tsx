@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Sparkles, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { HomepageFeaturedRestaurant } from "./homepage-data";
+import { ChevronLeft, ChevronRight, Sparkles, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import type { HomepageFeaturedRestaurant } from "./homepage-data";
 
 type FeaturedPostCardProps = {
   activeIndex: number;
@@ -26,7 +27,12 @@ export function FeaturedPostCard({
   if (!restaurant) {
     return null;
   }
-
+  useEffect(() => {
+    const interval = setInterval(() => {
+      onSelectNext();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [onSelectNext, activeIndex]);
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">
@@ -110,9 +116,8 @@ export function FeaturedPostCard({
         {items.map((item, index) => (
           <span
             key={item.id}
-            className={`size-2 rounded-full ${
-              index === selectedIndex ? "bg-[#af111c]" : "bg-[#e6e2dc]"
-            }`}
+            className={`size-2 rounded-full ${index === selectedIndex ? "bg-[#af111c]" : "bg-[#e6e2dc]"
+              }`}
           />
         ))}
       </div>

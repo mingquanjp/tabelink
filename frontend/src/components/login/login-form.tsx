@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button";
 import { ForgotPasswordDialog } from "@/components/login/forgot-password-dialog";
 import { Input } from "@/components/ui/input";
 import { loginAccount } from "@/lib/api/auth/API";
-import { getAuthenticatedRedirectPath } from "@/lib/api/auth/routes";
+import { getPostLoginRedirectPath } from "@/lib/api/auth/routes";
 import { cn } from "@/lib/utils";
 import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import { isValidEmail } from "@/lib/auth-form-validation";
 import { clearAuthSessionCache } from "@/lib/api/auth/session";
 import { removeSessionCacheByPrefix } from "@/lib/api/cache";
+import { ApiError } from "@/lib/api/client";
 
 export function LoginForm() {
   const router = useRouter();
@@ -24,18 +25,28 @@ export function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGuestSubmitting, setIsGuestSubmitting] = useState(false);
 
+  function getRedirectPath() {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return new URLSearchParams(window.location.search).get("redirect");
+  }
+
   async function handleGuestLogin() {
     setIsGuestSubmitting(true);
     try {
       const { guestLogin } = await import("@/lib/api/auth/API");
-      const response = await guestLogin();
+      await guestLogin();
 
       showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
       clearAuthSessionCache();
       removeSessionCacheByPrefix("tabelink:owner:");
-      router.replace(getAuthenticatedRedirectPath("Guest"));
-    } catch {
-      showErrorToast();
+      router.replace(getPostLoginRedirectPath(getRedirectPath(), "Guest"));
+    } catch (error) {
+      showErrorToast(
+        error instanceof ApiError ? error.message : undefined
+      );
     } finally {
       setIsGuestSubmitting(false);
     }
@@ -60,9 +71,13 @@ export function LoginForm() {
       showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
       clearAuthSessionCache();
       removeSessionCacheByPrefix("tabelink:owner:");
-      router.replace(getAuthenticatedRedirectPath(response.account.role));
-    } catch {
-      showErrorToast();
+      router.replace(
+        getPostLoginRedirectPath(getRedirectPath(), response.account.role),
+      );
+    } catch (error) {
+      showErrorToast(
+        error instanceof ApiError ? error.message : undefined
+      );
     } finally {
       setIsSubmitting(false);
     }

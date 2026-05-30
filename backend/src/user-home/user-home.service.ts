@@ -261,6 +261,7 @@ export class UserHomeService {
         WHERE p.PromotionType = 'Advertisement'
           AND p.AdvertisementType = 'SNS'
           AND p.Status = 'Active'
+          AND p.ApprovedByAdminID IS NOT NULL
           AND p.StartDate <= CURRENT_TIMESTAMP
           AND p.EndDate >= CURRENT_TIMESTAMP
           AND r.Status = 'Active'
@@ -353,7 +354,9 @@ export class UserHomeService {
 
   private assertCustomerUser(user: JwtPayload) {
     if (user.role !== AuthRole.User) {
-      throw new ForbiddenException('Only customer users can use this endpoint.');
+      throw new ForbiddenException(
+        'Only customer users can use this endpoint.',
+      );
     }
   }
 

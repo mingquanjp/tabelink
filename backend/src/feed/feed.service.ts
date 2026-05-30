@@ -70,7 +70,7 @@ export class FeedService {
   constructor(private readonly dataSource: DataSource) {}
 
   async getFeed(query: FeedQueryDto, user: JwtPayload) {
-    this.assertCustomerUser(user);
+    this.assertCustomerOrGuest(user);
 
     const page = query.page;
     const limit = query.limit;
@@ -112,7 +112,7 @@ export class FeedService {
   }
 
   async getPostDetail(blogId: number, user: JwtPayload) {
-    this.assertCustomerUser(user);
+    this.assertCustomerOrGuest(user);
 
     const rows = await this.dataSource.query<FeedPostRow[]>(
       this.feedPostSql('AND bp.BlogID = $2', ''),
@@ -174,7 +174,7 @@ export class FeedService {
   }
 
   async getComments(blogId: number, query: CommentQueryDto, user: JwtPayload) {
-    this.assertCustomerUser(user);
+    this.assertCustomerOrGuest(user);
     await this.ensurePublishedBlog(blogId);
 
     const page = query.page;
@@ -323,12 +323,15 @@ export class FeedService {
   }
 
   private async getMediaByBlogIds(blogIds: number[]) {
-    const map = new Map<number, Array<{
-      mediaId: number;
-      mediaUrl: string;
-      mediaType: 'Photo' | 'Video';
-      sortOrder: number;
-    }>>();
+    const map = new Map<
+      number,
+      Array<{
+        mediaId: number;
+        mediaUrl: string;
+        mediaType: 'Photo' | 'Video';
+        sortOrder: number;
+      }>
+    >();
     if (blogIds.length === 0) {
       return map;
     }
@@ -407,12 +410,15 @@ export class FeedService {
   private toFeedPost(
     row: FeedPostRow,
     hashtags: Map<number, Array<{ tagId: number; name: string }>>,
-    media: Map<number, Array<{
-      mediaId: number;
-      mediaUrl: string;
-      mediaType: 'Photo' | 'Video';
-      sortOrder: number;
-    }>>,
+    media: Map<
+      number,
+      Array<{
+        mediaId: number;
+        mediaUrl: string;
+        mediaType: 'Photo' | 'Video';
+        sortOrder: number;
+      }>
+    >,
   ) {
     const blogId = Number(row.blogId);
 
@@ -456,7 +462,17 @@ export class FeedService {
 
   private assertCustomerUser(user: JwtPayload) {
     if (user.role !== AuthRole.User) {
-      throw new ForbiddenException('Only customer users can use this endpoint.');
+      throw new ForbiddenException(
+        'Only customer users can use this endpoint.',
+      );
+    }
+  }
+
+  private assertCustomerOrGuest(user: JwtPayload) {
+    if (![AuthRole.User, AuthRole.Guest].includes(user.role)) {
+      throw new ForbiddenException(
+        'Only customer or guest users can use this endpoint.',
+      );
     }
   }
 
@@ -469,6 +485,8 @@ export class FeedService {
   }
 
   private toIso(value: Date | string) {
-    return value instanceof Date ? value.toISOString() : new Date(value).toISOString();
+    return value instanceof Date
+      ? value.toISOString()
+      : new Date(value).toISOString();
   }
 }

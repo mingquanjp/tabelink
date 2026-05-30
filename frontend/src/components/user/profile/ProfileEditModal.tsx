@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { changeUserPassword, getUserFullProfile, updateProfileText, uploadUserAvatar } from "@/lib/api/user-profile/API";
 import { UpdateProfileTextRequest, UserProfileResponse } from "@/lib/api/user-profile/type";
+import { normalizeErrorToastMessage } from "@/lib/app-toast";
 import { Camera, ChevronDown, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -84,6 +85,32 @@ function SelectField({
   );
 }
 
+function getProfileUpdateErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+
+  const response = "response" in error ? error.response : undefined;
+
+  if (typeof response !== "object" || response === null) {
+    return undefined;
+  }
+
+  const data = "data" in response ? response.data : undefined;
+
+  if (typeof data !== "object" || data === null) {
+    return undefined;
+  }
+
+  const message = "message" in data ? data.message : undefined;
+
+  return typeof message === "string" ? message : undefined;
+}
+
 export function ProfileEditModal({
   open,
   onOpenChange,
@@ -127,9 +154,10 @@ export function ProfileEditModal({
       setProfile(updated);
       onOpenChange(false);
       toast.success("プロフィールを更新しました。");
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error(
-        err?.response?.data?.message || "変更に失敗しました。");
+        normalizeErrorToastMessage(getProfileUpdateErrorMessage(err)),
+      );
     }
   };
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ApiError } from "@/lib/api/client";
+import { normalizeErrorToastMessage } from "@/lib/app-toast";
 import {
   createBlogTag,
   createRestaurantBlog,
@@ -201,7 +202,7 @@ export function BlogCreatePage() {
     } catch (error) {
       toast.error(
         error instanceof ApiError
-          ? error.message
+          ? normalizeErrorToastMessage(error.message)
           : "フードレポートの公開に失敗しました。",
       );
     } finally {

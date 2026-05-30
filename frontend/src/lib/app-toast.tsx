@@ -20,6 +20,62 @@ export const AUTH_TOAST_MESSAGES = {
 
 type AppToastVariant = "success" | "error";
 
+const API_ERROR_MESSAGE_MAP: Record<string, string> = {
+  "Invalid credentials.": "メールアドレスまたはパスワードが正しくありません。",
+  "Account not found.": "アカウントが見つかりません。",
+  "Account is not active.": "このアカウントは現在利用できません。",
+  "Refresh token is invalid.": "ログイン情報の有効期限が切れました。再度ログインしてください。",
+  "Authentication is required.": "ログインが必要です。",
+  "Missing or invalid access token.": "ログイン情報が確認できません。再度ログインしてください。",
+  "Only users can view notifications.": "通知を確認できるのはユーザーのみです。",
+  "Admin session is required. Please log in with an Admin account.":
+    "管理者アカウントでログインしてください。",
+  "This account does not have Admin permission.":
+    "このアカウントには管理者権限がありません。",
+};
+
+function translateInactiveAccountMessage(message: string) {
+  const match = message.match(/^Account is (Banned|Disabled)\.(?: Reason: (.+))?$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const statusMessage =
+    match[1] === "Banned"
+      ? "このアカウントは停止されています。"
+      : "このアカウントは無効化されています。";
+  const reason = match[2]?.trim();
+
+  return reason ? `${statusMessage} 理由: ${reason}` : statusMessage;
+}
+
+function containsJapaneseText(message: string) {
+  return /[\u3040-\u30ff\u3400-\u9fff]/.test(message);
+}
+
+export function normalizeErrorToastMessage(message?: string) {
+  const trimmedMessage = message?.trim();
+
+  if (!trimmedMessage) {
+    return OWNER_TOAST_MESSAGES.error;
+  }
+
+  const inactiveAccountMessage = translateInactiveAccountMessage(trimmedMessage);
+
+  if (inactiveAccountMessage) {
+    return inactiveAccountMessage;
+  }
+
+  if (API_ERROR_MESSAGE_MAP[trimmedMessage]) {
+    return API_ERROR_MESSAGE_MAP[trimmedMessage];
+  }
+
+  return containsJapaneseText(trimmedMessage)
+    ? trimmedMessage
+    : OWNER_TOAST_MESSAGES.error;
+}
+
 const toastStyle = {
   success: {
     iconWrap: "bg-[#d1fae5]",
@@ -73,5 +129,5 @@ export function showSuccessToast(message: string = OWNER_TOAST_MESSAGES.success)
 }
 
 export function showErrorToast(message: string = OWNER_TOAST_MESSAGES.error) {
-  showAppToast("error", message);
+  showAppToast("error", normalizeErrorToastMessage(message));
 }

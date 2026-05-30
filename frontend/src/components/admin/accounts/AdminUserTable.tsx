@@ -4,6 +4,10 @@ import type {
   AdminUser,
   AdminUserRole,
 } from "@/lib/api/admin/type";
+import {
+  roleLabels,
+  statusLabels,
+} from "@/components/admin/accounts/admin-account-data";
 
 type AdminUserTableProps = {
   users: AdminUser[];
@@ -163,9 +167,9 @@ export function AdminUserTable({
                   </td>
                   <td className="px-6 py-4">
                     <span
-                      className={`inline-flex rounded-xl px-3 py-1 font-manrope text-[10px] font-bold leading-[14px] tracking-[-0.5px] ${roleTone[user.role]}`}
+                      className={`inline-flex rounded-xl px-3 py-1 font-jp text-[10px] font-bold leading-[14px] ${roleTone[user.role]}`}
                     >
-                      {user.role.toUpperCase()}
+                      {roleLabels[user.role]}
                     </span>
                   </td>
                   <td className="px-6 py-4">
@@ -173,8 +177,8 @@ export function AdminUserTable({
                       <span
                         className={`size-2 rounded-xl ${statusDotTone[user.status]}`}
                       />
-                      <span className="pl-2 font-manrope text-[14px] font-medium leading-5 text-[#1a1c1b]">
-                        {user.status}
+                      <span className="pl-2 font-jp text-[14px] font-medium leading-5 text-[#1a1c1b]">
+                        {statusLabels[user.status]}
                       </span>
                     </div>
                   </td>

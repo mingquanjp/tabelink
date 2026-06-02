@@ -3,6 +3,7 @@ const SERVER_API_URL =
   normalizeApiOrigin(process.env.BACKEND_ORIGIN) ??
   PUBLIC_API_URL ??
   "http://localhost:8080";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 type ApiErrorResponse = {
   message?: string | string[];
@@ -34,12 +35,12 @@ function normalizeApiOrigin(value: string | null | undefined) {
 }
 
 function resolveRequestUrl(path: string) {
-  if (PUBLIC_API_URL) {
-    return `${PUBLIC_API_URL}${path}`;
-  }
-
   if (typeof window === "undefined") {
     return `${SERVER_API_URL}${path}`;
+  }
+
+  if (!IS_PRODUCTION && PUBLIC_API_URL) {
+    return `${PUBLIC_API_URL}${path}`;
   }
 
   return path;
@@ -97,8 +98,11 @@ export function resolveApiUrl(value: string | null | undefined) {
     return new URL(value).toString();
   } catch {
     const baseUrl =
-      PUBLIC_API_URL ??
-      (typeof window === "undefined" ? SERVER_API_URL : window.location.origin);
+      typeof window === "undefined"
+        ? SERVER_API_URL
+        : !IS_PRODUCTION && PUBLIC_API_URL
+          ? PUBLIC_API_URL
+          : window.location.origin;
 
     return new URL(value, baseUrl).toString();
   }

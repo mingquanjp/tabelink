@@ -1,155 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-type JwtPayload = {
-  exp?: number;
-  role?: string;
-};
-
-function decodeJwtPayload(token?: string): JwtPayload | null {
-  if (!token) {
-    return null;
-  }
-
-  const [, payload] = token.split(".");
-
-  if (!payload) {
-    return null;
-  }
-
-  try {
-    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized.padEnd(
-      normalized.length + ((4 - (normalized.length % 4)) % 4),
-      "="
-    );
-
-    return JSON.parse(atob(padded)) as JwtPayload;
-  } catch {
-    return null;
-  }
-}
-
-function isExpired(payload: JwtPayload | null) {
-  if (!payload?.exp) {
-    return false;
-  }
-
-  return payload.exp * 1000 <= Date.now();
-}
-
-function getAuthenticatedRedirectPath(role?: string) {
-  if (role === "Admin") {
-    return "/admin/accounts";
-  }
-
-  if (role === "Owner") {
-    return "/owner/home";
-  }
-
-  if (role === "User" || role === "Guest") {
-    return "/user/home";
-  }
-
-  return "/";
-}
-
-function isRestaurantDetailPath(pathname: string) {
-  return /^\/user\/restaurants\/[^/]+$/.test(pathname);
-}
-
-function isGuestAccessiblePath(pathname: string) {
-  return (
-    pathname === "/user/home" ||
-    pathname === "/user/map" ||
-    isRestaurantDetailPath(pathname)
-  );
-}
-
-function redirectToLogin(request: NextRequest) {
-  const url = request.nextUrl.clone();
-  const redirectPath = `${request.nextUrl.pathname}${request.nextUrl.search}`;
-
-  url.pathname = "/login";
-  url.search = "";
-  url.searchParams.set("redirect", redirectPath);
-
-  return NextResponse.redirect(url);
+function isPublicAuthPath(pathname: string) {
+  return pathname === "/login" || pathname.startsWith("/register");
 }
 
 export function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  const accessToken = request.cookies.get("accessToken")?.value;
-  const refreshToken = request.cookies.get("refreshToken")?.value;
-  const payload = decodeJwtPayload(accessToken);
-  const hasUsableAccessToken = Boolean(accessToken && !isExpired(payload));
-  const hasSessionCookie = Boolean(hasUsableAccessToken || refreshToken);
-
-  if (pathname === "/login" || pathname.startsWith("/register")) {
-    if (hasUsableAccessToken && payload?.role && payload.role !== "Guest") {
-      const url = request.nextUrl.clone();
-      url.pathname = getAuthenticatedRedirectPath(payload?.role);
-      url.search = "";
-
-      return NextResponse.redirect(url);
-    }
-
-    const response = NextResponse.next();
-    response.headers.set("Cache-Control", "no-store");
-
-    return response;
+  if (!isPublicAuthPath(request.nextUrl.pathname)) {
+    return NextResponse.next();
   }
 
-  if (pathname.startsWith("/owner")) {
-    if (!hasSessionCookie) {
-      return redirectToLogin(request);
-    }
+  const response = NextResponse.next();
+  response.headers.set("Cache-Control", "no-store");
 
-    if (payload?.role && payload.role !== "Owner") {
-      const url = request.nextUrl.clone();
-      url.pathname = getAuthenticatedRedirectPath(payload.role);
-      url.search = "";
-
-      return NextResponse.redirect(url);
-    }
-  }
-
-  if (pathname.startsWith("/admin")) {
-    if (!hasSessionCookie) {
-      return redirectToLogin(request);
-    }
-
-    if (payload?.role && payload.role !== "Admin") {
-      const url = request.nextUrl.clone();
-      url.pathname = getAuthenticatedRedirectPath(payload.role);
-      url.search = "";
-
-      return NextResponse.redirect(url);
-    }
-  }
-
-  if (pathname.startsWith("/user")) {
-    if (!hasSessionCookie && isGuestAccessiblePath(pathname)) {
-      return NextResponse.next();
-    }
-
-    if (!hasSessionCookie) {
-      return redirectToLogin(request);
-    }
-
-    if (payload?.role && payload.role !== "User" && payload.role !== "Guest") {
-      const url = request.nextUrl.clone();
-      url.pathname = getAuthenticatedRedirectPath(payload.role);
-      url.search = "";
-
-      return NextResponse.redirect(url);
-    }
-
-    if (payload?.role === "Guest" && !isGuestAccessiblePath(pathname)) {
-      return redirectToLogin(request);
-    }
-  }
-
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

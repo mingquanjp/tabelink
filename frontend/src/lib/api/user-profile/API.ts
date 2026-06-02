@@ -5,6 +5,7 @@ import {
   UploadAvatarResponse,
   UserProfileResponse,
 } from "./type";
+import type { UserFeedPostDetail } from "@/lib/api/user-feed/type";
 
 // Lấy thông tin đầy đủ cho trang Profile
 export function getUserFullProfile(accountId?: number) {
@@ -31,7 +32,7 @@ export function uploadUserAvatar(file: File) {
   });
 }
 export function getBlogDetail(blogId: number) {
-  return apiRequest<any>(`/user/posts/${blogId}`, { auth: true });
+  return apiRequest<UserFeedPostDetail>(`/user/posts/${blogId}`, { auth: true });
 }
 
 // Đổi mật khẩu

@@ -1,7 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
 import * as bcrypt from 'bcrypt';
-import { beforeEach, describe, it } from 'node:test';
 import { DataSource } from 'typeorm';
 import { UserProfileService } from './user-profile.service';
 
@@ -20,6 +20,12 @@ describe('UserProfileService', () => {
         {
           provide: DataSource,
           useValue: dataSource,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -64,10 +70,9 @@ describe('UserProfileService', () => {
     });
 
     it('nên ném lỗi nếu mật khẩu hiện tại sai', async () => {
-      dataSource.query.mockResolvedValue([{ PasswordHash: 'hashed_old' }]);
-      jest
-        .spyOn(bcrypt, 'compare')
-        .mockImplementation(() => Promise.resolve(false));
+      dataSource.query.mockResolvedValue([
+        { passwordhash: await bcrypt.hash('old_password', 10) },
+      ]);
 
       const dto = {
         currentPassword: 'wrong_old',

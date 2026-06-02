@@ -6,8 +6,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
+import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { MapsService } from './maps.service';
 
 describe('MapsService', () => {
@@ -55,6 +57,10 @@ describe('MapsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MapsService,
+        {
+          provide: getRepositoryToken(Restaurant),
+          useValue: {},
+        },
         {
           provide: DataSource,
           useValue: dataSource,

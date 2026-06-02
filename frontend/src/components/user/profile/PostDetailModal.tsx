@@ -10,13 +10,7 @@ import {
   Star
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { type FoodReport } from "./profile-data";
-
-type PostDetailModalProps = {
-  report: FoodReport | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-};
+import type { UserFeedPostDetail } from "@/lib/api/user-feed/type";
 
 
 
@@ -38,19 +32,29 @@ export function PostDetailModal({ blogId, open, onOpenChange }: {
   open: boolean,
   onOpenChange: (open: boolean) => void
 }) {
-  const [detail, setDetail] = useState<any>(null);
+  const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (open && blogId) {
+    async function loadDetail() {
       setLoading(true);
-      getUserFeedPostDetail(blogId)
-        .then((res) => setDetail(res))
-        .catch((err) => console.error(err))
-        .finally(() => setLoading(false));
-    } else {
-      setDetail(null); // Reset khi đóng modal
+
+      try {
+        const res = await getUserFeedPostDetail(blogId!);
+        setDetail(res);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     }
+
+    if (open && blogId) {
+      void loadDetail();
+      return;
+    }
+
+    queueMicrotask(() => setDetail(null));
   }, [open, blogId]);
 
   if (!open) return null;
@@ -229,15 +233,23 @@ export function PostDetailModal({ blogId, open, onOpenChange }: {
           <>
             {/* 1. Phần hình ảnh: Dùng detail.media hoặc detail.images */}
             <div className="bg-black">
-              <img src={detail.images?.[0]?.url || detail.thumbnailUrl} className="..." />
+              <img
+                src={detail.media[0]?.mediaUrl ?? ""}
+                alt={detail.title ?? "Post image"}
+                className="..."
+              />
             </div>
 
             <section className="flex flex-col">
               {/* 2. Phần Header: Thông tin người đăng */}
               <header className="...">
-                <img src={detail.authorAvatar} className="size-10 rounded-xl" />
+                <img
+                  src={detail.author.avatarUrl ?? ""}
+                  alt=""
+                  className="size-10 rounded-xl"
+                />
                 <div>
-                  <p className="font-bold">{detail.authorName}</p>
+                  <p className="font-bold">{detail.author.name}</p>
                   <p className="text-[10px]">{detail.createdAt}</p>
                 </div>
               </header>
@@ -251,25 +263,29 @@ export function PostDetailModal({ blogId, open, onOpenChange }: {
                 <div className="grid grid-cols-3 gap-3 border-y py-4 mt-4">
                   <div className="text-center">
                     <span className="text-[10px]">Vị (Taste)</span>
-                    <RatingDots value={detail.tasteRating} />
+                    <RatingDots value={detail.ratings.taste ?? 0} />
                   </div>
                   <div className="text-center">
                     <span className="text-[10px]">Vệ sinh (Hygiene)</span>
-                    <RatingDots value={detail.hygieneRating} />
+                    <RatingDots value={detail.ratings.hygiene ?? 0} />
                   </div>
                   <div className="text-center">
                     <span className="text-[10px]">Dịch vụ (Service)</span>
-                    <RatingDots value={detail.serviceRating} />
+                    <RatingDots value={detail.ratings.service ?? 0} />
                   </div>
                 </div>
 
                 {/* 4. Danh sách Comment (Reuse dữ liệu từ API detail) */}
                 <div className="mt-6">
-                  {detail.comments?.map((comment: any) => (
-                    <div key={comment.id} className="flex gap-3 mb-4">
-                      <img src={comment.userAvatar} className="size-8 rounded-full" />
+                  {detail.comments?.map((comment) => (
+                    <div key={comment.commentId} className="flex gap-3 mb-4">
+                      <img
+                        src={comment.author.avatarUrl ?? ""}
+                        alt=""
+                        className="size-8 rounded-full"
+                      />
                       <div className="bg-gray-100 p-3 rounded-xl">
-                        <p className="font-bold text-xs">{comment.userName}</p>
+                        <p className="font-bold text-xs">{comment.author.name}</p>
                         <p className="text-xs">{comment.content}</p>
                       </div>
                     </div>

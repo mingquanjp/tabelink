@@ -8,7 +8,7 @@ import type {
   AmenityKey,
   MapRestaurant,
 } from "./map-data";
-import { currentLocation as fallbackLocation } from "./map-data";
+import { currentLocation as fallbackLocation, mapApiToMapRestaurant } from "./map-data";
 import {
   distanceLimitMeters,
   distanceOptionForMeters,
@@ -110,39 +110,44 @@ export function UserMapView() {
 
   useEffect(() => {
     if (!currentLocation) return;
+    const searchLocation = currentLocation;
     let cancelled = false;
-    setIsLoading(true);
-    // Chuyển đổi Filter sang API Params
-    const radius = parseFloat(filters.distance) * 1000;
-    const dishTypes = filters.cuisines.flatMap(c => CUISINE_MAP[c] || []);
-    const japaneseStandards = [
-      filters.quality.hygiene ? FEATURE_IDS.HYGIENE : null,
-      filters.quality.japaneseMenu ? FEATURE_IDS.JAPANESE_MENU : null
-    ].filter((v): v is number => v !== null);
 
-    advancedSearchRestaurants({
-      keyword: filters.keyword || undefined,
-      lat: currentLocation.point.lat,
-      lng: currentLocation.point.lng,
-      radius,
-      dishTypes,
-      japaneseStandards,
-      issuesVAT: filters.amenities.vat || undefined,
-      page: 1,
-      limit: 50,
-    })
-      .then((res) => {
+    async function loadRestaurants() {
+      setIsLoading(true);
+      // Chuyển đổi Filter sang API Params
+      const radius = parseFloat(filters.distance) * 1000;
+      const dishTypes = filters.cuisines.flatMap(c => CUISINE_MAP[c] || []);
+      const japaneseStandards = [
+        filters.quality.hygiene ? FEATURE_IDS.HYGIENE : null,
+        filters.quality.japaneseMenu ? FEATURE_IDS.JAPANESE_MENU : null
+      ].filter((v): v is number => v !== null);
+
+      try {
+        const res = await advancedSearchRestaurants({
+          keyword: filters.keyword || undefined,
+          lat: searchLocation.point.lat,
+          lng: searchLocation.point.lng,
+          radius,
+          dishTypes,
+          japaneseStandards,
+          issuesVAT: filters.amenities.vat || undefined,
+          page: 1,
+          limit: 50,
+        });
+
         if (cancelled) return;
-        setRestaurants(res.items as any);
+        setRestaurants(res.items.map(mapApiToMapRestaurant));
         setTotalCount(res.totalCount);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error(err);
         if (!cancelled) showErrorToast("検索に失敗しました");
-      })
-      .finally(() => {
+      } finally {
         if (!cancelled) setIsLoading(false);
-      });
+      }
+    }
+
+    void loadRestaurants();
 
     return () => { cancelled = true; };
   }, [filters, currentLocation]);

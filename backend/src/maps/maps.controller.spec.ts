@@ -1,16 +1,17 @@
-import { ValidationPipe } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { App } from 'supertest/types';
 import { AuthRole } from '../auth/auth.constants';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import type { JwtPayload } from '../auth/auth.types';
 import { MapsController } from './maps.controller';
 import { MapsService } from './maps.service';
 
 describe('MapsController', () => {
-  let app: INestApplication<App>;
+  let controller: MapsController;
   let mapsService: { getRestaurantRoute: jest.Mock };
+
+  const user: JwtPayload = {
+    sub: 1,
+    email: 'user@example.com',
+    role: AuthRole.User,
+  };
 
   const routeResponse = {
     restaurantId: 10,
@@ -31,58 +32,25 @@ describe('MapsController', () => {
     ],
   };
 
-  beforeEach(async () => {
+  beforeEach(() => {
     mapsService = {
       getRestaurantRoute: jest.fn().mockResolvedValue(routeResponse),
     };
 
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [MapsController],
-      providers: [
-        {
-          provide: MapsService,
-          useValue: mapsService,
-        },
-      ],
-    })
-      .overrideGuard(JwtAuthGuard)
-      .useValue({
-        canActivate: (context) => {
-          const request = context.switchToHttp().getRequest();
-          request.user = {
-            sub: 1,
-            email: 'user@example.com',
-            role: AuthRole.User,
-          };
-          return true;
-        },
-      })
-      .compile();
-
-    app = module.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: true,
-      }),
-    );
-    await app.init();
-  });
-
-  afterEach(async () => {
-    await app.close();
+    controller = new MapsController(mapsService as unknown as MapsService);
   });
 
   it('handles GET /maps/restaurants/:restaurantId/route', async () => {
-    await request(app.getHttpServer())
-      .get('/maps/restaurants/10/route')
-      .query({
-        originLat: '21.0166',
-        originLng: '105.8412',
-      })
-      .expect(200)
-      .expect(routeResponse);
+    await expect(
+      controller.getRestaurantRoute(
+        10,
+        {
+          originLat: 21.0166,
+          originLng: 105.8412,
+        },
+        { user } as never,
+      ),
+    ).resolves.toEqual(routeResponse);
 
     expect(mapsService.getRestaurantRoute).toHaveBeenCalledWith(
       10,
@@ -90,11 +58,7 @@ describe('MapsController', () => {
         originLat: 21.0166,
         originLng: 105.8412,
       },
-      {
-        sub: 1,
-        email: 'user@example.com',
-        role: AuthRole.User,
-      },
+      user,
     );
   });
 });

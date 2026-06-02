@@ -24,15 +24,21 @@ export function FeaturedPostCard({
   const selectedIndex = items[activeIndex] ? activeIndex : 0;
   const router = useRouter();
 
-  if (!restaurant) {
-    return null;
-  }
   useEffect(() => {
+    if (!restaurant) {
+      return;
+    }
+
     const interval = setInterval(() => {
       onSelectNext();
     }, 10000);
     return () => clearInterval(interval);
-  }, [onSelectNext, activeIndex]);
+  }, [onSelectNext, activeIndex, restaurant]);
+
+  if (!restaurant) {
+    return null;
+  }
+
   return (
     <section>
       <div className="mb-3 flex items-center justify-between">

@@ -66,11 +66,13 @@ export default function OwnerReservationsPage() {
         );
 
         if (cached) {
-            hasInitialSessionCache.current = true;
-            setRestaurantId(cached.restaurantId);
-            setTables(cached.tables);
-            setReservations(cached.reservations);
-            setIsLoading(false);
+            queueMicrotask(() => {
+                hasInitialSessionCache.current = true;
+                setRestaurantId(cached.restaurantId);
+                setTables(cached.tables);
+                setReservations(cached.reservations);
+                setIsLoading(false);
+            });
         }
     }, []);
 

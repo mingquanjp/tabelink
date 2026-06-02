@@ -21,20 +21,20 @@ export function MediaUploadSection({
 
   useEffect(() => {
     if (!photoFile) {
-      setPhotoPreview(null)
+      queueMicrotask(() => setPhotoPreview(null));
       return;
     }
     const objectUrl = URL.createObjectURL(photoFile);
-    setPhotoPreview(objectUrl);
+    queueMicrotask(() => setPhotoPreview(objectUrl));
     return () => URL.revokeObjectURL(objectUrl);
   }, [photoFile]);
   useEffect(() => {
     if (!videoFile) {
-      setVideoPreview(null)
+      queueMicrotask(() => setVideoPreview(null));
       return;
     }
     const objectUrl = URL.createObjectURL(videoFile);
-    setVideoPreview(objectUrl);
+    queueMicrotask(() => setVideoPreview(objectUrl));
     return () => URL.revokeObjectURL(objectUrl);
   }, [videoFile]);
   return (

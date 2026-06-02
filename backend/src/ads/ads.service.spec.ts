@@ -9,6 +9,14 @@ describe('AdsService', () => {
   let service: AdsService;
   let dataSource: { query: jest.Mock };
 
+  beforeAll(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-25T12:00:00.000Z'));
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(async () => {
     dataSource = {
       query: jest.fn(),

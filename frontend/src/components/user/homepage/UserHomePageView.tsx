@@ -36,7 +36,11 @@ import {
 } from "@/lib/api/auth/login-redirect";
 import {
   homepageFeaturedRestaurants,
+  homepageHotRestaurants,
+  homepagePosts,
   homepageRecommendations,
+  homepageReviewers,
+  homepageTopics,
   homepageUser,
   type HomepageComment,
   type HomepageFeaturedRestaurant,
@@ -221,13 +225,13 @@ export function UserHomePageView() {
     () => readCachedAuthSession() ?? null,
   );
   const [hotRestaurants, setHotRestaurants] = useState<HomepageHotRestaurant[]>(
-    () => [],
+    () => homepageHotRestaurants,
   );
   const [featuredRestaurants, setFeaturedRestaurants] = useState<
     HomepageFeaturedRestaurant[]
-  >(() => []);
+  >(() => homepageFeaturedRestaurants);
   const [reviewers, setReviewers] = useState<HomepageReviewer[]>(
-    () => [],
+    () => homepageReviewers,
   );
   const [pendingReviewerIds, setPendingReviewerIds] = useState<Set<number>>(
     () => new Set(),
@@ -238,8 +242,8 @@ export function UserHomePageView() {
   const [followedReviewerIds, setFollowedReviewerIds] = useState<Set<number>>(
     () => new Set(),
   );
-  const [topics, setTopics] = useState<HomepageTopic[]>(() => []);
-  const [posts, setPosts] = useState<HomepagePost[]>(() => []);
+  const [topics, setTopics] = useState<HomepageTopic[]>(() => homepageTopics);
+  const [posts, setPosts] = useState<HomepagePost[]>(() => homepagePosts);
   const [feedHasNext, setFeedHasNext] = useState(true);
   const [selectedPost, setSelectedPost] = useState<HomepagePost | null>(null);
   const [likedPostIds, setLikedPostIds] = useState<Set<number>>(
@@ -319,41 +323,54 @@ export function UserHomePageView() {
       }
 
       if (hotRestaurantsResult.status === "fulfilled") {
-        setHotRestaurants(hotRestaurantsResult.value.items.map(mapHotRestaurant));
+        const nextHotRestaurants =
+          hotRestaurantsResult.value.items.map(mapHotRestaurant);
+
+        if (nextHotRestaurants.length > 0) {
+          setHotRestaurants(nextHotRestaurants);
+        }
       }
 
       if (suggestedReviewersResult.status === "fulfilled") {
         const nextReviewers =
           suggestedReviewersResult.value.items.map(mapSuggestedReviewer);
 
-        setReviewers(nextReviewers);
-        setKnownReviewerFollowIds(
-          new Set(
-            nextReviewers
-              .map((reviewer) => reviewer.accountId)
-              .filter((accountId): accountId is number => accountId !== undefined),
-          ),
-        );
-        setFollowedReviewerIds(
-          new Set(
-            nextReviewers
-              .filter((reviewer) => reviewer.isFollowing)
-              .map((reviewer) => reviewer.accountId)
-              .filter((accountId): accountId is number => accountId !== undefined),
-          ),
-        );
+        if (nextReviewers.length > 0) {
+          setReviewers(nextReviewers);
+          setKnownReviewerFollowIds(
+            new Set(
+              nextReviewers
+                .map((reviewer) => reviewer.accountId)
+                .filter((accountId): accountId is number => accountId !== undefined),
+            ),
+          );
+          setFollowedReviewerIds(
+            new Set(
+              nextReviewers
+                .filter((reviewer) => reviewer.isFollowing)
+                .map((reviewer) => reviewer.accountId)
+                .filter((accountId): accountId is number => accountId !== undefined),
+            ),
+          );
+        }
       }
 
       if (trendingTopicsResult.status === "fulfilled") {
-        setTopics(trendingTopicsResult.value.items.map(mapTrendingTopic));
+        const nextTopics = trendingTopicsResult.value.items.map(mapTrendingTopic);
+
+        if (nextTopics.length > 0) {
+          setTopics(nextTopics);
+        }
       }
 
       if (advertisedRestaurantsResult.status === "fulfilled") {
         const nextFeaturedRestaurants =
           advertisedRestaurantsResult.value.items.map(mapAdvertisedRestaurant);
 
-        setFeaturedRestaurants(nextFeaturedRestaurants);
-        setFeaturedIndex(0);
+        if (nextFeaturedRestaurants.length > 0) {
+          setFeaturedRestaurants(nextFeaturedRestaurants);
+          setFeaturedIndex(0);
+        }
       }
 
       if (
@@ -389,6 +406,13 @@ export function UserHomePageView() {
           limit: USER_FEED_PAGE_LIMIT,
         });
         const nextPosts = feed.items.map(mapFeedPost);
+
+        if (mode === "replace" && nextPosts.length === 0) {
+          feedPageRef.current = feed.pagination.page;
+          feedHasNextRef.current = false;
+          setFeedHasNext(false);
+          return;
+        }
 
         setPosts((current) => {
           if (mode === "replace") {

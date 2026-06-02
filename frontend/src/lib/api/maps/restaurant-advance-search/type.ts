@@ -1,22 +1,38 @@
 // Cần thiết để hiển thị Card và Map
 export interface RestaurantSearchItem {
-  restaurantId: number;
-  nameVn: string;
-  nameJp: string;
+  id?: number;
+  restaurantId?: number;
+  name?: string;
+  mapName?: string;
+  nameVn?: string;
+  nameJp?: string;
   address: string;
-  latitude: number;
-  longitude: number;
+  position?: {
+    lat: number;
+    lng: number;
+  };
+  latitude?: number;
+  longitude?: number;
+  imageUrl?: string;
   coverImageUrl: string | null;
   distance?: number;
+  distanceValue?: string;
   issuesVat: boolean;
+  rating?: number | string;
 
   // featureIds hoặc features dùng để hiện các Badge chuẩn Nhật (Verified, Staff, etc.)
   features: {
-    featureId: number;
+    featureId?: number;
     featureCode: string;
   }[];
 
   averageRating?: number;
+  isVerified?: boolean;
+  hasJapaneseStaff?: boolean;
+  hasJapaneseMenu?: boolean;
+  cuisine?: string;
+  amenities?: string[];
+  badges?: string[];
 }
 
 export interface AdvancedSearchParams {

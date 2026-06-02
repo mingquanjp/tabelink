@@ -31,36 +31,55 @@ export type MapRestaurant = {
 export const mapApiToMapRestaurant = (
   item: RestaurantSearchItem,
 ): MapRestaurant => {
+  const restaurantId = item.id ?? item.restaurantId ?? 0;
+  const name = item.name ?? item.nameJp ?? item.nameVn ?? "";
+  const mapName = item.mapName ?? item.nameJp ?? item.nameVn ?? name;
+  const latitude = item.position?.lat ?? item.latitude ?? 0;
+  const longitude = item.position?.lng ?? item.longitude ?? 0;
+  const imageUrl = item.imageUrl ?? item.coverImageUrl ?? "";
+  const ratingValue =
+    typeof item.rating === "string"
+      ? Number(item.rating)
+      : (item.rating ?? item.averageRating ?? 4.5);
+  const safeRating = Number.isFinite(ratingValue) ? ratingValue : 4.5;
+  const featureCodes = item.features?.map((f) => f.featureCode) ?? [];
   const distKm = item.distance ? item.distance / 1000 : 0;
   let distOption: DistanceOption = "5km";
   if (distKm <= 0.5) distOption = "500m";
   else if (distKm <= 1.0) distOption = "1.0km";
   return {
-    id: item.restaurantId,
-    name: item.nameJp || item.nameVn,
-    mapName: item.nameJp || item.nameVn,
+    id: restaurantId,
+    name,
+    mapName,
     address: item.address,
     position: {
-      lat: item.latitude,
-      lng: item.longitude,
+      lat: latitude,
+      lng: longitude,
     },
     distance: item.distance ? `${distKm.toFixed(1)}km` : "---",
     distanceValue: distOption,
 
-    rating: (item.averageRating || 4.5).toString(),
-    ratingValue: item.averageRating || 4.5,
+    rating: safeRating.toString(),
+    ratingValue: safeRating,
 
-    imageUrl: item.coverImageUrl || "",
-    isVerified: item.features.some((f) => f.featureId === 1), // Giả sử featureId 1 là "Verified"
+    imageUrl,
+    isVerified:
+      item.isVerified ??
+      item.features.some((f) => f.featureId === 1 || f.featureCode === "VERIFIED"),
 
-    features: item.features?.map((f) => f.featureCode) || [],
+    features: featureCodes,
 
     // Xử lý các trường Mock mà BE chưa có hoặc UI yêu cầu đặc thù
-    badges: item.issuesVat ? ["VAT発行可"] : [],
-    amenities: item.issuesVat ? ["vat" as AmenityKey] : [],
-    cuisine: "ベトナム料理", // Mock vì UI yêu cầu string cuisine
-    hasJapaneseMenu: item.features?.some((f) => f.featureId === 3) || false,
-    hasJapaneseStaff: false,
+    badges: item.badges ?? (item.issuesVat ? ["VAT発行可"] : []),
+    amenities:
+      (item.amenities as AmenityKey[] | undefined) ??
+      (item.issuesVat ? ["vat" as AmenityKey] : []),
+    cuisine: item.cuisine ?? "ベトナム料理",
+    hasJapaneseMenu:
+      item.hasJapaneseMenu ??
+      item.features?.some((f) => f.featureId === 3 || f.featureCode === "JAPANESE_MENU") ??
+      false,
+    hasJapaneseStaff: item.hasJapaneseStaff ?? featureCodes.includes("JAPANESE_STAFF"),
   };
 };
 export const currentLocation = {

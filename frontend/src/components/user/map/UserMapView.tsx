@@ -74,8 +74,6 @@ export function UserMapView() {
   const [selectedRestaurant, setSelectedRestaurant] =
     useState<MapRestaurant | null>(null);
   const [restaurants, setRestaurants] = useState<MapRestaurant[]>([]);
-
-  const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   const [currentLocation, setCurrentLocation] =
@@ -137,8 +135,11 @@ export function UserMapView() {
         });
 
         if (cancelled) return;
-        setRestaurants(res.items.map(mapApiToMapRestaurant));
-        setTotalCount(res.totalCount);
+        setRestaurants(
+          res.items
+            .map(mapApiToMapRestaurant)
+            .filter((restaurant) => restaurant.id > 0 && restaurant.name.trim()),
+        );
       } catch (err) {
         console.error(err);
         if (!cancelled) showErrorToast("検索に失敗しました");

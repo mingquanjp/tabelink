@@ -1,4 +1,8 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+const PUBLIC_API_URL = normalizeApiOrigin(process.env.NEXT_PUBLIC_API_URL);
+const SERVER_API_URL =
+  normalizeApiOrigin(process.env.BACKEND_ORIGIN) ??
+  PUBLIC_API_URL ??
+  "http://localhost:8080";
 
 type ApiErrorResponse = {
   message?: string | string[];
@@ -19,6 +23,28 @@ type RequestOptions = RequestInit & {
   auth?: boolean;
 };
 
+function normalizeApiOrigin(value: string | null | undefined) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  return trimmed.replace(/\/+$/, "");
+}
+
+function resolveRequestUrl(path: string) {
+  if (PUBLIC_API_URL) {
+    return `${PUBLIC_API_URL}${path}`;
+  }
+
+  if (typeof window === "undefined") {
+    return `${SERVER_API_URL}${path}`;
+  }
+
+  return path;
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {}
@@ -28,7 +54,7 @@ export async function apiRequest<T>(
   const isFormData =
     typeof FormData !== "undefined" && init.body instanceof FormData;
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(resolveRequestUrl(path), {
     ...init,
     cache: "no-store",
     credentials: "include",
@@ -70,6 +96,10 @@ export function resolveApiUrl(value: string | null | undefined) {
   try {
     return new URL(value).toString();
   } catch {
-    return new URL(value, API_URL).toString();
+    const baseUrl =
+      PUBLIC_API_URL ??
+      (typeof window === "undefined" ? SERVER_API_URL : window.location.origin);
+
+    return new URL(value, baseUrl).toString();
   }
 }

@@ -307,9 +307,7 @@ export function UserHomePageView() {
           ? getUserHomeProfile()
           : Promise.reject(new Error("Guest home profile is not loaded.")),
         getUserHomeHotRestaurants(),
-        shouldLoadPrivateHome
-          ? getUserHomeSuggestedReviewers()
-          : Promise.reject(new Error("Guest reviewers are not loaded.")),
+        getUserHomeSuggestedReviewers(),
         getUserHomeTrendingTopics(),
         getUserHomeAdvertisedRestaurants(),
       ]);
@@ -376,8 +374,7 @@ export function UserHomePageView() {
       if (
         (shouldLoadPrivateHome && profileResult.status === "rejected") ||
         hotRestaurantsResult.status === "rejected" ||
-        (shouldLoadPrivateHome &&
-          suggestedReviewersResult.status === "rejected") ||
+        suggestedReviewersResult.status === "rejected" ||
         trendingTopicsResult.status === "rejected" ||
         advertisedRestaurantsResult.status === "rejected"
       ) {

@@ -151,8 +151,8 @@ export class UserHomeService {
     };
   }
 
-  async getSuggestedReviewers(user: JwtPayload) {
-    this.assertCustomerUser(user);
+  async getSuggestedReviewers(user?: JwtPayload) {
+    const viewerAccountId = user?.role === AuthRole.User ? user.sub : 0;
 
     const rows = await this.dataSource.query<SuggestedReviewerRow[]>(
       `
@@ -182,7 +182,7 @@ export class UserHomeService {
         ORDER BY "followerCount" DESC, cp.AccountID ASC
         LIMIT $2
       `,
-      [user.sub, SUGGESTED_REVIEWER_LIMIT],
+      [viewerAccountId, SUGGESTED_REVIEWER_LIMIT],
     );
 
     return {

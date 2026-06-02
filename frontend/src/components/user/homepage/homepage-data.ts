@@ -1,14 +1,9 @@
 const assets = {
-  avatar:
-    "https://www.figma.com/api/mcp/asset/2c16c86f-c883-466c-9d16-eb36b61d3241",
-  restaurant:
-    "https://www.figma.com/api/mcp/asset/d50c2de6-dcb9-4689-83b9-08022b8dc5c3",
-  pho:
-    "https://www.figma.com/api/mcp/asset/3d6ca905-7308-4b84-8c12-7d033a31a036",
-  springRolls:
-    "https://www.figma.com/api/mcp/asset/481b2035-11e0-451d-a901-a83179ecc8a7",
-  grilledPork:
-    "https://www.figma.com/api/mcp/asset/eaa5e26a-0b5b-49e4-abf7-7f303610592b",
+  avatar: "/image.png",
+  restaurant: "/japanese-cuisine.png",
+  pho: "/admin/badge/kizuna-main.jpg",
+  springRolls: "/menu/nemran.png",
+  grilledPork: "/admin/badge/kitchen.jpg",
 };
 
 export const homepageUser = {

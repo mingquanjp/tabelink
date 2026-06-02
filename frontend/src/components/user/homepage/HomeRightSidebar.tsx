@@ -52,28 +52,42 @@ export function HomeRightSidebar({
               />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-jp text-[13px] font-bold leading-5 text-[#1a1c1b]">
-                  {/* {reviewer.name} */}
-                  <Link href={`/user/profile/${reviewer.accountId}`}>{reviewer.name}</Link>
+                  {reviewer.accountId !== undefined ? (
+                    <Link href={`/user/profile/${reviewer.accountId}`}>
+                      {reviewer.name}
+                    </Link>
+                  ) : (
+                    reviewer.name
+                  )}
                 </p>
                 <p className="truncate font-manrope text-[11px] leading-4 text-[#7a7f74]">
                   {reviewer.meta}
                 </p>
               </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 px-2 font-jp text-[11px] font-bold text-[#af111c]"
-                onClick={() => {
-                  if (reviewer.accountId !== undefined) {
+              {reviewer.accountId !== undefined ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 font-jp text-[11px] font-bold text-[#af111c]"
+                  onClick={() => {
                     onToggleReviewerFollow(
-                      reviewer.accountId,
+                      reviewer.accountId!,
                       Boolean(reviewer.isFollowing),
                     );
-                  }
-                }}
-              >
-                {reviewer.isFollowing ? "フォロー中" : "フォロー"}
-              </Button>
+                  }}
+                >
+                  {reviewer.isFollowing ? "フォロー中" : "フォロー"}
+                </Button>
+              ) : (
+                <Button
+                  asChild
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 font-jp text-[11px] font-bold text-[#af111c]"
+                >
+                  <Link href="/login?redirect=%2Fuser%2Fhome">フォロー</Link>
+                </Button>
+              )}
             </div>
           ))}
           <Button

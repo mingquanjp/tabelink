@@ -12,10 +12,11 @@ import {
 import type { Request } from 'express';
 import type { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { UserHomeService } from './user-home.service';
 
 interface AuthenticatedRequest extends Request {
-  user: JwtPayload;
+  user?: JwtPayload;
 }
 
 @ApiTags('user-home')
@@ -32,7 +33,7 @@ export class UserHomeController {
   @ApiForbiddenResponse({ description: 'Only customer users can view home profile.' })
   @ApiNotFoundResponse({ description: 'Customer profile was not found.' })
   getProfile(@Req() request: AuthenticatedRequest) {
-    return this.userHomeService.getProfile(request.user);
+    return this.userHomeService.getProfile(request.user!);
   }
 
   @Get('hot-restaurants')
@@ -43,12 +44,10 @@ export class UserHomeController {
   }
 
   @Get('suggested-reviewers')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get top 5 suggested reviewers' })
   @ApiOkResponse({ description: 'Suggested reviewers ranked by follower count.' })
-  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-  @ApiForbiddenResponse({ description: 'Only customer users can view suggested reviewers.' })
   getSuggestedReviewers(@Req() request: AuthenticatedRequest) {
     return this.userHomeService.getSuggestedReviewers(request.user);
   }
@@ -93,7 +92,7 @@ export class UserReviewerController {
     @Param('accountId', ParseIntPipe) accountId: number,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.userHomeService.followReviewer(accountId, request.user);
+    return this.userHomeService.followReviewer(accountId, request.user!);
   }
 
   @Delete(':accountId/follow')
@@ -113,6 +112,6 @@ export class UserReviewerController {
     @Param('accountId', ParseIntPipe) accountId: number,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.userHomeService.unfollowReviewer(accountId, request.user);
+    return this.userHomeService.unfollowReviewer(accountId, request.user!);
   }
 }

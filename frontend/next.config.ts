@@ -7,18 +7,36 @@ const backendOrigin = (
   "http://localhost:8080"
 ).replace(/\/+$/, "");
 
-const backendApiPrefixes = [
-  "auth",
-  "admin",
-  "owner",
-  "user",
-  "user-profile",
-  "restaurants",
-  "maps",
-  "campaigns",
-  "ads",
-  "blogs",
-  "menu-items",
+const backendApiRoutes = [
+  "/auth/:path*",
+  "/maps/:path*",
+  "/restaurants/:path*",
+  "/campaigns",
+  "/ads/:path*",
+  "/blogs/:path*",
+  "/menu-items/:path*",
+  "/user-profile/:path*",
+  "/user/feed",
+  "/user/posts/:path*",
+  "/user/home/:path*",
+  "/user/notifications",
+  "/user/reviewers/:path*",
+  "/owner/restaurant",
+  "/owner/restaurant/:path*",
+  "/owner/restaurants/:restaurantId/tables/:path*",
+  "/owner/restaurants/:restaurantId/reservations/:path*",
+  "/owner/restaurants/:restaurantId/menus/:path*",
+  "/owner/restaurants/:restaurantId/dashboard",
+  "/owner/restaurants/:restaurantId/analytics/:path*",
+  "/owner/promotions",
+  "/owner/promotions/:path*",
+  "/owner/campaigns",
+  "/owner/ads/:path*",
+  "/owner/verification/:path*",
+  "/admin/users/:path*",
+  "/admin/promotions/:path*",
+  "/admin/verification/:path*",
+  "/admin/restaurants/:restaurantId/detail",
 ];
 
 const nextConfig: NextConfig = {
@@ -30,16 +48,10 @@ const nextConfig: NextConfig = {
       afterFiles: [
         { source: "/health", destination: `${backendOrigin}/health` },
         { source: "/db-health", destination: `${backendOrigin}/db-health` },
-        ...backendApiPrefixes.flatMap((prefix) => [
-          {
-            source: `/${prefix}`,
-            destination: `${backendOrigin}/${prefix}`,
-          },
-          {
-            source: `/${prefix}/:path*`,
-            destination: `${backendOrigin}/${prefix}/:path*`,
-          },
-        ]),
+        ...backendApiRoutes.map((route) => ({
+          source: route,
+          destination: `${backendOrigin}${route}`,
+        })),
       ],
     };
   },

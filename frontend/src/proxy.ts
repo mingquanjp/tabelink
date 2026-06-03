@@ -6,6 +6,40 @@ function isPublicAuthPath(pathname: string) {
   return pathname === "/login" || pathname.startsWith("/register");
 }
 
+function isBackendApiPath(pathname: string) {
+  return (
+    pathname === "/health" ||
+    pathname === "/db-health" ||
+    pathname.startsWith("/auth/") ||
+    pathname.startsWith("/maps/") ||
+    pathname.startsWith("/restaurants/") ||
+    pathname === "/campaigns" ||
+    pathname.startsWith("/ads/") ||
+    pathname.startsWith("/blogs/") ||
+    pathname.startsWith("/menu-items/") ||
+    pathname.startsWith("/user-profile/") ||
+    pathname === "/user/feed" ||
+    pathname.startsWith("/user/posts/") ||
+    pathname.startsWith("/user/home/") ||
+    pathname === "/user/notifications" ||
+    pathname.startsWith("/user/reviewers/") ||
+    pathname === "/owner/restaurant" ||
+    pathname.startsWith("/owner/restaurant/") ||
+    pathname.startsWith("/owner/restaurants/") ||
+    pathname === "/owner/promotions" ||
+    pathname.startsWith("/owner/promotions/") ||
+    pathname === "/owner/campaigns" ||
+    pathname.startsWith("/owner/ads/") ||
+    pathname.startsWith("/owner/verification/") ||
+    pathname === "/admin/users" ||
+    pathname.startsWith("/admin/users/") ||
+    pathname === "/admin/promotions" ||
+    pathname.startsWith("/admin/promotions/") ||
+    pathname.startsWith("/admin/verification/") ||
+    /^\/admin\/restaurants\/[^/]+\/detail$/.test(pathname)
+  );
+}
+
 function isAdminPath(pathname: string) {
   return pathname.startsWith("/admin");
 }
@@ -116,6 +150,11 @@ function redirectToLogin(request: NextRequest) {
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isBackendApiPath(pathname)) {
+    return NextResponse.next();
+  }
+
   const hasSession = request.cookies.get("hasSession")?.value === "true";
   const role = getSessionRole(request);
 

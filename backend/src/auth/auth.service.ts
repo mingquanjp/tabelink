@@ -330,18 +330,25 @@ export class AuthService {
   ) {
     const accessSecret = this.getAccessSecret();
     const refreshSecret = this.getRefreshSecret();
+    const tokenPayload = this.toSignablePayload(payload);
 
-    const accessToken = await this.jwtService.signAsync(payload, {
+    const accessToken = await this.jwtService.signAsync(tokenPayload, {
       secret: accessSecret,
       expiresIn: this.getAccessTtl(),
     });
 
-    const refreshToken = await this.jwtService.signAsync(payload, {
+    const refreshToken = await this.jwtService.signAsync(tokenPayload, {
       secret: refreshSecret,
       expiresIn: this.getRefreshTtl(rememberMe),
     });
 
     return { accessToken, refreshToken };
+  }
+
+  private toSignablePayload(payload: JwtPayload) {
+    const { sub, email, role } = payload;
+
+    return { sub, email, role };
   }
 
   private sanitizeAccount(account: UserAccount) {

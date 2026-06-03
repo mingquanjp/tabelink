@@ -12,7 +12,10 @@ import { getPostLoginRedirectPath } from "@/lib/api/auth/routes";
 import { cn } from "@/lib/utils";
 import { AUTH_TOAST_MESSAGES, showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import { isValidEmail } from "@/lib/auth-form-validation";
-import { clearAuthSessionCache } from "@/lib/api/auth/session";
+import {
+  clearAuthSessionCache,
+  writeCachedAuthSession,
+} from "@/lib/api/auth/session";
 import { removeSessionCacheByPrefix } from "@/lib/api/cache";
 import { ApiError } from "@/lib/api/client";
 
@@ -37,10 +40,16 @@ export function LoginForm() {
     setIsGuestSubmitting(true);
     try {
       const { guestLogin } = await import("@/lib/api/auth/API");
-      await guestLogin();
+      const response = await guestLogin();
 
       showSuccessToast(AUTH_TOAST_MESSAGES.loginSuccess);
-      clearAuthSessionCache();
+      writeCachedAuthSession({
+        account: response.account,
+        profile: null,
+        restaurant: response.restaurant,
+        profileCompleted: false,
+        guest: true,
+      });
       removeSessionCacheByPrefix("tabelink:owner:");
       router.replace(getPostLoginRedirectPath(getRedirectPath(), "Guest"));
     } catch (error) {

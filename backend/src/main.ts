@@ -12,7 +12,10 @@ async function bootstrap() {
     'FRONTEND_URL',
     'http://localhost:3000',
   );
-  const port = configService.get<number>('APP_PORT') ?? 8080;
+  const port =
+    configService.get<number>('PORT') ??
+    configService.get<number>('APP_PORT') ??
+    8080;
 
   app.enableCors({
     origin: frontendUrl,

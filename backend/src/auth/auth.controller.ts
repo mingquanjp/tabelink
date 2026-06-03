@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -33,7 +34,10 @@ type AuthenticatedRequest = Request & {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('register')
   @ApiBody({ type: RegisterDto })
@@ -231,12 +235,11 @@ export class AuthController {
     tokens: AuthTokens,
     rememberMe?: boolean,
   ) {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const sameSite: 'none' | 'lax' | 'strict' = isProduction ? 'none' : 'lax';
+    const cookiePolicy = this.getCookiePolicy();
     const baseOptions: CookieOptions = {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: sameSite,
+      secure: cookiePolicy.secure,
+      sameSite: cookiePolicy.sameSite,
       path: '/',
     };
 
@@ -249,30 +252,41 @@ export class AuthController {
       maxAge: (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000,
     });
     response.cookie('hasSession', 'true', {
-      secure: isProduction,
-      sameSite: sameSite,
+      secure: cookiePolicy.secure,
+      sameSite: cookiePolicy.sameSite,
       path: '/',
       maxAge: (rememberMe ? 30 : 7) * 24 * 60 * 60 * 1000,
     });
   }
 
   private clearAuthCookies(response: Response) {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const sameSite: 'none' | 'lax' | 'strict' = isProduction ? 'none' : 'lax';
+    const cookiePolicy = this.getCookiePolicy();
     const options: CookieOptions = {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: sameSite,
+      secure: cookiePolicy.secure,
+      sameSite: cookiePolicy.sameSite,
       path: '/',
     };
 
     response.clearCookie('accessToken', options);
     response.clearCookie('refreshToken', options);
     response.clearCookie('hasSession', {
-      secure: isProduction,
-      sameSite: sameSite,
+      secure: cookiePolicy.secure,
+      sameSite: cookiePolicy.sameSite,
       path: '/',
     });
+  }
+
+  private getCookiePolicy(): Pick<CookieOptions, 'sameSite' | 'secure'> {
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') ?? '';
+    const runsBehindHttpsFrontend = frontendUrl.startsWith('https://');
+    const isProduction = process.env.NODE_ENV === 'production';
+    const secure = isProduction || runsBehindHttpsFrontend;
+
+    return {
+      secure,
+      sameSite: secure ? 'none' : 'lax',
+    };
   }
 
   private readCookie(request: Request, name: string) {

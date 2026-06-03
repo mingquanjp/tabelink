@@ -10,8 +10,22 @@ import {
 
 const authSessionCacheKey = "tabelink:auth-session:v1";
 
+function hasSessionCookie() {
+  if (typeof document === "undefined") {
+    return true;
+  }
+
+  return document.cookie
+    .split(";")
+    .some((cookie) => cookie.trim().startsWith("hasSession="));
+}
+
 export function clearAuthSessionCache() {
   removeSessionCache(authSessionCacheKey);
+}
+
+export function writeCachedAuthSession(session: MeResponse) {
+  writeSessionCache(authSessionCacheKey, session);
 }
 
 export function readCachedAuthSession() {
@@ -26,6 +40,11 @@ export async function getAuthSession(): Promise<MeResponse | null> {
 
   if (cachedSession) {
     return cachedSession;
+  }
+
+  if (!hasSessionCookie()) {
+    clearAuthSessionCache();
+    return null;
   }
 
   try {

@@ -270,11 +270,11 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
 
   return (
     <header className="sticky top-0 z-30 border-b border-[#e2e3e0] bg-[#f9f9f6] shadow-sm">
-      <div className="mx-auto flex h-20 w-full max-w-screen-2xl items-center justify-between px-8">
+      <div className="mx-auto flex h-24 w-full max-w-screen-2xl items-center justify-between px-8">
         <div className="flex items-center">
           <Link
             href="/user/home"
-            className="font-brand text-2xl font-bold leading-8 tracking-[-1.20px] text-[#af111c]"
+            className="font-brand text-3xl font-bold leading-9 tracking-[-1.20px] text-[#af111c]"
           >
             TABELINK
           </Link>
@@ -294,7 +294,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`inline-flex items-center pb-1 font-jp text-base font-medium leading-6 tracking-[0.25px] transition-colors ${
+                className={`inline-flex items-center pb-1 font-jp text-lg font-medium leading-7 tracking-[0.15px] transition-colors ${
                   isActive
                     ? "border-b-2 border-[#af111c] text-[#af111c]"
                     : "text-stone-600 hover:text-stone-900"

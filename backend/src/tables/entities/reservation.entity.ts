@@ -62,7 +62,12 @@ export class Reservation {
   @Column({ name: 'pax' })
   pax!: number;
 
-  @Column({ name: 'customername', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'customername',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   customerName?: string | null;
 
   @Column({ name: 'phonenumber', type: 'varchar', length: 50, nullable: true })

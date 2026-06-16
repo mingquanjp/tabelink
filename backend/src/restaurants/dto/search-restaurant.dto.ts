@@ -35,7 +35,8 @@ export class SearchRestaurantDto {
   radius?: number;
 
   @ApiPropertyOptional({
-    description: 'Array of Feature IDs for Japanese standards (or specific constant like -1 for hygiene > 4.0)',
+    description:
+      'Array of Feature IDs for Japanese standards (or specific constant like -1 for hygiene > 4.0)',
     type: [Number],
   })
   @IsOptional()

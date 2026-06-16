@@ -130,7 +130,8 @@ export class ReservationSpecialRequestResponseDto {
   @ApiPropertyOptional({
     example: 'パクチー抜き',
     nullable: true,
-    description: 'Japanese template title stored in SPECIAL_REQUEST_TEMPLATE.TextJP.',
+    description:
+      'Japanese template title stored in SPECIAL_REQUEST_TEMPLATE.TextJP.',
   })
   textJp!: string | null;
 
@@ -145,13 +146,15 @@ export class ReservationSpecialRequestResponseDto {
   @ApiPropertyOptional({
     example: 'Window seat if available.',
     nullable: true,
-    description: 'Free-form custom request. Null when the item comes from a template.',
+    description:
+      'Free-form custom request. Null when the item comes from a template.',
   })
   customText!: string | null;
 
   @ApiProperty({
     example: 'パクチー抜き',
-    description: 'Display label for the user/owner UI. Uses Japanese text when template-based.',
+    description:
+      'Display label for the user/owner UI. Uses Japanese text when template-based.',
   })
   label!: string;
 

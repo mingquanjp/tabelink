@@ -264,10 +264,21 @@ export class TablesService {
     });
 
     const savedReservation = await this.reservationRepo.save(reservation);
-    await this.createSpecialRequests(
+    const specialRequests = await this.createSpecialRequests(
       savedReservation.reservationId,
       dto,
     );
+
+    const ownerNotification = await this.notifyOwnerOfReservation({
+      restaurant,
+      reservation: savedReservation,
+      customerName,
+      phoneNumber,
+      customRequest,
+      specialRequestLabels: specialRequests.map((request) =>
+        this.specialRequestLabel(request),
+      ),
+    });
 
     const refreshed = await this.reservationRepo.findOneOrFail({
       where: { reservationId: savedReservation.reservationId },
@@ -276,17 +287,6 @@ export class TablesService {
         restaurant: true,
         specialRequests: { template: true },
       },
-    });
-
-    const ownerNotification = this.queueOwnerReservationNotification({
-      restaurant,
-      reservation: savedReservation,
-      customerName,
-      phoneNumber,
-      customRequest,
-      specialRequestLabels: (refreshed.specialRequests ?? []).map((request) =>
-        this.specialRequestLabel(request),
-      ),
     });
 
     return {
@@ -569,17 +569,6 @@ export class TablesService {
       this.logger.warn(error);
       return { sent: false, reason: 'Owner notification failed.' };
     }
-  }
-
-  private queueOwnerReservationNotification(
-    options: Parameters<TablesService['notifyOwnerOfReservation']>[0],
-  ) {
-    if (!options.restaurant.owner?.account?.email) {
-      return { sent: false, reason: 'Owner email was not found.' };
-    }
-
-    void this.notifyOwnerOfReservation(options);
-    return { sent: false, reason: 'Owner notification queued.' };
   }
 
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {

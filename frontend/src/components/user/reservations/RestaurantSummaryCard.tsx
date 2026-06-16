@@ -18,7 +18,7 @@ function getServiceLabel(restaurant: OwnerHomeResponse["restaurant"]) {
 
 export function RestaurantSummaryCard({ homeData }: RestaurantSummaryCardProps) {
   const restaurant = homeData.restaurant;
-  const restaurantName = restaurant.nameJp || restaurant.nameVn || "Restaurant";
+  const restaurantName = restaurant.nameJp || restaurant.nameVn || "レストラン";
   const location = restaurant.address || "住所未設定";
   const { coverImage } = buildRestaurantImages(restaurant);
   const serviceLabel = getServiceLabel(restaurant);

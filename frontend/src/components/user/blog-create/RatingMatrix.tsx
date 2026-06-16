@@ -25,7 +25,7 @@ export function RatingMatrix({ items, ratings, onChange }: RatingMatrixProps) {
                 <button
                   key={nextValue}
                   type="button"
-                  aria-label={`${item.label} ${nextValue} stars`}
+                  aria-label={`${item.label} ${nextValue}点`}
                   onClick={() => onChange(item.key, nextValue)}
                   className="inline-flex size-6 items-center justify-center rounded-sm transition-transform hover:scale-105"
                 >

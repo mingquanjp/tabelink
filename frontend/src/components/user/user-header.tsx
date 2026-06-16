@@ -54,7 +54,7 @@ function getDisplayName(session: MeResponse | null) {
     }
   }
 
-  return session?.account.email ?? "Guest";
+  return session?.account.email ?? "ゲスト";
 }
 
 function getUserHandle(session: MeResponse | null) {
@@ -273,7 +273,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
         </div>
 
         <nav
-          aria-label="User navigation"
+          aria-label="ユーザーナビゲーション"
           className="hidden items-center gap-8 lg:flex"
         >
           {visibleNavItems.map((item) => {
@@ -304,7 +304,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="Notifications"
+                  aria-label="通知"
                   className="relative inline-flex items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900"
                 >
                   <Bell size={20} strokeWidth={2} />
@@ -341,7 +341,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
                       pickText(
                         notification.restaurantNameJP,
                         notification.restaurantNameVN,
-                      ) || "Restaurant";
+                      ) || "レストラン";
 
                     return (
                       <DropdownMenuItem
@@ -409,7 +409,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  aria-label="User menu"
+                  aria-label="ユーザーメニュー"
                   className="inline-flex items-center justify-center rounded-full border border-accent-foreground p-0 text-stone-700 transition-colors hover:text-stone-900"
                 >
                   <UserRound size={20} strokeWidth={2} />
@@ -465,7 +465,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
 
         <button
           type="button"
-          aria-label="Toggle menu"
+          aria-label="メニューを開閉"
           className="inline-flex size-10 items-center justify-center rounded-md text-stone-700 transition-colors hover:text-stone-900 lg:hidden"
           onClick={() => setIsMobileMenuOpen((value) => !value)}
         >
@@ -475,7 +475,7 @@ export function UserHeader({ navItems = defaultNavItems }: UserHeaderProps) {
 
       {isMobileMenuOpen ? (
         <nav
-          aria-label="User mobile navigation"
+          aria-label="ユーザーモバイルナビゲーション"
           className="flex w-full flex-col gap-1 border-t border-[rgba(228,190,186,0.1)] bg-[#f9f9f6] px-8 py-4 lg:hidden"
         >
           {visibleNavItems.map((item) => {

@@ -60,18 +60,18 @@ export type ReviewSummary = OwnerHomeResponse["reviews"]["summary"];
 
 const fallbackInfoItems: RestaurantInfoItem[] = [
   {
-    label: "住所 / Address",
+    label: "住所",
     value: "7-9 Ngo Duc Ke, Ben Nghe, District 1, HCMC",
     icon: MapPin,
   },
   {
-    label: "営業時間 / Hours",
+    label: "営業時間",
     value: "10:00 - 22:00",
     icon: Clock3,
-    badge: "Open Now",
+    badge: "営業中",
   },
   {
-    label: "電話番号 / Contact",
+    label: "電話番号",
     value: "+84 28 3823 1101",
     icon: Phone,
   },
@@ -85,7 +85,7 @@ const fallbackInfoItems: RestaurantInfoItem[] = [
 const fallbackFeatures: RestaurantFeatureItem[] = [
   {
     eyebrow: "お支払い・領収書",
-    title: "VAT対応 / レッドインボイス可",
+    title: "VAT対応・レッドインボイス可",
     icon: ReceiptText,
   },
   {
@@ -101,7 +101,7 @@ const fallbackFeatures: RestaurantFeatureItem[] = [
 ];
 
 export function formatVnd(value: number) {
-  return `${value.toLocaleString("vi-VN")} VND`;
+  return `${value.toLocaleString("vi-VN")}ドン`;
 }
 
 export function buildGoogleMapsUrl(
@@ -222,18 +222,18 @@ export function buildInfoItems(homeData: OwnerHomeResponse | null): RestaurantIn
 
   return [
     {
-      label: "住所 / Address",
+      label: "住所",
       value: restaurant.address,
       icon: MapPin,
     },
     {
-      label: "営業時間 / Hours",
+      label: "営業時間",
       value: restaurant.openingHours || "未設定",
       icon: Clock3,
-      badge: "Open Now",
+      badge: "営業中",
     },
     {
-      label: "電話番号 / Contact",
+      label: "電話番号",
       value: restaurant.phone || "未設定",
       icon: Phone,
     },
@@ -264,7 +264,7 @@ export function buildFeatures(homeData: OwnerHomeResponse | null): RestaurantFea
   return [
     {
       eyebrow: "お支払い・領収書",
-      title: restaurant.issuesVat ? "VAT対応 / レッドインボイス可" : "VAT情報未設定",
+      title: restaurant.issuesVat ? "VAT対応・レッドインボイス可" : "VAT情報未設定",
       icon: ReceiptText,
     },
     {
@@ -344,7 +344,7 @@ export function toMenuCategories(
 
 export function toReviewDisplayItems(items: OwnerHomeReviewItem[]): ReviewDisplayItem[] {
   return items.map((item) => {
-    const name = item.customerName || `User #${item.customerAccountId}`;
+    const name = item.customerName || `ユーザー #${item.customerAccountId}`;
     const initial = name.trim().charAt(0).toUpperCase() || "U";
 
     return {
@@ -356,7 +356,7 @@ export function toReviewDisplayItems(items: OwnerHomeReviewItem[]): ReviewDispla
       typeClass: item.isJapaneseTag
         ? "border-[#3d5f4633] bg-[#3d5f461a] text-[#3d5f46]"
         : "border-[#dbeafe] bg-[#eff6ff] text-[#1d4ed8]",
-      meta: item.isJapaneseTag ? "Japanese Community" : "Local Foodie",
+      meta: item.isJapaneseTag ? "在住日本人コミュニティ" : "現地ユーザー",
       rating: Math.max(0, Math.min(5, Math.round(item.rating))),
       text: item.content || "コメントはありません。",
       verified: item.isJapaneseTag ? "衛生・サービス確認済み" : "認証済みユーザー",

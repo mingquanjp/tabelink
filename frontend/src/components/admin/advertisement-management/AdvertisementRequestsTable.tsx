@@ -205,7 +205,7 @@ export function AdvertisementRequestsTable({
                       <div className="flex gap-6">
                         <div>
                           <p className="font-manrope text-xs font-normal leading-4 text-[#5a6053]">
-                            Imp
+                            表示
                           </p>
                           <p className="mt-1 font-jp text-sm font-medium leading-5 text-[#1a1c1b]">
                             {formatImpressions(request.impressions)}
@@ -213,7 +213,7 @@ export function AdvertisementRequestsTable({
                         </div>
                         <div>
                           <p className="font-manrope text-xs font-normal leading-4 text-[#5a6053]">
-                            CTR
+                            クリック率
                           </p>
                           <p
                             className={`mt-1 font-jp text-sm font-medium leading-5 ${

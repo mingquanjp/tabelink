@@ -137,9 +137,6 @@ export default function RestaurantRegisterPage() {
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
                 店舗名
               </label>
-              <span className="font-manrope text-[#af111c] text-[10px] lowercase">
-                (Restaurant Name)
-              </span>
             </div>
             <input
               type="text"
@@ -156,9 +153,6 @@ export default function RestaurantRegisterPage() {
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
                 住所
               </label>
-              <span className="font-manrope text-[#af111c] text-[10px] lowercase">
-                (Address)
-              </span>
             </div>
             <input
               type="text"
@@ -175,9 +169,6 @@ export default function RestaurantRegisterPage() {
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
                 代表者名
               </label>
-              <span className="font-manrope text-[#af111c] text-[10px] lowercase">
-                (Owner Name)
-              </span>
             </div>
             <input
               type="text"
@@ -194,9 +185,6 @@ export default function RestaurantRegisterPage() {
               <label className="font-medium text-[#5a6053] text-[12px] tracking-[1.2px] uppercase">
                 電話番号
               </label>
-              <span className="font-manrope text-[#af111c] text-[10px] lowercase">
-                (Phone Number)
-              </span>
             </div>
             <input
               type="tel"

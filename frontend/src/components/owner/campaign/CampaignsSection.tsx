@@ -136,7 +136,7 @@ function getDiscountLabel(discountType: string | null, discountValue: string | n
   }
 
   if (discountType === "FixedAmount") {
-    return `${discountValue.replace("VND", "")}VND割引`;
+    return `${discountValue.replace("VND", "")}ドン割引`;
   }
 
   return `${discountType} ${discountValue}`;
@@ -174,7 +174,7 @@ function getMetrics(item: OwnerPromotion): CampaignMetric[] {
     { label: "リーチ数", value: numberFormatter.format(item.impressions) },
     { label: "利用数", value: numberFormatter.format(item.clicks) },
     { label: "広告費", value: currencyFormatter.format(item.totalCost) },
-    { label: "CTR", value: ctr },
+    { label: "クリック率", value: ctr },
   ];
 }
 

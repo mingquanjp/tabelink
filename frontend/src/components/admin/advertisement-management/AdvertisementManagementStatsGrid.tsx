@@ -36,7 +36,7 @@ function buildStats(summary: AdminPromotionSummary | null): StatItem[] {
       value: compactNumberFormatter.format(summary?.totalImpressions ?? 0),
     },
     {
-      label: "平均 CTR",
+      label: "平均クリック率",
       value: `${(summary?.averageCtr ?? 0).toFixed(1)}%`,
     },
   ];

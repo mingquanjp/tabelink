@@ -49,7 +49,7 @@ export function MediaUploadSection({
               {photoPreview ? (
                 <img
                   src={photoPreview}
-                  alt="Preview"
+                  alt="プレビュー"
                   className="h-full w-full object-cover"
                 />
               ) : (

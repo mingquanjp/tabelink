@@ -89,7 +89,7 @@ function buildCampaignStats(summary: OwnerPromotionsSummary): CampaignStat[] {
       active: false,
     },
     {
-      title: "広告CTR",
+      title: "広告クリック率",
       value: ctr,
       subtext: formatRateChange(monthChange.ctr),
       subtextClassName: changeClassName(monthChange.ctr),

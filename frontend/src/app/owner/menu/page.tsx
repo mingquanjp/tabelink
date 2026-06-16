@@ -815,7 +815,7 @@ export default function OwnerMenuPage() {
                     <div className="mt-auto flex min-w-0 items-end justify-between gap-3 pr-[154px] pt-2">
                       <div className="flex min-w-[112px] max-w-[130px] items-baseline gap-1 whitespace-nowrap">
                         <span className="text-[12px] font-bold text-[#af111c]">
-                          VND
+                          ドン
                         </span>
                         <span className="text-[18px] font-bold">
                           {toPriceInput(item.price)}
@@ -999,7 +999,7 @@ export default function OwnerMenuPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-[11px] font-medium text-[#5a6053]">
-                  価格 (VND)
+                  価格（ドン）
                 </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-bold text-[#5a6053]">
@@ -1097,7 +1097,7 @@ export default function OwnerMenuPage() {
                               ? "bg-[#af111c]"
                               : "bg-[#d8d8d4] hover:bg-[#bdbdb8]"
                               }`}
-                            aria-label={`${level} / 5`}
+                            aria-label={`${level}点`}
                             aria-pressed={level === criterion.ratingLevel}
                           />
                         ))}

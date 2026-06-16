@@ -47,7 +47,7 @@ export function AdminHeader() {
         <Link
           href="/admin/accounts"
           className="flex shrink-0 items-center"
-          aria-label="TABELINK admin home"
+          aria-label="TABELINK管理ホーム"
         >
           <span className="font-brand text-[24px] font-bold leading-8 tracking-normal text-[#af111c]">
             TABELINK
@@ -55,7 +55,7 @@ export function AdminHeader() {
         </Link>
 
         <nav
-          aria-label="Admin navigation"
+          aria-label="管理ナビゲーション"
           className="hidden items-center gap-8 lg:flex"
         >
           {navItems.map((item) => {
@@ -80,7 +80,7 @@ export function AdminHeader() {
         <div className="flex shrink-0 items-center gap-4">
           <button
             type="button"
-            aria-label="Notifications"
+            aria-label="通知"
             className="inline-flex size-9 items-center justify-center rounded-[4px] text-[#5a6053] transition-colors hover:bg-[#f4f4f1] hover:text-[#1a1c1b]"
           >
             <Bell className="size-5" strokeWidth={2} />
@@ -90,7 +90,7 @@ export function AdminHeader() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                aria-label="Admin account menu"
+                aria-label="管理アカウントメニュー"
                 className="inline-flex size-9 items-center justify-center rounded-full border border-[#d8d1ca] bg-white text-[#5a6053] transition-colors hover:border-[#af111c] hover:text-[#af111c]"
               >
                 <User className="size-5" strokeWidth={2} />
@@ -102,7 +102,7 @@ export function AdminHeader() {
             >
               <div className="px-1 pb-2">
                 <p className="truncate font-jp text-[14px] font-semibold leading-5 text-[#1a1c1b]">
-                  System Admin
+                  システム管理者
                 </p>
                 <p className="truncate font-manrope text-[11px] leading-4 text-[#5a6053]">
                   @tabelink_admin

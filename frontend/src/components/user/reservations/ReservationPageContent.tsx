@@ -35,7 +35,7 @@ function toDateInputValue(date: Date) {
 }
 
 function getRestaurantName(restaurant: OwnerHomeResponse["restaurant"]) {
-  return restaurant.nameJp || restaurant.nameVn || "Restaurant";
+  return restaurant.nameJp || restaurant.nameVn || "レストラン";
 }
 
 export function ReservationPageContent({

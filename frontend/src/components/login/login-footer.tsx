@@ -8,7 +8,7 @@ export function LoginFooter() {
         "font-manrope"
       )}
     >
-      <span>VN / JP シナジー</span>
+      <span>日越シナジー</span>
       <span className="h-px w-12 bg-(--ink-600)/20" />
       <span>© 2024</span>
     </div>

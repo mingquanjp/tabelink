@@ -328,7 +328,7 @@ function KPICard({ data }: { data: KPIData }) {
             <div className="size-8 rounded-full border-2 border-white bg-[#c7efcf]" />
           </div>
           <span className="whitespace-nowrap text-[12px] font-semibold text-[#5a6053] tracking-[1px] uppercase">
-            Coupons Active
+            クーポン適用中
           </span>
         </div>
       )}
@@ -349,7 +349,7 @@ function KPICard({ data }: { data: KPIData }) {
       )}
       {data.target && (
         <span className="text-[12px] text-[#5a6053] font-semibold uppercase tracking-[1px]">
-          Target: {data.target} Reviews/Mo
+          目標: 月{data.target}件
         </span>
       )}
     </div>
@@ -375,7 +375,7 @@ function VerificationStatusBanner({
           <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-3">
               <span className="rounded-full bg-[#8b4513] px-3 py-1 text-[11px] font-bold uppercase tracking-[1.2px] text-white">
-                STATUS : PENDING
+                審査中
               </span>
               <h2 className="text-2xl font-bold text-[#9a4f0b]">
                 TABELINK 認証バッジ申請
@@ -401,7 +401,7 @@ function VerificationStatusBanner({
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full bg-[#d9f9df] px-3 py-1 text-[11px] font-bold uppercase tracking-[1.2px] text-[#4f7f5e]">
-                  STATUS : APPROVED
+                  承認済み
                 </span>
                 <h2 className="text-2xl font-bold text-white">
                   TABELINK 認証バッジ申請
@@ -434,7 +434,7 @@ function VerificationStatusBanner({
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="rounded-full bg-[#af111c] px-3 py-1 text-[11px] font-bold uppercase tracking-[1.2px] text-white">
-                  STATUS : REJECTED
+                  却下済み
                 </span>
                 <h2 className="text-2xl font-bold text-[#af111c]">
                   TABELINK 認証バッジ申請
@@ -862,7 +862,7 @@ export default function OwnerDashboardPage() {
             </p>
             {adCounters && (
               <p className="text-[11px] font-semibold text-[#5a6053]">
-                {adCounters.impressions} impressions / {adCounters.clicks} clicks / CTR {(adCounters.ctr * 100).toFixed(2)}%
+                表示 {adCounters.impressions}件 / クリック {adCounters.clicks}件 / クリック率 {(adCounters.ctr * 100).toFixed(2)}%
               </p>
             )}
           </div>
@@ -1024,7 +1024,7 @@ export default function OwnerDashboardPage() {
             <div className="relative z-10 flex items-center justify-between gap-4">
               <h2 className="text-xl font-medium text-white">人気メニュー TOP3</h2>
               {isLoading && (
-                <span className="text-[11px] font-semibold text-white/70">Loading</span>
+                <span className="text-[11px] font-semibold text-white/70">読み込み中</span>
               )}
             </div>
             <div className="flex flex-col gap-6 relative z-10">
@@ -1043,7 +1043,7 @@ export default function OwnerDashboardPage() {
                       <span className="line-clamp-2 max-w-[160px] text-[14px] font-medium leading-5">
                         {item.name}
                       </span>
-                      <span className="text-[10px] opacity-80">{item.orders} orders</span>
+                      <span className="text-[10px] opacity-80">{item.orders}件</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/20 rounded-full overflow-hidden">
                       <div className="h-full bg-white rounded-full" style={{ width: `${item.progress}%` }} />
@@ -1064,7 +1064,7 @@ export default function OwnerDashboardPage() {
           <div className="bg-white p-8 rounded-2xl border border-[#e4beba1a] shadow-sm flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium text-[#1a1c1b]">混雑時間帯 (今日)</h3>
-              <span className="text-[12px] font-bold text-[#5a6053]">LIVE</span>
+              <span className="text-[12px] font-bold text-[#5a6053]">本日</span>
             </div>
             <div className="flex flex-col gap-4">
               <MeasuredChartFrame className="h-44 min-w-0 w-full">

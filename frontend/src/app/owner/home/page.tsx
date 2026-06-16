@@ -70,18 +70,18 @@ const ownerHomeCacheKey = "tabelink:owner:home:v1";
 
 const infoItems = [
   {
-    label: "住所 / Address",
+    label: "住所",
     value: "7-9 Ngô Đức Kế, Bến Nghé, Quận 1, TP. HCM",
     icon: MapPin,
   },
   {
-    label: "営業時間 / Hours",
+    label: "営業時間",
     value: "10:00 - 22:00",
     icon: Clock3,
-    badge: "Open Now",
+    badge: "営業中",
   },
   {
-    label: "電話番号 / Contact",
+    label: "電話番号",
     value: "+84 28 3823 1101",
     icon: Phone,
   },
@@ -365,18 +365,18 @@ function buildInfoItems(homeData: OwnerHomeResponse | null): HomeInfoItem[] {
 
   return [
     {
-      label: "住所 / Address",
+      label: "住所",
       value: restaurant.address,
       icon: MapPin,
     },
     {
-      label: "営業時間 / Hours",
+      label: "営業時間",
       value: restaurant.openingHours || "未設定",
       icon: Clock3,
-      badge: "Open Now",
+      badge: "営業中",
     },
     {
-      label: "電話番号 / Contact",
+      label: "電話番号",
       value: restaurant.phone || "未設定",
       icon: Phone,
     },
@@ -547,7 +547,7 @@ function RestaurantPhotoGrid({
     <section className="bg-[#eeeeeb]">
       <div className="grid h-[614px] grid-cols-4 grid-rows-2 gap-2 p-2 max-lg:h-[520px] max-md:h-auto max-md:grid-cols-1 max-md:grid-rows-none">
         <div
-          aria-label="Restaurant main photo"
+          aria-label="レストランメイン写真"
           className="relative col-span-2 row-span-2 overflow-hidden rounded bg-cover bg-center max-md:col-span-1 max-md:h-[360px]"
           role="img"
           style={{ backgroundImage: `url(${heroImage})` }}
@@ -561,18 +561,18 @@ function RestaurantPhotoGrid({
         </div>
         <PhotoTile
           src={displayImages[0]}
-          alt="Restaurant gallery photo"
+          alt="レストランギャラリー写真"
           className="max-md:h-56"
         />
         <PhotoTile
           src={displayImages[1]}
-          alt="Restaurant gallery photo"
+          alt="レストランギャラリー写真"
           className="max-md:h-56"
         />
         <div className="relative col-span-2 overflow-hidden rounded max-md:col-span-1 max-md:h-56">
           <PhotoTile
             src={displayImages[2]}
-            alt="Restaurant gallery photo"
+            alt="レストランギャラリー写真"
             className="absolute inset-0"
           />
         </div>
@@ -835,7 +835,7 @@ function MenuCard({ item }: { item: MenuDisplayItem }) {
       {item.soldOut ? (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-white/55">
           <span className="rounded-xl border border-[#8f6f6c]/50 bg-white/95 px-6 py-2 text-base font-bold tracking-[1.6px] text-[#5b403d] shadow-sm font-jp">
-            売り切れ / Out of Stock
+            売り切れ
           </span>
         </div>
       ) : null}
@@ -847,9 +847,6 @@ function MenuCard({ item }: { item: MenuDisplayItem }) {
               <h3 className="text-xl font-medium leading-7 text-[#1a1c1b] font-jp">
                 {item.nameJp}
               </h3>
-              <p className="mt-0.5 text-xs font-medium leading-4 text-[#5a6053] font-manrope">
-                {item.nameVn}
-              </p>
             </div>
             <p className={`shrink-0 text-base font-medium leading-6 font-jp ${item.soldOut ? "text-[#5b403d]/50 line-through" : "text-[#af111c]"}`}>
               {item.price}
@@ -887,7 +884,7 @@ function MenuCard({ item }: { item: MenuDisplayItem }) {
 
 function StarRating({ rating, size = "size-3.5" }: { rating: number; size?: string }) {
   return (
-    <div className="flex items-center gap-0.5 text-[#f5a400]" aria-label={`${rating} out of 5 stars`}>
+    <div className="flex items-center gap-0.5 text-[#f5a400]" aria-label={`${rating}点`}>
       {[1, 2, 3, 4, 5].map((score) => (
         <Star key={score} className={`${size} ${score <= rating ? "fill-current" : ""}`} />
       ))}
@@ -955,7 +952,7 @@ function MenuSection({
     <section className="mx-auto flex max-w-[1280px] flex-col gap-12 px-8 py-20 max-md:px-4">
       <div className="flex items-center justify-between gap-6 max-lg:flex-col max-lg:items-start">
         <h2 className="text-3xl font-bold leading-9 tracking-[-0.75px] text-[#1a1c1b] font-brand max-md:text-2xl">
-          おすすめメニュー / Recommended Menu
+          おすすめメニュー
         </h2>
         <div className="flex flex-wrap gap-2">
           {categories.map((category) => {
@@ -1028,7 +1025,7 @@ function CommunityReviewsSection({
               コミュニティの声
             </p>
             <h2 className="text-3xl font-bold leading-9 tracking-[-0.75px] text-[#1a1c1b] font-brand max-md:text-2xl">
-              ユーザーレビュー / Community Reviews
+              ユーザーレビュー
             </h2>
           </div>
           <div className="flex flex-col items-end gap-2 max-md:items-start">
@@ -1408,7 +1405,7 @@ function EditRestaurantModal({
                     }
                   />
                 </Field>
-                <Field label="Operating Hours / 営業時間">
+                <Field label="営業時間">
                   <input
                     className={inputClass}
                     value={formValues.hours}
@@ -1586,7 +1583,7 @@ export default function OwnerHomePage() {
     );
   }
 
-  const restaurantName = restaurant?.nameVn || restaurant?.nameJp || "Restaurant";
+  const restaurantName = restaurant?.nameJp || restaurant?.nameVn || "レストラン";
 
   return (
     <main className="min-h-screen bg-[#f9f9f6] pb-12">
@@ -1609,7 +1606,7 @@ export default function OwnerHomePage() {
                 {restaurantName}
               </h1>
               <p className="text-lg font-medium leading-7 text-[#5a6053] font-jp">
-                {restaurant?.nameJp || restaurant?.nameVn || "Restaurant"}
+                {restaurant?.nameJp || restaurant?.nameVn || "レストラン"}
               </p>
             </div>
 
@@ -1654,7 +1651,7 @@ export default function OwnerHomePage() {
             {googleMapsEmbedUrl ? (
               <iframe
                 src={googleMapsEmbedUrl}
-                title={`Google Map near ${restaurantName}`}
+                title={`${restaurantName}周辺の地図`}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 className="absolute inset-0 h-full w-full border-0"
@@ -1673,7 +1670,7 @@ export default function OwnerHomePage() {
               className="absolute bottom-4 right-4 inline-flex items-center gap-1 rounded-md border border-[#e4beba4d] bg-white px-2.5 py-2 text-xs font-bold text-[#5b403d] shadow-md font-jp"
             >
               <ExternalLink className="size-3" />
-              Google Mapで開く
+              グーグルマップで開く
             </a>
           </div>
         </div>

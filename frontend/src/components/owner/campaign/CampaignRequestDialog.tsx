@@ -40,18 +40,18 @@ type CampaignRequestDialogProps = {
 };
 
 const audienceOptions = [
-  { value: "all", label: "すべてのお客様 (All)" },
-  { value: "new", label: "新規のお客様 (New)" },
+  { value: "all", label: "すべてのお客様" },
+  { value: "new", label: "新規のお客様" },
 ] as const;
 
 const discountOptions = [
-  { value: "percentage-10", label: "合計金額から 10% OFF", discountType: "Percentage", discountValue: "10%" },
-  { value: "percentage-20", label: "合計金額から 20% OFF", discountType: "Percentage", discountValue: "20%" },
-  { value: "percentage-50", label: "合計金額から 50% OFF", discountType: "Percentage", discountValue: "50%" },
-  { value: "percentage-100", label: "合計金額から 100% OFF", discountType: "Percentage", discountValue: "100%" },
-  { value: "fixed-50000", label: "合計金額から 50,000VND 割引", discountType: "FixedAmount", discountValue: "50000VND" },
-  { value: "fixed-100000", label: "合計金額から 100,000VND 割引", discountType: "FixedAmount", discountValue: "100000VND" },
-  { value: "fixed-200000", label: "合計金額から 200,000VND 割引", discountType: "FixedAmount", discountValue: "200000VND" },
+  { value: "percentage-10", label: "合計金額から10%割引", discountType: "Percentage", discountValue: "10%" },
+  { value: "percentage-20", label: "合計金額から20%割引", discountType: "Percentage", discountValue: "20%" },
+  { value: "percentage-50", label: "合計金額から50%割引", discountType: "Percentage", discountValue: "50%" },
+  { value: "percentage-100", label: "合計金額から100%割引", discountType: "Percentage", discountValue: "100%" },
+  { value: "fixed-50000", label: "合計金額から50,000ドン割引", discountType: "FixedAmount", discountValue: "50000VND" },
+  { value: "fixed-100000", label: "合計金額から100,000ドン割引", discountType: "FixedAmount", discountValue: "100000VND" },
+  { value: "fixed-200000", label: "合計金額から200,000ドン割引", discountType: "FixedAmount", discountValue: "200000VND" },
 ] as const;
 
 const toInputDate = (date: Date) => {
@@ -183,7 +183,7 @@ export function CampaignRequestDialog({
           <button
             type="button"
             onClick={handleCancel}
-            aria-label="Close dialog"
+            aria-label="ダイアログを閉じる"
             className="rounded-xl p-2 text-(--ink-600) transition-colors hover:bg-white"
           >
             <X className="h-4 w-4" />
@@ -332,7 +332,7 @@ function DateInput({
       <Input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder="yyyy-mm-dd"
+        placeholder="年-月-日"
         className="h-auto rounded bg-[#eeeeeb] py-3 pl-4 pr-11 font-manrope text-base font-normal text-(--ink-900)"
       />
       <Popover>

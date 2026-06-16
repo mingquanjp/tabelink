@@ -1,4 +1,7 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import { AuthRole } from '../auth/auth.constants';
@@ -66,9 +69,7 @@ describe('FeedService', () => {
         },
       ]);
 
-    await expect(
-      service.getFeed({ page: 1, limit: 10 }, user),
-    ).resolves.toEqual({
+    await expect(service.getFeed({ page: 1, limit: 10 }, user)).resolves.toEqual({
       items: [
         {
           blogId: 100,

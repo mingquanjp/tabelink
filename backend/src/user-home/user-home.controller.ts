@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Delete,
-  Get,
-  Param,
-  ParseIntPipe,
-  Post,
-  Req,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Delete, Get, Param, ParseIntPipe, Post, Req, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -39,9 +30,7 @@ export class UserHomeController {
   @ApiOperation({ summary: 'Get current user home profile' })
   @ApiOkResponse({ description: 'Current user profile summary for ID3.' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token.' })
-  @ApiForbiddenResponse({
-    description: 'Only customer users can view home profile.',
-  })
+  @ApiForbiddenResponse({ description: 'Only customer users can view home profile.' })
   @ApiNotFoundResponse({ description: 'Customer profile was not found.' })
   getProfile(@Req() request: AuthenticatedRequest) {
     return this.userHomeService.getProfile(request.user!);
@@ -49,9 +38,7 @@ export class UserHomeController {
 
   @Get('hot-restaurants')
   @ApiOperation({ summary: 'Get top 3 hot restaurants for home timeline' })
-  @ApiOkResponse({
-    description: 'Hot restaurants ranked by positive visible reviews.',
-  })
+  @ApiOkResponse({ description: 'Hot restaurants ranked by positive visible reviews.' })
   getHotRestaurants() {
     return this.userHomeService.getHotRestaurants();
   }
@@ -60,27 +47,21 @@ export class UserHomeController {
   @UseGuards(OptionalJwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Get top 5 suggested reviewers' })
-  @ApiOkResponse({
-    description: 'Suggested reviewers ranked by follower count.',
-  })
+  @ApiOkResponse({ description: 'Suggested reviewers ranked by follower count.' })
   getSuggestedReviewers(@Req() request: AuthenticatedRequest) {
     return this.userHomeService.getSuggestedReviewers(request.user);
   }
 
   @Get('trending-topics')
   @ApiOperation({ summary: 'Get top 4 trending blog hashtags' })
-  @ApiOkResponse({
-    description: 'Trending topics ranked by published blog usage.',
-  })
+  @ApiOkResponse({ description: 'Trending topics ranked by published blog usage.' })
   getTrendingTopics() {
     return this.userHomeService.getTrendingTopics();
   }
 
   @Get('advertised-restaurants')
   @ApiOperation({ summary: 'Get active advertised restaurants' })
-  @ApiOkResponse({
-    description: 'Active advertisement restaurants for ID3 slider.',
-  })
+  @ApiOkResponse({ description: 'Active advertisement restaurants for ID3 slider.' })
   getAdvertisedRestaurants() {
     return this.userHomeService.getAdvertisedRestaurants();
   }
@@ -105,9 +86,7 @@ export class UserReviewerController {
       },
     },
   })
-  @ApiForbiddenResponse({
-    description: 'Only customer users can follow reviewers.',
-  })
+  @ApiForbiddenResponse({ description: 'Only customer users can follow reviewers.' })
   @ApiNotFoundResponse({ description: 'Target reviewer was not found.' })
   followReviewer(
     @Param('accountId', ParseIntPipe) accountId: number,
@@ -127,9 +106,7 @@ export class UserReviewerController {
       },
     },
   })
-  @ApiForbiddenResponse({
-    description: 'Only customer users can unfollow reviewers.',
-  })
+  @ApiForbiddenResponse({ description: 'Only customer users can unfollow reviewers.' })
   @ApiNotFoundResponse({ description: 'Target reviewer was not found.' })
   unfollowReviewer(
     @Param('accountId', ParseIntPipe) accountId: number,

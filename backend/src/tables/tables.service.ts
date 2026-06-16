@@ -269,8 +269,7 @@ export class TablesService {
       dto,
     );
 
-    // Notify owner asynchronously in the background to prevent blocking the response
-    this.notifyOwnerOfReservation({
+    const ownerNotification = await this.notifyOwnerOfReservation({
       restaurant,
       reservation: savedReservation,
       customerName,
@@ -279,16 +278,7 @@ export class TablesService {
       specialRequestLabels: specialRequests.map((request) =>
         this.specialRequestLabel(request),
       ),
-    }).catch((error) => {
-      this.logger.error(
-        `Failed to notify owner for reservation #${savedReservation.reservationId}`,
-        error,
-      );
     });
-
-    const ownerNotification = {
-      sent: true,
-    };
 
     const refreshed = await this.reservationRepo.findOneOrFail({
       where: { reservationId: savedReservation.reservationId },
@@ -462,7 +452,6 @@ export class TablesService {
           this.reservationSpecialRequestRepo.create({
             reservationId,
             templateId: template.templateId,
-            template,
           }),
         ),
       );
@@ -530,8 +519,7 @@ export class TablesService {
     const labels: Record<ReservationRequestType, string> = {
       [ReservationRequestType.Coriander]: 'No coriander / パクチー抜き',
       [ReservationRequestType.LessSpicy]: 'Less spicy / 辛さ控えめ',
-      [ReservationRequestType.VATInvoice]:
-        'VAT invoice requested / 領収書・VAT希望',
+      [ReservationRequestType.VATInvoice]: 'VAT invoice requested / 領収書・VAT希望',
       [ReservationRequestType.PrivateRoom]: 'Private room requested / 個室希望',
       [ReservationRequestType.Other]: 'Other special request',
     };
@@ -877,7 +865,11 @@ export class TablesService {
   }
 
   private specialRequestLabel(request: ReservationSpecialRequest) {
-    return request.template?.textJp ?? request.customText ?? 'Special request';
+    return (
+      request.template?.textJp ??
+      request.customText ??
+      'Special request'
+    );
   }
 
   private specialRequestDescription(request: ReservationSpecialRequest) {

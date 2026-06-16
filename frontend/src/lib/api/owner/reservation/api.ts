@@ -67,7 +67,19 @@ export type ReservationDto = {
   durationMinutes: number;
   reservationEndDateTime: string;
   pax: number;
+  customerName: string | null;
+  phoneNumber: string | null;
   note: string | null;
+  specialRequests: {
+    requestId: number;
+    templateId: number | null;
+    requestType: string | null;
+    textJp: string | null;
+    descriptionJp: string | null;
+    customText: string | null;
+    label: string;
+    description: string | null;
+  }[];
   status: ReservationStatus;
   createdAt: string;
   updatedAt: string;

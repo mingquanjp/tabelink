@@ -36,6 +36,7 @@ type DisplayReservation = {
     date: string;
     initials: string;
     name: string;
+    phoneNumber: string | null;
     tableLabel: string;
     party: string;
     status: ReservationStatus;
@@ -180,17 +181,25 @@ function formatDateTime(value: string) {
 
 function toDisplayReservation(reservation: ReservationDto): DisplayReservation {
     const customerName =
-        reservation.customer?.displayName || reservation.customer?.fullName || `Customer #${reservation.customerAccountId}`;
+        reservation.customerName?.trim() ||
+        reservation.customer?.displayName ||
+        reservation.customer?.fullName ||
+        `Customer #${reservation.customerAccountId}`;
     const tableLabel = reservation.table?.tableName
         ? `テーブル ${reservation.table.tableName}`
         : "テーブル未割当";
     const dateTime = formatDateTime(reservation.reservationDateTime);
-    const requests: ReservationRequest[] = [
-        {
-            label: reservation.note?.trim() || "なし",
-            type: reservation.note?.trim() ? "success" : "neutral",
-        },
-    ];
+    const requestLabels = (reservation.specialRequests ?? [])
+        .map((request) => request.label?.trim())
+        .filter((label): label is string => Boolean(label));
+    const requests: ReservationRequest[] = requestLabels.length
+        ? requestLabels.map((label) => ({ label, type: "success" }))
+        : [
+              {
+                  label: reservation.note?.trim() || "なし",
+                  type: reservation.note?.trim() ? "success" : "neutral",
+              },
+          ];
 
     if (!reservation.tableId) {
         requests.unshift({ label: "席割当前", type: "alert" });
@@ -203,13 +212,14 @@ function toDisplayReservation(reservation: ReservationDto): DisplayReservation {
         hour: dateTime.hour,
         initials: getInitials(customerName),
         name: `${customerName} 様`,
+        phoneNumber: reservation.phoneNumber,
         tableLabel,
         party: `${reservation.pax} 名`,
         status: reservation.status,
         statusType: getStatusType(reservation.status),
         requests,
         actions: getActions(reservation.status),
-        searchText: `${customerName} ${tableLabel} ${reservation.note ?? ""}`.toLowerCase(),
+        searchText: `${customerName} ${reservation.phoneNumber ?? ""} ${tableLabel} ${reservation.note ?? ""} ${requestLabels.join(" ")}`.toLowerCase(),
     };
 }
 
@@ -250,7 +260,14 @@ export function ReservationsTable({ reservations, searchTerm, onStatusChange }: 
     const [currentPage, setCurrentPage] = useState(1);
     const [updatingReservationId, setUpdatingReservationId] = useState<number | null>(null);
     const displayReservations = useMemo(
-        () => reservations.map(toDisplayReservation),
+        () =>
+            [...reservations]
+                .sort((a, b) => {
+                    const createdAtDiff = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+
+                    return createdAtDiff || b.reservationId - a.reservationId;
+                })
+                .map(toDisplayReservation),
         [reservations]
     );
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -391,8 +408,13 @@ export function ReservationsTable({ reservations, searchTerm, onStatusChange }: 
                                                                 {reservation.name}
                                                             </span>
                                                             <span className="font-manrope text-xs font-normal leading-4 text-stone-400">
-                                                                {reservation.tableLabel}
+                                                                {reservation.phoneNumber || reservation.tableLabel}
                                                             </span>
+                                                            {reservation.phoneNumber ? (
+                                                                <span className="font-manrope text-xs font-normal leading-4 text-stone-400">
+                                                                    {reservation.tableLabel}
+                                                                </span>
+                                                            ) : null}
                                                         </div>
                                                     </div>
                                                 </TableCell>

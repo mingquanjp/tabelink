@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ApiError } from "@/lib/api/client";
 import { createRestaurantReservation } from "@/lib/api/restaurants/API";
 import type { ReservationRequestType } from "@/lib/api/restaurants/type";
@@ -40,6 +41,7 @@ function getRestaurantName(restaurant: OwnerHomeResponse["restaurant"]) {
 export function ReservationPageContent({
   restaurantDetail,
 }: ReservationPageContentProps) {
+  const router = useRouter();
   const minReservationDate = toDateInputValue(new Date());
   const restaurantHref = `/user/restaurants/${restaurantDetail.restaurantId}`;
   const restaurantName = getRestaurantName(restaurantDetail.restaurant);
@@ -88,6 +90,7 @@ export function ReservationPageContent({
         customRequest: trimmedCustomRequest || undefined,
       });
       showSuccessToast("予約リクエストを送信しました。");
+      router.push("/user/home");
     } catch (error) {
       showErrorToast(
         error instanceof ApiError

@@ -28,6 +28,7 @@ const backendApiRoutes = [
   "/owner/restaurants/:restaurantId/menus/:path*",
   "/owner/restaurants/:restaurantId/dashboard",
   "/owner/restaurants/:restaurantId/analytics/:path*",
+  "/owner/restaurants/:restaurantId/verification/:path*",
   "/owner/promotions",
   "/owner/promotions/:path*",
   "/owner/campaigns",

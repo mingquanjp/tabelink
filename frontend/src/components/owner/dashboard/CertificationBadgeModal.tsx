@@ -4,6 +4,7 @@ import React, { useState, useRef } from "react";
 import { X, Upload, FileText, CheckCircle2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OWNER_TOAST_MESSAGES, showErrorToast } from "@/lib/app-toast";
+import { ApiError } from "@/lib/api/client";
 import {
   listVerificationBadges,
   submitVerificationApplication,
@@ -95,8 +96,8 @@ export function CertificationBadgeModal({
 
       onSuccess(application);
       onClose();
-    } catch {
-      showErrorToast();
+    } catch (error) {
+      showErrorToast(error instanceof ApiError ? error.message : undefined);
     } finally {
       setIsSubmitting(false);
     }

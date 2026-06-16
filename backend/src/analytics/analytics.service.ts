@@ -205,19 +205,26 @@ export class AnalyticsService {
   private async getMonthlyViews(restaurantId: number) {
     const rows = await this.dataSource.query<MonthlyViewsRow[]>(
       `
+        WITH LatestDate AS (
+          SELECT COALESCE(MAX(StatDate), CURRENT_DATE) AS MaxDate
+          FROM RESTAURANT_ANALYTICS_DAILY
+          WHERE RestaurantID = $1
+        )
         SELECT
-          COALESCE(SUM(VisitCount) FILTER (
-            WHERE StatDate >= DATE_TRUNC('month', CURRENT_DATE)::date
-              AND StatDate < (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::date
+          COALESCE(SUM(rad.VisitCount) FILTER (
+            WHERE rad.StatDate >= DATE_TRUNC('month', ld.MaxDate)::date
+              AND rad.StatDate < (DATE_TRUNC('month', ld.MaxDate) + INTERVAL '1 month')::date
           ), 0)::int AS CurrentMonthViews,
-          COALESCE(SUM(VisitCount) FILTER (
-            WHERE StatDate >= (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month')::date
-              AND StatDate < DATE_TRUNC('month', CURRENT_DATE)::date
+          COALESCE(SUM(rad.VisitCount) FILTER (
+            WHERE rad.StatDate >= (DATE_TRUNC('month', ld.MaxDate) - INTERVAL '1 month')::date
+              AND rad.StatDate < DATE_TRUNC('month', ld.MaxDate)::date
           ), 0)::int AS PreviousMonthViews
         FROM RESTAURANT_ANALYTICS_DAILY
-        WHERE RestaurantID = $1
-          AND StatDate >= (DATE_TRUNC('month', CURRENT_DATE) - INTERVAL '1 month')::date
-          AND StatDate < (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::date
+        rad
+        CROSS JOIN LatestDate ld
+        WHERE rad.RestaurantID = $1
+          AND rad.StatDate >= (DATE_TRUNC('month', ld.MaxDate) - INTERVAL '1 month')::date
+          AND rad.StatDate < (DATE_TRUNC('month', ld.MaxDate) + INTERVAL '1 month')::date
       `,
       [restaurantId],
     );
@@ -342,15 +349,22 @@ export class AnalyticsService {
   private async getVisitorTrend(restaurantId: number) {
     const rows = await this.dataSource.query<VisitorTrendRow[]>(
       `
+        WITH LatestDate AS (
+          SELECT COALESCE(MAX(StatDate), CURRENT_DATE) AS MaxDate
+          FROM RESTAURANT_ANALYTICS_DAILY
+          WHERE RestaurantID = $1
+        )
         SELECT
-          StatDate::text AS StatDate,
-          JapaneseVisitCount::int AS Japanese,
-          (VisitCount - JapaneseVisitCount)::int AS Others
+          rad.StatDate::text AS StatDate,
+          rad.JapaneseVisitCount::int AS Japanese,
+          (rad.VisitCount - rad.JapaneseVisitCount)::int AS Others
         FROM RESTAURANT_ANALYTICS_DAILY
-        WHERE RestaurantID = $1
-          AND StatDate >= DATE_TRUNC('month', CURRENT_DATE)::date
-          AND StatDate <= CURRENT_DATE
-        ORDER BY StatDate ASC
+        rad
+        CROSS JOIN LatestDate ld
+        WHERE rad.RestaurantID = $1
+          AND rad.StatDate >= DATE_TRUNC('month', ld.MaxDate)::date
+          AND rad.StatDate <= ld.MaxDate
+        ORDER BY rad.StatDate ASC
       `,
       [restaurantId],
     );
@@ -365,18 +379,25 @@ export class AnalyticsService {
   private async getRevenueTrend(restaurantId: number) {
     const rows = await this.dataSource.query<RevenueTrendRow[]>(
       `
+        WITH LatestDate AS (
+          SELECT COALESCE(MAX(ReservationDateTime)::date, CURRENT_DATE) AS MaxDate
+          FROM RESERVATION
+          WHERE RestaurantID = $1
+            AND Status = 'Completed'
+        )
         SELECT
           r.ReservationDateTime::date::text AS Date,
           COALESCE(SUM(ri.Quantity * ri.UnitPrice), 0)::numeric(12, 2) AS Revenue,
           COUNT(DISTINCT r.ReservationID)::int AS OrderCount
         FROM RESERVATION r
+        CROSS JOIN LatestDate ld
         INNER JOIN RESERVATION_ITEM ri
           ON ri.ReservationID = r.ReservationID
           AND ri.RestaurantID = r.RestaurantID
         WHERE r.RestaurantID = $1
           AND r.Status = 'Completed'
-          AND r.ReservationDateTime >= DATE_TRUNC('month', CURRENT_DATE)
-          AND r.ReservationDateTime < DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month'
+          AND r.ReservationDateTime >= DATE_TRUNC('month', ld.MaxDate)
+          AND r.ReservationDateTime < DATE_TRUNC('month', ld.MaxDate) + INTERVAL '1 month'
         GROUP BY r.ReservationDateTime::date
         ORDER BY r.ReservationDateTime::date ASC
       `,
@@ -406,7 +427,7 @@ export class AnalyticsService {
           INNER JOIN CUSTOMER_PROFILE cp
             ON cp.AccountID = r.CustomerAccountID
           WHERE r.RestaurantID = $1
-            AND r.Status IN ('Approved', 'Completed')
+            AND r.Status IN ('Confirmed', 'Arrived', 'Completed')
         )
         SELECT Label, COUNT(*)::int AS Count
         FROM customers

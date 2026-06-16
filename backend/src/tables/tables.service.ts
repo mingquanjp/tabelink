@@ -387,15 +387,34 @@ export class TablesService {
       );
     }
 
+    const updates: Partial<Reservation> = {};
+
+    if (dto.tableId !== undefined) {
+      updates.tableId = reservation.tableId;
+    }
+
+    if (dto.durationMinutes !== undefined) {
+      updates.durationMinutes = reservation.durationMinutes;
+    }
+
     if (dto.status !== undefined) {
       reservation.status = dto.status;
+      updates.status = dto.status;
     }
 
     if (dto.note !== undefined) {
       reservation.note = this.optionalTrim(dto.note) ?? null;
+      updates.note = reservation.note;
     }
 
-    const saved = await this.reservationRepo.save(reservation);
+    if (Object.keys(updates).length) {
+      await this.reservationRepo.update(
+        { restaurantId, reservationId },
+        updates,
+      );
+    }
+
+    const saved = await this.findOwnedReservation(restaurantId, reservationId);
     await this.syncReservationTableStatuses(
       restaurantId,
       saved,

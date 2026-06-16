@@ -560,8 +560,7 @@ export class AdsService {
     this.assertValidDateRange(startDate, endDate);
     const promotionSpecificFields = this.resolvePromotionSpecificFields(dto);
 
-    const rows = await this.dataSource.query<PromotionRow[]>(
-      `
+    const insertPromotionSql = `
         INSERT INTO PROMOTION (
           RestaurantID,
           CreatedByOwnerAccountID,
@@ -607,27 +606,30 @@ export class AdsService {
           Impressions AS "impressions",
           Clicks AS "clicks",
           TotalCost AS "totalCost"
-      `,
-      [
-        restaurantId,
-        user.sub,
-        dto.promotionType,
-        targetAudience,
-        titleVn,
-        titleJp,
-        contentVn,
-        contentJp,
-        this.optionalTrim(dto.mediaUrl),
-        this.optionalTrim(dto.termsVn),
-        this.optionalTrim(dto.termsJp),
-        promotionSpecificFields.discountType,
-        promotionSpecificFields.discountValue,
-        promotionSpecificFields.advertisementType,
-        promotionSpecificFields.targetRadiusKm,
-        startDate,
-        endDate,
-        dto.totalCost ?? 0,
-      ],
+      `;
+    const insertPromotionParams = [
+      restaurantId,
+      user.sub,
+      dto.promotionType,
+      targetAudience,
+      titleVn,
+      titleJp,
+      contentVn,
+      contentJp,
+      this.optionalTrim(dto.mediaUrl),
+      this.optionalTrim(dto.termsVn),
+      this.optionalTrim(dto.termsJp),
+      promotionSpecificFields.discountType,
+      promotionSpecificFields.discountValue,
+      promotionSpecificFields.advertisementType,
+      promotionSpecificFields.targetRadiusKm,
+      startDate,
+      endDate,
+      dto.totalCost ?? 0,
+    ];
+    const rows = await this.createPromotionRows(
+      insertPromotionSql,
+      insertPromotionParams,
     );
 
     const row = this.unwrapFirstRow(rows);
@@ -1048,6 +1050,38 @@ export class AdsService {
     }
 
     return row;
+  }
+
+  private async createPromotionRows(query: string, parameters: unknown[]) {
+    try {
+      return await this.dataSource.query<PromotionRow[]>(query, parameters);
+    } catch (error) {
+      if (!this.isUniqueViolation(error)) {
+        throw error;
+      }
+
+      await this.syncPromotionIdentitySequence();
+      return this.dataSource.query<PromotionRow[]>(query, parameters);
+    }
+  }
+
+  private async syncPromotionIdentitySequence() {
+    await this.dataSource.query(`
+      SELECT setval(
+        pg_get_serial_sequence('promotion', 'promotionid'),
+        GREATEST(COALESCE((SELECT MAX(PromotionID) FROM PROMOTION), 0), 1),
+        COALESCE((SELECT MAX(PromotionID) FROM PROMOTION), 0) > 0
+      )
+    `);
+  }
+
+  private isUniqueViolation(error: unknown) {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === '23505'
+    );
   }
 
   private toCounterResponse(row: PromotionCounterRow) {

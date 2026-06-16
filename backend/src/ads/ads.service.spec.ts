@@ -869,6 +869,71 @@ describe('AdsService', () => {
     expect(dataSource.query.mock.calls[1][1][17]).toBe(0);
   });
 
+  it('syncs the promotion id sequence and retries when create hits a duplicate id', async () => {
+    const duplicateKeyError = { code: '23505' };
+
+    dataSource.query
+      .mockResolvedValueOnce([{ restaurantId: 1 }])
+      .mockRejectedValueOnce(duplicateKeyError)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          promotionId: 251,
+          restaurantId: 1,
+          createdByOwnerAccountId: 7,
+          promotionType: 'Campaign',
+          targetAudience: 'all',
+          titleVn: 'Autumn offer',
+          titleJp: 'Autumn offer',
+          contentVn: '10% off.',
+          contentJp: null,
+          mediaUrl: null,
+          termsVn: null,
+          termsJp: null,
+          discountType: 'Percentage',
+          discountValue: '10%',
+          advertisementType: null,
+          targetRadiusKm: null,
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+          status: 'Pending',
+          impressions: '0',
+          clicks: '0',
+          totalCost: '0',
+        },
+      ]);
+
+    await expect(
+      service.createPromotion(
+        1,
+        {
+          promotionType: PromotionType.Campaign,
+          titleVn: 'Autumn offer',
+          contentVn: '10% off.',
+          targetAudience: 'all',
+          discountType: 'Percentage',
+          discountValue: '10%',
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+        },
+        ownerUser,
+      ),
+    ).resolves.toMatchObject({
+      promotionId: 251,
+      status: 'Pending',
+    });
+
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("pg_get_serial_sequence('promotion', 'promotionid')"),
+    );
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      4,
+      expect.stringContaining('INSERT INTO PROMOTION'),
+      expect.arrayContaining([1, 7, 'Campaign']),
+    );
+  });
+
   it('creates a pending advertisement with a budget', async () => {
     dataSource.query
       .mockResolvedValueOnce([{ restaurantId: 1 }])

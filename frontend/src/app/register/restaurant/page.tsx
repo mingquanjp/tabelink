@@ -15,7 +15,10 @@ import { isValidShortText } from "@/lib/auth-form-validation";
 
 const imgStepCheck = "/register/step-check.png";
 const imgStepAccount = "/register/step-account-after-select.png";
-const phonePattern = /^\d{4}-\d{3}-\d{3}$/;
+function isValidPhone(value: string) {
+  const digits = value.trim().replace(/[\s\-+()./]/g, "");
+  return digits.length >= 7 && digits.length <= 15 && /^\d+$/.test(digits);
+}
 
 export default function RestaurantRegisterPage() {
   const router = useRouter();
@@ -51,7 +54,7 @@ export default function RestaurantRegisterPage() {
       !isValidShortText(storeName) ||
       !isValidShortText(address) ||
       !isValidShortText(representativeName) ||
-      !phonePattern.test(phone.trim())
+      !isValidPhone(phone)
     ) {
       showErrorToast(AUTH_TOAST_MESSAGES.validationError);
       return;

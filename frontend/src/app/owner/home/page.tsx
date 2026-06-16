@@ -1115,10 +1115,9 @@ function normalizeSocialUrl(value: string) {
   return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 }
 
-const phonePattern = /^\d{4}-\d{3}-\d{3}$/;
-
 function isValidPhone(value: string) {
-  return phonePattern.test(value.trim());
+  const digits = value.trim().replace(/[\s\-+()./]/g, "");
+  return digits.length >= 7 && digits.length <= 15 && /^\d+$/.test(digits);
 }
 
 function isValidOptionalUrl(value: string) {

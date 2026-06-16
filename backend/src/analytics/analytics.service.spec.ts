@@ -307,6 +307,19 @@ describe('AnalyticsService', () => {
       expect.stringContaining('PublishedReviewCount'),
       [1],
     );
+    const monthlyViewsQuery = dataSource.query.mock.calls.find(([sql]) =>
+      String(sql).includes('CurrentMonthViews'),
+    )?.[0];
+    expect(monthlyViewsQuery).toContain('LatestDate');
+    const visitorTrendQuery = dataSource.query.mock.calls.find(([sql]) =>
+      String(sql).includes('JapaneseVisitCount::int AS Japanese'),
+    )?.[0];
+    expect(visitorTrendQuery).toContain('LatestDate');
+    const userAttributesQuery = dataSource.query.mock.calls.find(([sql]) =>
+      String(sql).includes('WITH customers AS'),
+    )?.[0];
+    expect(userAttributesQuery).toContain("'Confirmed'");
+    expect(userAttributesQuery).not.toContain("'Approved'");
     const busyHoursQuery = dataSource.query.mock.calls.find(([sql]) =>
       String(sql).includes('GENERATE_SERIES'),
     )?.[0];

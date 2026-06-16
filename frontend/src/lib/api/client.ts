@@ -3,6 +3,7 @@ const SERVER_API_URL =
   normalizeApiOrigin(process.env.BACKEND_ORIGIN) ??
   PUBLIC_API_URL ??
   "http://localhost:8080";
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 type ApiErrorResponse = {
   message?: string | string[];
@@ -38,7 +39,7 @@ function resolveRequestUrl(path: string) {
     return `${SERVER_API_URL}${path}`;
   }
 
-  if (PUBLIC_API_URL) {
+  if (!IS_PRODUCTION && PUBLIC_API_URL) {
     return `${PUBLIC_API_URL}${path}`;
   }
 
@@ -99,7 +100,7 @@ export function resolveApiUrl(value: string | null | undefined) {
     const baseUrl =
       typeof window === "undefined"
         ? SERVER_API_URL
-        : PUBLIC_API_URL
+        : !IS_PRODUCTION && PUBLIC_API_URL
           ? PUBLIC_API_URL
           : window.location.origin;
 

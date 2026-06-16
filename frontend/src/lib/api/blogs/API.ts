@@ -20,7 +20,7 @@ function withKeyword(path: string, keyword?: string) {
 
 export function searchBlogRestaurants(keyword?: string) {
   return apiRequest<BlogRestaurantSearchResponse>(
-    withKeyword("/restaurants/search", keyword),
+    withKeyword("/blogs/restaurants/search", keyword),
     { auth: true },
   );
 }

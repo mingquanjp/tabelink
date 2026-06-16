@@ -50,7 +50,7 @@ export class BlogsController {
     private readonly blogMediaService: BlogMediaService,
   ) {}
 
-  @Get('restaurants/search')
+  @Get('blogs/restaurants/search')
   @ApiOperation({
     summary: 'Search restaurants for blog linking',
     description:

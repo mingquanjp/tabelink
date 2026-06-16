@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
@@ -19,6 +18,7 @@ import {
 import { BadgeMaster } from './entities/badge-master.entity';
 import { Restaurant } from '../restaurants/entities/restaurant.entity';
 import { SubmitVerificationApplicationDto } from './dto/submit-verification-application.dto';
+import { storeLocalVerificationDocument } from './local-verification-document.store';
 import { UploadedVerificationFile } from './verification-upload.types';
 
 export type VerificationDocumentType =
@@ -38,9 +38,21 @@ export class VerificationService {
   ) {}
 
   async listBadges() {
-    const badges = await this.badgeRepo.find({
+    let badges = await this.badgeRepo.find({
       order: { badgeId: 'ASC' },
     });
+
+    if (badges.length === 0) {
+      const defaultBadge = this.badgeRepo.create({
+        badgeCode: 'OFFICIAL_VERIFIED',
+        badgeNameVn: 'TABELINK chính thức xác thực',
+        badgeNameJp: 'TABELINK公式認証バッジ',
+        descriptionVn: 'Nhà hàng đã nộp hồ sơ xác thực chính thức.',
+        descriptionJp: '公式認証の必要書類を提出した店舗です。',
+        criteria: 'Business license, food safety certificate',
+      });
+      badges = [await this.badgeRepo.save(defaultBadge)];
+    }
 
     return {
       count: badges.length,
@@ -73,6 +85,24 @@ export class VerificationService {
       throw new BadRequestException(
         'Only PDF, JPG, and PNG files are allowed.',
       );
+    }
+
+    if (!this.isCloudinaryConfigured()) {
+      const localDocument = storeLocalVerificationDocument(
+        restaurantId,
+        documentType,
+        file,
+      );
+
+      return {
+        fileUrl: localDocument.url,
+        publicId: localDocument.key,
+        resourceType: 'local',
+        format: this.getFileFormat(file.originalname, file.mimetype),
+        bytes: file.size,
+        originalName: file.originalname,
+        documentType,
+      };
     }
 
     this.configureCloudinary();
@@ -114,9 +144,7 @@ export class VerificationService {
     });
 
     if (existingPending) {
-      throw new ConflictException(
-        'A pending verification application already exists.',
-      );
+      return this.findApplicationResponse(existingPending.appId);
     }
 
     const application = this.applicationRepo.create({
@@ -254,6 +282,32 @@ export class VerificationService {
       api_secret: apiSecret,
       secure: true,
     });
+  }
+
+  private isCloudinaryConfigured() {
+    return Boolean(
+      this.configService.get<string>('CLOUDINARY_CLOUD_NAME') &&
+        this.configService.get<string>('CLOUDINARY_API_KEY') &&
+        this.configService.get<string>('CLOUDINARY_API_SECRET'),
+    );
+  }
+
+  private getFileFormat(originalName: string, mimetype: string) {
+    const extension = originalName.split('.').pop()?.toLowerCase();
+
+    if (extension) {
+      return extension;
+    }
+
+    if (mimetype === 'application/pdf') {
+      return 'pdf';
+    }
+
+    if (mimetype === 'image/png') {
+      return 'png';
+    }
+
+    return 'jpg';
   }
 
   private async assertOwnerRestaurant(restaurantId: number, user: JwtPayload) {

@@ -27,6 +27,10 @@ import type { Request, Response } from 'express';
 import { JwtPayload } from '../auth/auth.types';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RestaurantsService } from '../restaurants/restaurants.service';
+import {
+  getLocalVerificationDocument,
+  isLocalVerificationDocumentKey,
+} from '../verification/local-verification-document.store';
 import { AdminService } from './admin.service';
 import { AdminUserActionDto } from './dto/admin-user-action.dto';
 import { AdminVerificationActionDto } from './dto/admin-verification-action.dto';
@@ -245,6 +249,24 @@ export class AdminController {
     );
 
     for (const url of document.urls) {
+      if (isLocalVerificationDocumentKey(url)) {
+        const localDocument = getLocalVerificationDocument(url);
+
+        if (!localDocument) {
+          continue;
+        }
+
+        response.setHeader('Content-Type', localDocument.contentType);
+        response.setHeader(
+          'Content-Disposition',
+          `inline; filename="${localDocument.originalName}"`,
+        );
+        response.setHeader('Cache-Control', 'private, max-age=60');
+        response.setHeader('Content-Length', localDocument.buffer.length);
+        response.end(localDocument.buffer);
+        return;
+      }
+
       const upstream = await fetch(url);
       const upstreamContentType =
         upstream.headers.get('content-type') ?? 'application/octet-stream';

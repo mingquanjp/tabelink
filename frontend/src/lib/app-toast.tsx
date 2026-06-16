@@ -32,6 +32,13 @@ const API_ERROR_MESSAGE_MAP: Record<string, string> = {
     "管理者アカウントでログインしてください。",
   "This account does not have Admin permission.":
     "このアカウントには管理者権限がありません。",
+  "Document file is required.": "書類ファイルを選択してください。",
+  "Only PDF, JPG, and PNG files are allowed.":
+    "PDF、JPG、PNGファイルのみアップロードできます。",
+  "Restaurant not found for this owner.":
+    "店舗情報が見つかりません。再度ログインしてください。",
+  "Verification badge master is not configured.":
+    "認証バッジの設定がありません。管理者に確認してください。",
 };
 
 function translateInactiveAccountMessage(message: string) {

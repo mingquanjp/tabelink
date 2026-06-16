@@ -95,8 +95,8 @@ export function CertificationBadgeModal({
 
       onSuccess(application);
       onClose();
-    } catch {
-      showErrorToast();
+    } catch (error) {
+      showErrorToast(error instanceof Error ? error.message : undefined);
     } finally {
       setIsSubmitting(false);
     }

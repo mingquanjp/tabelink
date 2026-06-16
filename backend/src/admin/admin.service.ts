@@ -12,6 +12,10 @@ import { JwtPayload } from '../auth/auth.types';
 import { CustomerProfile } from '../auth/entities/customer-profile.entity';
 import { OwnerProfile } from '../auth/entities/owner-profile.entity';
 import { UserAccount } from '../auth/entities/user-account.entity';
+import {
+  getLocalVerificationDocument,
+  isLocalVerificationDocumentKey,
+} from '../verification/local-verification-document.store';
 import { ADMIN_ACCOUNT_STATUSES } from './admin.constants';
 import { AdminUserActionDto } from './dto/admin-user-action.dto';
 import { AdminVerificationActionDto } from './dto/admin-verification-action.dto';
@@ -487,10 +491,11 @@ export class AdminService {
         documentType === 'business-license'
           ? 'business-license'
           : 'food-safety-certificate',
-      contentType: this.inferVerificationDocumentContentType(
-        sourceUrl,
-        publicId,
-      ),
+      contentType:
+        publicId && isLocalVerificationDocumentKey(publicId)
+          ? (getLocalVerificationDocument(publicId)?.contentType ??
+            this.inferVerificationDocumentContentType(sourceUrl, publicId))
+          : this.inferVerificationDocumentContentType(sourceUrl, publicId),
       urls: this.toVerificationDocumentUrlCandidates(sourceUrl, publicId),
     };
   }
@@ -1061,6 +1066,10 @@ export class AdminService {
     sourceUrl: string,
     publicId: string | null,
   ) {
+    if (publicId && isLocalVerificationDocumentKey(publicId)) {
+      return [publicId];
+    }
+
     const candidates = [sourceUrl];
 
     if (/\/image\/upload\//.test(sourceUrl) && /\.pdf($|\?)/i.test(sourceUrl)) {

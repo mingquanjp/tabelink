@@ -630,6 +630,11 @@ export class AdsService {
     const rows = await this.createPromotionRows(
       insertPromotionSql,
       insertPromotionParams,
+      {
+        syncCampaignTargetAudienceOnCheckViolation:
+          dto.promotionType === PromotionType.Campaign &&
+          targetAudience === CampaignTargetAudience.New,
+      },
     );
 
     const row = this.unwrapFirstRow(rows);
@@ -1052,16 +1057,28 @@ export class AdsService {
     return row;
   }
 
-  private async createPromotionRows(query: string, parameters: unknown[]) {
+  private async createPromotionRows(
+    query: string,
+    parameters: unknown[],
+    options: { syncCampaignTargetAudienceOnCheckViolation?: boolean } = {},
+  ) {
     try {
       return await this.dataSource.query<PromotionRow[]>(query, parameters);
     } catch (error) {
-      if (!this.isUniqueViolation(error)) {
-        throw error;
+      if (this.isUniqueViolation(error)) {
+        await this.syncPromotionIdentitySequence();
+        return this.dataSource.query<PromotionRow[]>(query, parameters);
       }
 
-      await this.syncPromotionIdentitySequence();
-      return this.dataSource.query<PromotionRow[]>(query, parameters);
+      if (
+        options.syncCampaignTargetAudienceOnCheckViolation &&
+        this.isCheckViolation(error)
+      ) {
+        await this.syncCampaignTargetAudienceConstraints();
+        return this.dataSource.query<PromotionRow[]>(query, parameters);
+      }
+
+      throw error;
     }
   }
 
@@ -1082,6 +1099,65 @@ export class AdsService {
       'code' in error &&
       (error as { code?: string }).code === '23505'
     );
+  }
+
+  private isCheckViolation(error: unknown) {
+    return (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as { code?: string }).code === '23514'
+    );
+  }
+
+  private async syncCampaignTargetAudienceConstraints() {
+    await this.dataSource.query(`
+      DO $$
+      DECLARE
+          constraint_record RECORD;
+      BEGIN
+          FOR constraint_record IN
+              SELECT conname
+              FROM pg_constraint
+              WHERE conrelid = 'promotion'::regclass
+                AND contype = 'c'
+                AND pg_get_constraintdef(oid) ILIKE '%targetaudience%'
+          LOOP
+              EXECUTE format(
+                  'ALTER TABLE PROMOTION DROP CONSTRAINT IF EXISTS %I',
+                  constraint_record.conname
+              );
+          END LOOP;
+      END $$;
+
+      UPDATE PROMOTION
+      SET TargetAudience = 'all'
+      WHERE PromotionType = 'Campaign'
+        AND COALESCE(TargetAudience, '') NOT IN ('all', 'new');
+
+      UPDATE PROMOTION
+      SET
+          TargetAudience = 'all',
+          TargetRadiusKm = NULL
+      WHERE PromotionType = 'Advertisement';
+
+      ALTER TABLE PROMOTION
+          ADD CONSTRAINT chk_promotion_campaign_target_audience
+              CHECK (
+                  PromotionType <> 'Campaign'
+                  OR TargetAudience IN ('all', 'new')
+              );
+
+      ALTER TABLE PROMOTION
+          ADD CONSTRAINT chk_promotion_advertisement_target_all
+              CHECK (
+                  PromotionType <> 'Advertisement'
+                  OR (
+                      TargetAudience = 'all'
+                      AND TargetRadiusKm IS NULL
+                  )
+              );
+    `);
   }
 
   private toCounterResponse(row: PromotionCounterRow) {

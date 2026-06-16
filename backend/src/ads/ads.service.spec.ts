@@ -934,6 +934,72 @@ describe('AdsService', () => {
     );
   });
 
+  it('syncs campaign target audience constraints and retries new customer campaigns', async () => {
+    const checkViolationError = { code: '23514' };
+
+    dataSource.query
+      .mockResolvedValueOnce([{ restaurantId: 1 }])
+      .mockRejectedValueOnce(checkViolationError)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          promotionId: 252,
+          restaurantId: 1,
+          createdByOwnerAccountId: 7,
+          promotionType: 'Campaign',
+          targetAudience: 'new',
+          titleVn: 'New customer offer',
+          titleJp: 'New customer offer',
+          contentVn: '20% off.',
+          contentJp: null,
+          mediaUrl: null,
+          termsVn: null,
+          termsJp: null,
+          discountType: 'Percentage',
+          discountValue: '20%',
+          advertisementType: null,
+          targetRadiusKm: null,
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+          status: 'Pending',
+          impressions: '0',
+          clicks: '0',
+          totalCost: '0',
+        },
+      ]);
+
+    await expect(
+      service.createPromotion(
+        1,
+        {
+          promotionType: PromotionType.Campaign,
+          titleVn: 'New customer offer',
+          contentVn: '20% off.',
+          targetAudience: 'new',
+          discountType: 'Percentage',
+          discountValue: '20%',
+          startDate: '2026-05-20T00:00:00.000Z',
+          endDate: '2026-05-31T23:59:59.000Z',
+        },
+        ownerUser,
+      ),
+    ).resolves.toMatchObject({
+      promotionId: 252,
+      targetAudience: 'new',
+      status: 'Pending',
+    });
+
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('chk_promotion_campaign_target_audience'),
+    );
+    expect(dataSource.query).toHaveBeenNthCalledWith(
+      4,
+      expect.stringContaining('INSERT INTO PROMOTION'),
+      expect.arrayContaining([1, 7, 'Campaign', 'new']),
+    );
+  });
+
   it('creates a pending advertisement with a budget', async () => {
     dataSource.query
       .mockResolvedValueOnce([{ restaurantId: 1 }])

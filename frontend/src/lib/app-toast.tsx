@@ -24,31 +24,26 @@ const API_ERROR_MESSAGE_MAP: Record<string, string> = {
   "Invalid credentials.": "メールアドレスまたはパスワードが正しくありません。",
   "Account not found.": "アカウントが見つかりません。",
   "Account is not active.": "このアカウントは現在利用できません。",
-  "Refresh token is invalid.": "ログイン情報の有効期限が切れました。再度ログインしてください。",
+  "Refresh token is invalid.":
+    "ログイン情報の有効期限が切れました。再度ログインしてください。",
   "Authentication is required.": "ログインが必要です。",
-  "Missing or invalid access token.": "ログイン情報が確認できません。再度ログインしてください。",
+  "Missing or invalid access token.":
+    "ログイン情報が確認できません。再度ログインしてください。",
   "Only users can view notifications.": "通知を確認できるのはユーザーのみです。",
   "Admin session is required. Please log in with an Admin account.":
     "管理者アカウントでログインしてください。",
   "This account does not have Admin permission.":
     "このアカウントには管理者権限がありません。",
-<<<<<<< HEAD
+  "A pending verification application already exists.":
+    "すでに申請済みです。審査中の申請があります。",
   "Document file is required.": "書類ファイルを選択してください。",
   "Only PDF, JPG, and PNG files are allowed.":
     "PDF、JPG、PNGファイルのみアップロードできます。",
+  "Badge not found.": "認証バッジが見つかりません。",
   "Restaurant not found for this owner.":
     "店舗情報が見つかりません。再度ログインしてください。",
   "Verification badge master is not configured.":
     "認証バッジの設定がありません。管理者に確認してください。",
-=======
-  "A pending verification application already exists.":
-    "すでに申請済みです。審査中の申請があります。",
-  "Only PDF, JPG, and PNG files are allowed.":
-    "PDF、JPG、PNGファイルのみアップロードできます。",
-  "Document file is required.": "書類ファイルが必要です。",
-  "Badge not found.": "認証バッジが見つかりません。",
-  "Restaurant not found for this owner.": "店舗情報が見つかりません。",
->>>>>>> 18361ab8fce407e23947d0fcb78a413c264ed6ac
 };
 
 function translateInactiveAccountMessage(message: string) {

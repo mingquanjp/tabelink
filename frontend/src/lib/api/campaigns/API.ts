@@ -20,7 +20,7 @@ export function getOwnerPromotions() {
 }
 
 export function createOwnerCampaign(body: CreateOwnerCampaignRequest) {
-  return apiRequest<OwnerPromotion>("/owner/promotions/campaigns", {
+  return apiRequest<OwnerPromotion>("/owner/campaigns", {
     method: "POST",
     auth: true,
     body: JSON.stringify(body),

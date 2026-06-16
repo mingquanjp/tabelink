@@ -232,7 +232,7 @@ export class AdsController {
     return this.adsService.listOwnerPromotions(request.user);
   }
 
-  @Post('owner/promotions/campaigns')
+  @Post('owner/campaigns')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({

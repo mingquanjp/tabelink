@@ -128,6 +128,7 @@ export class VerificationService {
       foodSafetyCertUrl: dto.foodSafetyCertUrl,
       foodSafetyCertPublicId: dto.foodSafetyCertPublicId,
       status: BadgeApplicationStatus.Pending,
+      submittedAt: new Date(),
     });
 
     const saved = await this.applicationRepo.save(application);

@@ -1,5 +1,6 @@
 import {
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
   ManyToOne,
@@ -67,7 +68,7 @@ export class BadgeApplication {
   })
   status!: BadgeApplicationStatus;
 
-  @Column({ name: 'submittedat', type: 'timestamptz' })
+  @CreateDateColumn({ name: 'submittedat', type: 'timestamptz' })
   submittedAt!: Date;
 
   @Column({ name: 'reviewedat', type: 'timestamptz', nullable: true })

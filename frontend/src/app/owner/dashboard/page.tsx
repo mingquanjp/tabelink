@@ -686,32 +686,7 @@ export default function OwnerDashboardPage() {
     }));
   }, [dashboard]);
 
-  const demographicsData = useMemo<DemographicItem[]>(() => {
-    if (!dashboard?.userAttributes.length) {
-      return demoDemographicsData;
-    }
-
-    const total = dashboard.userAttributes.reduce(
-      (sum, item) => sum + item.count,
-      0
-    );
-
-    if (total <= 0) {
-      return demoDemographicsData;
-    }
-
-    return dashboard.userAttributes.map((item) => ({
-      name:
-        item.label.toLowerCase() === "japanese"
-          ? "日本人"
-          : item.label.toLowerCase() === "others"
-            ? "その他"
-            : item.label,
-      value: item.count,
-      color:
-        item.label.toLowerCase() === "japanese" ? "#af111c" : "#8f6f6c66",
-    }));
-  }, [dashboard]);
+  const demographicsData = demoDemographicsData;
 
   const sentimentData = useMemo<SentimentItem[]>(() => {
     return [
@@ -736,8 +711,7 @@ export default function OwnerDashboardPage() {
     ];
   }, [dashboard]);
 
-  const displayPopularMenuItems =
-    popularMenuItems.length > 0 ? popularMenuItems : demoPopularMenuItems;
+  const displayPopularMenuItems = demoPopularMenuItems;
 
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
   const popularTimePeakIndex = useMemo(
@@ -1024,11 +998,6 @@ export default function OwnerDashboardPage() {
                     </div>
                   );
                 })}
-                {demographicsData.length === 0 ? (
-                  <p className="text-[12px] font-medium text-[#8a8d85]">
-                    ユーザー属性データはまだありません。
-                  </p>
-                ) : null}
               </div>
             </div>
 

@@ -86,6 +86,22 @@ type PopularMenuItem = {
   progress: number;
 };
 
+const demoCampaignWeeklyOrders = {
+  value: 18,
+  activeCampaignCount: 8,
+};
+
+const demoPopularMenuItems: PopularMenuItem[] = [
+  { id: 1, name: "牛肉フォー", orders: 24, progress: 100 },
+  { id: 2, name: "揚げ春巻き", orders: 18, progress: 75 },
+  { id: 3, name: "バインミー", orders: 12, progress: 50 },
+];
+
+const demoDemographicsData: DemographicItem[] = [
+  { name: "日本人", value: 68, color: "#af111c" },
+  { name: "その他", value: 32, color: "#8f6f6c66" },
+];
+
 type PopularTimeItem = {
   time: string;
   value: number;
@@ -607,6 +623,15 @@ export default function OwnerDashboardPage() {
   const kpiData: KPIData[] = useMemo(() => {
     const summary = dashboard?.summary;
     const rating = summary?.japaneseAverageRating.value ?? null;
+    const campaignWeeklyOrders =
+      summary?.campaignWeeklyOrders.value && summary.campaignWeeklyOrders.value > 0
+        ? summary.campaignWeeklyOrders.value
+        : demoCampaignWeeklyOrders.value;
+    const activeCampaignCount =
+      summary?.campaignWeeklyOrders.activeCampaignCount &&
+      summary.campaignWeeklyOrders.activeCampaignCount > 0
+        ? summary.campaignWeeklyOrders.activeCampaignCount
+        : demoCampaignWeeklyOrders.activeCampaignCount;
 
     return [
       {
@@ -628,8 +653,8 @@ export default function OwnerDashboardPage() {
       },
       {
         label: "キャンペーン適用注文数",
-        value: formatNumber(summary?.campaignWeeklyOrders.value),
-        sub: `${summary?.campaignWeeklyOrders.activeCampaignCount ?? 0} active`,
+        value: formatNumber(campaignWeeklyOrders),
+        sub: `${activeCampaignCount} active`,
         trend: "up",
         icon: Ticket,
         unit: "件",
@@ -663,10 +688,19 @@ export default function OwnerDashboardPage() {
 
   const demographicsData = useMemo<DemographicItem[]>(() => {
     if (!dashboard?.userAttributes.length) {
-      return [];
+      return demoDemographicsData;
     }
 
-    return dashboard.userAttributes.map((item, index) => ({
+    const total = dashboard.userAttributes.reduce(
+      (sum, item) => sum + item.count,
+      0
+    );
+
+    if (total <= 0) {
+      return demoDemographicsData;
+    }
+
+    return dashboard.userAttributes.map((item) => ({
       name:
         item.label.toLowerCase() === "japanese"
           ? "日本人"
@@ -674,7 +708,8 @@ export default function OwnerDashboardPage() {
             ? "その他"
             : item.label,
       value: item.count,
-      color: index === 0 ? "#af111c" : "#8f6f6c66",
+      color:
+        item.label.toLowerCase() === "japanese" ? "#af111c" : "#8f6f6c66",
     }));
   }, [dashboard]);
 
@@ -700,6 +735,9 @@ export default function OwnerDashboardPage() {
       },
     ];
   }, [dashboard]);
+
+  const displayPopularMenuItems =
+    popularMenuItems.length > 0 ? popularMenuItems : demoPopularMenuItems;
 
   const popularTimes = useMemo(() => buildPopularTimes(dashboard), [dashboard]);
   const popularTimePeakIndex = useMemo(
@@ -1028,7 +1066,7 @@ export default function OwnerDashboardPage() {
               )}
             </div>
             <div className="flex flex-col gap-6 relative z-10">
-              {popularMenuItems.map((item) => (
+              {displayPopularMenuItems.map((item) => (
                 <button
                   key={item.id}
                   className="flex gap-4 items-center text-left"
@@ -1051,11 +1089,6 @@ export default function OwnerDashboardPage() {
                   </div>
                 </button>
               ))}
-              {popularMenuItems.length === 0 ? (
-                <p className="text-sm font-medium leading-6 text-white/80">
-                  メニュー閲覧データはまだありません。
-                </p>
-              ) : null}
             </div>
             <div className="absolute top-0 right-0 size-32 bg-white/10 blur-3xl -mr-16 -mt-16 rounded-full" />
             <Trophy className="absolute bottom-4 right-4 size-16 text-white/5" />

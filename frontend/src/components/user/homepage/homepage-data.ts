@@ -1,5 +1,4 @@
 const assets = {
-  avatar: "/image.png",
   restaurant: "/japanese-cuisine.png",
   pho: "/admin/badge/kizuna-main.jpg",
   springRolls: "/menu/nemran.png",
@@ -11,7 +10,7 @@ export const homepageUser = {
   handle: "@tanaka_jp",
   location: "Ho Chi Minh City",
   initials: "TK",
-  avatarUrl: assets.avatar,
+  avatarUrl: null as string | null,
 };
 
 export const homepagePosts = [

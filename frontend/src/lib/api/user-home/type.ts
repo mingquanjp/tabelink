@@ -4,6 +4,7 @@ export type UserHomeProfile = {
   displayName: string | null;
   handle: string;
   avatarUrl: string | null;
+  postCount: number;
   followingCount: number;
   followerCount: number;
 };

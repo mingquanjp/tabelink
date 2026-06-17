@@ -377,9 +377,11 @@ type VerificationStatus = "NotSubmitted" | "Pending" | "Approved" | "Rejected" |
 function VerificationStatusBanner({
   status,
   onApply,
+  onResetRejected,
 }: {
   status: VerificationStatus;
   onApply: (mode?: "apply" | "approved") => void;
+  onResetRejected: () => void;
 }) {
   if (status === "Pending") {
     return (
@@ -462,7 +464,7 @@ function VerificationStatusBanner({
             </div>
           </div>
           <button
-            onClick={() => onApply()}
+            onClick={onResetRejected}
             className="rounded-md bg-[#af111c] px-8 py-3 text-sm font-medium text-white shadow-lg shadow-[#af111c20] hover:bg-[#960e18]"
           >
             了解
@@ -794,6 +796,29 @@ export default function OwnerDashboardPage() {
     }
   };
 
+  const handleRejectedAcknowledged = () => {
+    setDashboard((current) => {
+      if (!current) {
+        return current;
+      }
+
+      const nextDashboard = {
+        ...current,
+        verification: {
+          status: "NotSubmitted",
+          application: null,
+        },
+      };
+
+      writeSessionCache(ownerDashboardCacheKey, {
+        dashboard: nextDashboard,
+        popularMenuItems,
+      });
+
+      return nextDashboard;
+    });
+  };
+
   const handleCertificationModalClose = () => {
     setIsModalOpen(false);
 
@@ -858,6 +883,7 @@ export default function OwnerDashboardPage() {
         <VerificationStatusBanner
           status={dashboard?.verification.status ?? "NotSubmitted"}
           onApply={handleCertificationClick}
+          onResetRejected={handleRejectedAcknowledged}
         />
       )}
       <section className="hidden">

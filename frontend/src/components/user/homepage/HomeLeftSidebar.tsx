@@ -25,15 +25,27 @@ export function HomeLeftSidebar({
   isGuest = false,
   user,
 }: HomeLeftSidebarProps) {
+  const hasAvatar = Boolean(user.avatarUrl);
+
   return (
     <aside className="space-y-5 max-md:order-2 lg:sticky lg:top-28 lg:self-start">
       {!isGuest ? (
         <Card className="rounded-lg border-0 bg-white py-0 shadow-[0_8px_24px_rgba(26,28,27,0.06)]">
         <CardContent className="px-6 py-6 text-center">
           <div
-            className="mx-auto size-[66px] rounded-xl bg-cover bg-center shadow-[0_4px_12px_rgba(26,28,27,0.16)]"
-            style={{ backgroundImage: `url(${user.avatarUrl})` }}
-          />
+            className={`mx-auto flex size-[66px] items-center justify-center rounded-xl font-manrope text-lg font-bold shadow-[0_4px_12px_rgba(26,28,27,0.16)] ${
+              hasAvatar
+                ? "bg-cover bg-center text-transparent"
+                : "bg-[#dfe5d4] text-[#5a6053]"
+            }`}
+            style={
+              hasAvatar
+                ? { backgroundImage: `url(${user.avatarUrl})` }
+                : undefined
+            }
+          >
+            {user.initials}
+          </div>
           <h1 className="mt-4 font-jp text-[15px] font-bold leading-5 text-[#1a1c1b]">
             {user.name}
           </h1>
@@ -43,7 +55,7 @@ export function HomeLeftSidebar({
           <div className="mt-5 grid grid-cols-3 border-t border-[#f0eee8] pt-4 text-center">
             <div>
               <p className="font-manrope text-[14px] font-bold text-[#1a1c1b]">
-                {formatCount(user.accountId, "")}
+                {formatCount(user.postCount, "0")}
               </p>
               <p className="font-jp text-[9px] text-[#5a6053]">投稿</p>
             </div>

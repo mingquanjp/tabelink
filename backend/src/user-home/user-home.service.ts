@@ -16,6 +16,7 @@ interface HomeProfileRow {
   fullName: string;
   displayName: string | null;
   avatarUrl: string | null;
+  postCount: number | string;
   followingCount: number | string;
   followerCount: number | string;
 }
@@ -74,6 +75,12 @@ export class UserHomeService {
           cp.AvatarURL AS "avatarUrl",
           (
             SELECT COUNT(*)
+            FROM BLOG_POST bp
+            WHERE bp.CustomerAccountID = cp.AccountID
+              AND bp.Status = 'Published'
+          ) AS "postCount",
+          (
+            SELECT COUNT(*)
             FROM USER_FOLLOW uf
             WHERE uf.FollowerAccountID = cp.AccountID
           ) AS "followingCount",
@@ -99,6 +106,7 @@ export class UserHomeService {
       displayName: row.displayName,
       handle: this.toHandle(row.accountId),
       avatarUrl: row.avatarUrl,
+      postCount: Number(row.postCount),
       followingCount: Number(row.followingCount),
       followerCount: Number(row.followerCount),
     };

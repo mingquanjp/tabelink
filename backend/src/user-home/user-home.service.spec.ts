@@ -39,6 +39,7 @@ describe('UserHomeService', () => {
         fullName: 'Nguyen Van A',
         displayName: 'A Nguyen',
         avatarUrl: 'https://example.com/avatar.jpg',
+        postCount: '7',
         followingCount: '20',
         followerCount: '35',
       },
@@ -50,6 +51,7 @@ describe('UserHomeService', () => {
       displayName: 'A Nguyen',
       handle: '@user12',
       avatarUrl: 'https://example.com/avatar.jpg',
+      postCount: 7,
       followingCount: 20,
       followerCount: 35,
     });

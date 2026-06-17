@@ -111,7 +111,8 @@ function mapHomeProfile(profile: Awaited<ReturnType<typeof getUserHomeProfile>>)
     name,
     handle: profile.handle,
     initials: buildInitials(name),
-    avatarUrl: resolveApiUrl(profile.avatarUrl) ?? homepageUser.avatarUrl,
+    avatarUrl: resolveApiUrl(profile.avatarUrl),
+    postCount: profile.postCount,
     followerCount: profile.followerCount,
     followingCount: profile.followingCount,
   };

@@ -31,7 +31,7 @@ import type { ReactNode } from "react";
 import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { CertificationBadgeModal } from "@/components/owner/dashboard/CertificationBadgeModal";
 import {
-  findOwnerDashboard,
+  getOwnerDashboard,
   getTopMenu,
   recordAdClick,
   recordAdImpression,
@@ -45,12 +45,17 @@ import type {
 import type { VerificationApplication } from "@/lib/api/verification/type";
 import { showErrorToast, showSuccessToast } from "@/lib/app-toast";
 import {
+  getAuthSession,
+  requireOwnerRestaurant,
+} from "@/lib/api/auth/session";
+import {
   readSessionCache,
   SESSION_CACHE_TTL,
   writeSessionCache,
 } from "@/lib/api/cache";
 
-const ownerDashboardCacheKey = "tabelink:owner:dashboard:v1";
+const ownerDashboardCacheKey = (restaurantId: number) =>
+  `tabelink:owner:dashboard:${restaurantId}:v1`;
 const approvedVerificationDismissedKey = (restaurantId: number) =>
   `tabelink:owner:dashboard:verification-approved-dismissed:${restaurantId}`;
 
@@ -512,22 +517,28 @@ export default function OwnerDashboardPage() {
     let cancelled = false;
 
     async function loadDashboard() {
-      const cachedDashboard = readSessionCache<OwnerDashboardCache>(
-        ownerDashboardCacheKey,
-        SESSION_CACHE_TTL.dashboard,
-      );
+      let showedCachedDashboard = false;
 
-      if (cachedDashboard) {
-        setDashboard(cachedDashboard.dashboard);
-        setPopularMenuItems(cachedDashboard.popularMenuItems);
-        setIsLoading(false);
-      } else {
-        setIsLoading(true);
-      }
+      setIsLoading(true);
 
       try {
-        const { restaurantId: currentRestaurantId, dashboard: dashboardResponse } =
-          await findOwnerDashboard();
+        const session = await getAuthSession();
+        const restaurant = requireOwnerRestaurant(session);
+        const currentRestaurantId = restaurant.restaurantId;
+        const cacheKey = ownerDashboardCacheKey(currentRestaurantId);
+        const cachedDashboard = readSessionCache<OwnerDashboardCache>(
+          cacheKey,
+          SESSION_CACHE_TTL.dashboard,
+        );
+
+        if (!cancelled && cachedDashboard) {
+          showedCachedDashboard = true;
+          setDashboard(cachedDashboard.dashboard);
+          setPopularMenuItems(cachedDashboard.popularMenuItems);
+          setIsLoading(false);
+        }
+
+        const dashboardResponse = await getOwnerDashboard(currentRestaurantId);
 
         if (cancelled) {
           return;
@@ -538,7 +549,7 @@ export default function OwnerDashboardPage() {
         if (dashboardResponse.topMenus.length > 0) {
           const nextPopularMenuItems = toPopularMenuItems(dashboardResponse.topMenus);
           setPopularMenuItems(nextPopularMenuItems);
-          writeSessionCache(ownerDashboardCacheKey, {
+          writeSessionCache(cacheKey, {
             dashboard: dashboardResponse,
             popularMenuItems: nextPopularMenuItems,
           });
@@ -554,7 +565,7 @@ export default function OwnerDashboardPage() {
 
           if (!cancelled) {
             setPopularMenuItems(nextPopularMenuItems);
-            writeSessionCache(ownerDashboardCacheKey, {
+            writeSessionCache(cacheKey, {
               dashboard: dashboardResponse,
               popularMenuItems: nextPopularMenuItems,
             });
@@ -562,18 +573,18 @@ export default function OwnerDashboardPage() {
         } catch {
           if (!cancelled) {
             setPopularMenuItems([]);
-            writeSessionCache(ownerDashboardCacheKey, {
+            writeSessionCache(cacheKey, {
               dashboard: dashboardResponse,
               popularMenuItems: [],
             });
           }
         }
       } catch {
-        if (!cachedDashboard) {
+        if (!showedCachedDashboard) {
           showErrorToast();
         }
       } finally {
-        if (!cancelled && !cachedDashboard) {
+        if (!cancelled) {
           setIsLoading(false);
         }
       }
@@ -751,7 +762,7 @@ export default function OwnerDashboardPage() {
         },
       };
 
-      writeSessionCache(ownerDashboardCacheKey, {
+      writeSessionCache(ownerDashboardCacheKey(nextDashboard.restaurantId), {
         dashboard: nextDashboard,
         popularMenuItems,
       });
@@ -1053,7 +1064,7 @@ export default function OwnerDashboardPage() {
               ))}
               {popularMenuItems.length === 0 ? (
                 <p className="text-sm font-medium leading-6 text-white/80">
-                  メニュー閲覧データはまだありません。
+                  完了した予約のメニュー注文はまだありません。
                 </p>
               ) : null}
             </div>

@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef, useState } from "react";
 import { Check, Search, SquareMenu, Utensils, Warehouse } from "lucide-react";
 import {

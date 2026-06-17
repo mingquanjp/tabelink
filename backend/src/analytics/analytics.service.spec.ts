@@ -136,7 +136,7 @@ describe('AnalyticsService', () => {
         {
           averagerating: '4.56',
           reviewcount: '9',
-          publishedreviewcount: '12',
+          publishedreviewcount: '40',
           positive: '7',
           neutral: '2',
           negative: '1',
@@ -220,9 +220,9 @@ describe('AnalyticsService', () => {
           isTracked: true,
         },
         publishedReviews: {
-          value: 12,
+          value: 40,
           target: 100,
-          progressRate: 12,
+          progressRate: 40,
         },
       },
       visitorTrend: [
@@ -310,18 +310,11 @@ describe('AnalyticsService', () => {
     const monthlyViewsQuery = dataSource.query.mock.calls.find(([sql]) =>
       String(sql).includes('CurrentMonthViews'),
     )?.[0];
-    expect(monthlyViewsQuery).toContain('CURRENT_DATE');
-    expect(monthlyViewsQuery).not.toContain('LatestDate');
+    expect(monthlyViewsQuery).toContain('LatestDate');
     const visitorTrendQuery = dataSource.query.mock.calls.find(([sql]) =>
       String(sql).includes('JapaneseVisitCount::int AS Japanese'),
     )?.[0];
-    expect(visitorTrendQuery).toContain('CURRENT_DATE');
-    expect(visitorTrendQuery).not.toContain('LatestDate');
-    const reviewMetricsQuery = dataSource.query.mock.calls.find(([sql]) =>
-      String(sql).includes('PublishedReviewCount'),
-    )?.[0];
-    expect(reviewMetricsQuery).toContain('r.CreatedAt');
-    expect(reviewMetricsQuery).toContain('CURRENT_DATE');
+    expect(visitorTrendQuery).toContain('LatestDate');
     const userAttributesQuery = dataSource.query.mock.calls.find(([sql]) =>
       String(sql).includes('WITH customers AS'),
     )?.[0];

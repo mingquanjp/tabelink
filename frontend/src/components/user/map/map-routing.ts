@@ -26,18 +26,6 @@ export function isValidLatLng(point: LatLngLiteral) {
   );
 }
 
-export function distanceLimitMeters(option: DistanceOption) {
-  if (option === "500m") {
-    return 500;
-  }
-
-  if (option === "1.0km") {
-    return 1000;
-  }
-
-  return 5000;
-}
-
 export function distanceOptionForMeters(distanceMeters: number): DistanceOption | null {
   if (!Number.isFinite(distanceMeters) || distanceMeters < 0) {
     return null;

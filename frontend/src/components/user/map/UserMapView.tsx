@@ -10,7 +10,6 @@ import type {
 } from "./map-data";
 import { currentLocation as fallbackLocation, mapApiToMapRestaurant } from "./map-data";
 import {
-  distanceLimitMeters,
   distanceOptionForMeters,
   formatDistanceShort,
   getBrowserCurrentLocation,
@@ -36,7 +35,7 @@ const FEATURE_IDS = {
 
 const initialFilters: MapFilterState = {
   keyword: "",
-  distance: "5km",
+  distance: 5000,
   quality: {
     hygiene: false,
     japaneseStaff: false,
@@ -114,7 +113,7 @@ export function UserMapView() {
     async function loadRestaurants() {
       setIsLoading(true);
       // Chuyển đổi Filter sang API Params
-      const radius = parseFloat(filters.distance) * 1000;
+      const radius = filters.distance;
       const dishTypes = filters.cuisines.flatMap(c => CUISINE_MAP[c] || []);
       const japaneseStandards = [
         filters.quality.hygiene ? FEATURE_IDS.HYGIENE : null,
@@ -192,7 +191,7 @@ export function UserMapView() {
 
   const appliedFilters = useMemo<AppliedFilter[]>(() => {
     const items: AppliedFilter[] = [
-      { key: "distance", label: `${filters.distance}以内` },
+      { key: "distance", label: `${formatDistanceShort(filters.distance)}以内` },
     ];
 
     Object.entries(filters.quality).forEach(([key, value]) => {
@@ -249,7 +248,7 @@ export function UserMapView() {
   );
 
   const filteredRestaurants = useMemo(() => {
-    const selectedDistanceLimit = distanceLimitMeters(filters.distance);
+    const selectedDistanceLimit = filters.distance;
 
     return [...routedRestaurants].filter((restaurant) => {
       if (restaurant.routeDistanceMeters !== undefined) {
@@ -276,7 +275,7 @@ export function UserMapView() {
 
   function handleRemoveFilter(key: string) {
     if (key === "distance") {
-      setFilters((current) => ({ ...current, distance: "5km" }));
+      setFilters((current) => ({ ...current, distance: 5000 }));
       return;
     }
 

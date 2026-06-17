@@ -1,16 +1,15 @@
 import { Check, Search, SquareMenu, Utensils, Warehouse } from "lucide-react";
 import {
   cuisineTags,
-  distanceOptions,
   type AmenityKey,
-  type DistanceOption,
 } from "./map-data";
+import { formatDistanceShort } from "./map-routing";
 
 export type QualityFilterKey = "hygiene" | "japaneseStaff" | "japaneseMenu";
 
 export type MapFilterState = {
   keyword: string;
-  distance: DistanceOption;
+  distance: number;
   quality: Record<QualityFilterKey, boolean>;
   cuisines: string[];
   amenities: Record<AmenityKey, boolean>;
@@ -20,7 +19,7 @@ type MapFilterSidebarProps = {
   filters: MapFilterState;
   onKeywordChange: (value: string) => void;
   onKeywordBlur: () => void;
-  onDistanceChange: (value: DistanceOption) => void;
+  onDistanceChange: (value: number) => void;
   onQualityToggle: (key: QualityFilterKey) => void;
   onCuisineToggle: (value: string) => void;
   onAmenityToggle: (key: AmenityKey) => void;
@@ -51,6 +50,8 @@ export function MapFilterSidebar({
   onCuisineToggle,
   onAmenityToggle,
 }: MapFilterSidebarProps) {
+  const fillPercent = ((filters.distance - 500) / 4500) * 100;
+
   return (
     <aside className="w-full shrink-0 border border-[rgba(228,190,186,0.15)] bg-[#f4f4f1] lg:sticky lg:top-24 lg:max-h-[calc(100vh-112px)] lg:w-80 lg:overflow-y-auto">
       <div className="flex w-full flex-col gap-8 p-5">
@@ -72,54 +73,39 @@ export function MapFilterSidebar({
         </section>
 
         <section className="flex flex-col gap-3">
-          <h3 className="font-jp text-[14px] font-medium uppercase leading-5 tracking-[0.7px] text-[#5a6053]">
-            現在地からの距離
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-jp text-[14px] font-medium uppercase leading-5 tracking-[0.7px] text-[#5a6053]">
+              現在地からの距離
+            </h3>
+            <span className="font-manrope text-[12px] font-bold text-[#d32f2f]">
+              {formatDistanceShort(filters.distance)}以内
+            </span>
+          </div>
           <div className="flex flex-col gap-2 px-2">
-            <div className="relative h-1.5 rounded bg-[#e2e3e0]">
+            <div className="relative flex h-6 items-center">
+              <div className="absolute left-0 h-1.5 w-full rounded bg-[#e2e3e0]" />
               <div
-                className="absolute left-0 top-0 h-full rounded bg-[#d32f2f]"
-                style={{
-                  width:
-                    filters.distance === "500m"
-                      ? "0%"
-                      : filters.distance === "1.0km"
-                        ? "50%"
-                        : "100%",
-                }}
+                className="absolute left-0 h-1.5 rounded bg-[#d32f2f]"
+                style={{ width: `${fillPercent}%` }}
+              />
+              <div
+                className="pointer-events-none absolute size-4 rounded-full border-2 border-white bg-[#d32f2f] shadow-md"
+                style={{ left: `calc(${fillPercent}% - ${fillPercent * 0.16}px)` }}
+              />
+              <input
+                type="range"
+                min={500}
+                max={5000}
+                step={100}
+                value={filters.distance}
+                onChange={(e) => onDistanceChange(Number(e.target.value))}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               />
             </div>
-            <div className="flex items-start justify-between font-manrope font-bold">
-              <span className="text-[10px] leading-[15px] text-[#5b403d]">
-                500m
-              </span>
-              <span className="text-[12px] leading-4 text-[#d32f2f]">
-                1.0km
-              </span>
-              <span className="text-[10px] leading-[15px] text-[#5b403d]">
-                5km
-              </span>
+            <div className="flex items-center justify-between font-manrope text-[10px] font-bold text-[#5b403d]">
+              <span>500m</span>
+              <span>5km</span>
             </div>
-          </div>
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            {distanceOptions.map((option) => {
-              const isActive = filters.distance === option;
-
-              return (
-                <button
-                  key={option}
-                  type="button"
-                  className={`rounded-md py-2 text-center font-manrope text-[10px] font-bold leading-[15px] ${
-                    isActive
-                      ? "bg-[#d32f2f] text-white"
-                      : "bg-[#e2e3e0] text-[#606659]"
-                  }`}
-                  onClick={() => onDistanceChange(option)}
-                >
-                  {option}
-                </button>
-              );
-            })}
           </div>
         </section>
 

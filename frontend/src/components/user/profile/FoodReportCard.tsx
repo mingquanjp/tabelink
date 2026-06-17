@@ -1,56 +1,78 @@
 /* eslint-disable @next/next/no-img-element */
 import { UserBlogItem } from "@/lib/api/user-profile/type";
-import { MapPin, Star } from "lucide-react";
+import { MapPin, Star, Trash2 } from "lucide-react";
 import { postDetailImage } from "./profile-data";
 
 type FoodReportCardProps = {
   blog: UserBlogItem;
   onOpen?: (blog: UserBlogItem) => void;
+  onDelete?: (blog: UserBlogItem) => void;
+  isDeleting?: boolean;
 };
 
-export function FoodReportCard({ blog, onOpen }: FoodReportCardProps) {
+export function FoodReportCard({
+  blog,
+  onOpen,
+  onDelete,
+  isDeleting = false,
+}: FoodReportCardProps) {
   const averageRating = (
     (blog.tasteRating + blog.hygieneRating + blog.serviceRating) / 3
   ).toFixed(1);
   return (
-    <button
-      type="button"
-      className="overflow-hidden rounded-lg border border-[#e8e8e5] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(26,28,27,0.08)]"
-      onClick={() => onOpen?.(blog)}
-    >
-      <div className="h-48 overflow-hidden">
-        <img src={blog.thumbnailUrl ?? postDetailImage}
-          className="size-full object-cover"
-          draggable={false}
-          alt={blog.title}
-        />
-      </div>
+    <article className="relative overflow-hidden rounded-lg border border-[#e8e8e5] bg-white text-left shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-transform hover:-translate-y-0.5 hover:shadow-[0_12px_24px_rgba(26,28,27,0.08)]">
+      {onDelete && (
+        <button
+          type="button"
+          className="absolute right-3 top-3 z-10 inline-flex size-9 items-center justify-center rounded-full bg-white/95 text-[#af111c] shadow-[0_2px_8px_rgba(0,0,0,0.12)] transition hover:bg-[#fff0f0] disabled:cursor-not-allowed disabled:opacity-60"
+          onClick={() => onDelete(blog)}
+          disabled={isDeleting}
+          aria-label="投稿を削除"
+          title="投稿を削除"
+        >
+          <Trash2 className="size-4" />
+        </button>
+      )}
 
-      <div className="flex flex-col gap-2 p-6">
-        <div className="flex items-start justify-between gap-4">
-          <h2 className="min-w-0 font-jp text-lg font-bold leading-7 text-[#1a1c1b]">
-            {blog.restaurantName}
-          </h2>
-          <p className="text-sm">{blog.title}</p>
-          <div className="flex shrink-0 items-center gap-1 pt-1">
-            <Star className="size-3 fill-[#af111c] text-[#af111c]" />
-            <span className="font-jp text-sm font-bold leading-5 text-[#af111c]">
-              {averageRating}
+      <button
+        type="button"
+        className="block w-full text-left"
+        onClick={() => onOpen?.(blog)}
+      >
+        <div className="h-48 overflow-hidden">
+          <img src={blog.thumbnailUrl ?? postDetailImage}
+            className="size-full object-cover"
+            draggable={false}
+            alt={blog.title}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2 p-6">
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="min-w-0 font-jp text-lg font-bold leading-7 text-[#1a1c1b]">
+              {blog.restaurantName}
+            </h2>
+            <p className="text-sm">{blog.title}</p>
+            <div className="flex shrink-0 items-center gap-1 pt-1">
+              <Star className="size-3 fill-[#af111c] text-[#af111c]" />
+              <span className="font-jp text-sm font-bold leading-5 text-[#af111c]">
+                {averageRating}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 pb-2">
+            <MapPin className="size-3 text-[#5a6053]" />
+            <span className="font-jp text-[10px] font-normal uppercase leading-[15px] tracking-[0.5px] text-[#5a6053]">
+              {blog.location}
             </span>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 pb-2">
-          <MapPin className="size-3 text-[#5a6053]" />
-          <span className="font-jp text-[10px] font-normal uppercase leading-[15px] tracking-[0.5px] text-[#5a6053]">
-            {blog.location}
-          </span>
+          <p className="border-t border-[rgba(228,190,186,0.1)] pt-4 font-jp text-sm font-normal leading-5 text-[#5a6053]">
+            {blog.content}
+          </p>
         </div>
-
-        <p className="border-t border-[rgba(228,190,186,0.1)] pt-4 font-jp text-sm font-normal leading-5 text-[#5a6053]">
-          {blog.content}
-        </p>
-      </div>
-    </button>
+      </button>
+    </article>
   );
 }

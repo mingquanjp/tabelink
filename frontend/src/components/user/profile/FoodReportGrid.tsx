@@ -1,5 +1,6 @@
 "use client";
 
+import { deleteBlog } from "@/lib/api/blogs/API";
 import { createUserFeedPostComment, getUserFeedPostDetail, likeUserFeedPost, unlikeUserFeedPost } from "@/lib/api/user-feed/API";
 import { UserFeedPostDetail } from "@/lib/api/user-feed/type";
 import { followUserHomeReviewer, unfollowUserHomeReviewer } from "@/lib/api/user-home/API";
@@ -20,6 +21,7 @@ type FoodReportGridProps = {
   isFollowingAuthor: boolean;
   onFollowToggle: () => void;
   isMyProfile: boolean;
+  onBlogDeleted?: (blogId: number) => void;
 };
 
 function buildInitials(value: string) {
@@ -62,10 +64,11 @@ function getSessionDisplayName(session: MeResponse | null) {
   );
 }
 
-export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyProfile }: FoodReportGridProps) {
+export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyProfile, onBlogDeleted }: FoodReportGridProps) {
   const [selectedBlogId, setSelectedBlogId] = useState<number | null>(null);
   const [detail, setDetail] = useState<UserFeedPostDetail | null>(null);
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [deletingBlogId, setDeletingBlogId] = useState<number | null>(null);
   const [session, setSession] = useState<MeResponse | null>(
     () => readCachedAuthSession() ?? null,
   );
@@ -106,6 +109,27 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
   function closeBlogDetail() {
     setSelectedBlogId(null);
     setDetail(null);
+  }
+
+  async function handleDeleteBlog(blog: UserBlogItem) {
+    if (deletingBlogId !== null) return;
+
+    const confirmed = window.confirm("この投稿を削除しますか？");
+    if (!confirmed) return;
+
+    setDeletingBlogId(blog.blogId);
+    try {
+      await deleteBlog(blog.blogId);
+      if (selectedBlogId === blog.blogId) {
+        closeBlogDetail();
+      }
+      onBlogDeleted?.(blog.blogId);
+    } catch (err) {
+      console.error("Delete blog error:", err);
+      alert("投稿を削除できませんでした。");
+    } finally {
+      setDeletingBlogId(null);
+    }
   }
 
   // Chuyển đổi dữ liệu sang định dạng của PostDetailsDialog
@@ -154,6 +178,8 @@ export function FoodReportGrid({ blogs, isFollowingAuthor, onFollowToggle, isMyP
             key={blog.blogId}
             blog={blog}
             onOpen={(b) => openBlogDetail(b.blogId)}
+            onDelete={isMyProfile ? handleDeleteBlog : undefined}
+            isDeleting={deletingBlogId === blog.blogId}
           />
         ))}
       </section>

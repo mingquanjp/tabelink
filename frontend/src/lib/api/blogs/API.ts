@@ -66,3 +66,10 @@ export function createRestaurantBlog(
     },
   );
 }
+
+export function deleteBlog(blogId: number) {
+  return apiRequest<void>(`/blogs/${blogId}`, {
+    auth: true,
+    method: "DELETE",
+  });
+}

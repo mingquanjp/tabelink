@@ -359,4 +359,31 @@ describe('BlogsService', () => {
       ),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('soft-deletes a blog post owned by the current user', async () => {
+    dataSource.query.mockResolvedValueOnce([{ blogId: '100' }]);
+
+    await expect(service.deleteBlog(100, user)).resolves.toBeUndefined();
+
+    expect(dataSource.query).toHaveBeenCalledWith(
+      expect.stringContaining("SET Status = 'Deleted'"),
+      [100, 40],
+    );
+  });
+
+  it('rejects non-user blog deletion', async () => {
+    await expect(service.deleteBlog(100, owner)).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+
+    expect(dataSource.query).not.toHaveBeenCalled();
+  });
+
+  it('throws not found when deleting a missing or unowned blog post', async () => {
+    dataSource.query.mockResolvedValueOnce([]);
+
+    await expect(service.deleteBlog(100, user)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
 });

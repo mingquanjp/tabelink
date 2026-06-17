@@ -36,6 +36,20 @@ export function UserProfileView({ accountId }: { accountId?: number }) {
     });
   }
 
+  function handleBlogDeleted(blogId: number) {
+    setData((current) => {
+      if (!current) {
+        return current;
+      }
+
+      return {
+        ...current,
+        blogCount: Math.max(0, current.blogCount - 1),
+        blogs: current.blogs.filter((blog) => blog.blogId !== blogId),
+      };
+    });
+  }
+
   return (
     <main className="min-h-[calc(100vh-80px)] bg-[#f9f9f6] text-[#1a1c1b]">
       <div className="mx-auto w-full max-w-[1024px] px-6 pb-24">
@@ -52,6 +66,7 @@ export function UserProfileView({ accountId }: { accountId?: number }) {
             ...prev, isFollowing: !prev.isFollowing,
             followerCount: prev.isFollowing ? prev.followerCount - 1 : prev.followerCount + 1
           } : prev)}
+          onBlogDeleted={handleBlogDeleted}
         />
       </div>
     </main>

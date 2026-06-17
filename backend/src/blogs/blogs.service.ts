@@ -349,6 +349,31 @@ export class BlogsService {
     };
   }
 
+  async deleteBlog(blogId: number, user: JwtPayload) {
+    if (user.role !== AuthRole.User) {
+      throw new ForbiddenException(
+        'Only customer users can delete blog posts.',
+      );
+    }
+
+    const result = await this.dataSource.query<{ blogId: number | string }[]>(
+      `
+        UPDATE BLOG_POST
+        SET Status = 'Deleted',
+            UpdatedAt = CURRENT_TIMESTAMP
+        WHERE BlogID = $1
+          AND CustomerAccountID = $2
+          AND Status = 'Published'
+        RETURNING BlogID AS "blogId"
+      `,
+      [blogId, user.sub],
+    );
+
+    if (!result[0]) {
+      throw new NotFoundException('Published blog post not found.');
+    }
+  }
+
   private async attachTags(
     manager: {
       query: <T = unknown>(query: string, parameters?: unknown[]) => Promise<T>;

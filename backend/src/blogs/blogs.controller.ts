@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
   Post,
@@ -17,6 +19,7 @@ import {
   ApiConsumes,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
@@ -182,5 +185,24 @@ export class BlogsController {
     @Req() request: AuthenticatedRequest,
   ) {
     return this.blogsService.createBlog(restaurantId, dto, request.user);
+  }
+
+  @Delete('blogs/:blogId')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'Delete a blog post owned by the current user',
+    description:
+      'Soft-deletes a BLOG_POST by marking it as Deleted. Only the customer who created the blog can delete it.',
+  })
+  @ApiNoContentResponse({ description: 'Blog post deleted.' })
+  @ApiForbiddenResponse({
+    description: 'Only customer users can delete their own blog posts.',
+  })
+  @ApiNotFoundResponse({ description: 'Published blog post not found.' })
+  deleteBlog(
+    @Param('blogId', ParseIntPipe) blogId: number,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.blogsService.deleteBlog(blogId, request.user);
   }
 }

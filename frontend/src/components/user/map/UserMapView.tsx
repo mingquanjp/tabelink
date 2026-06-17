@@ -35,7 +35,7 @@ const FEATURE_IDS = {
 
 const initialFilters: MapFilterState = {
   keyword: "",
-  distance: 5000,
+  distance: 10000,
   quality: {
     hygiene: false,
     japaneseStaff: false,

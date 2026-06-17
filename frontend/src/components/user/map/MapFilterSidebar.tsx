@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Check, Search, SquareMenu, Utensils, Warehouse } from "lucide-react";
 import {
   cuisineTags,
@@ -50,7 +51,26 @@ export function MapFilterSidebar({
   onCuisineToggle,
   onAmenityToggle,
 }: MapFilterSidebarProps) {
-  const fillPercent = ((filters.distance - 500) / 4500) * 100;
+  const [localDistance, setLocalDistance] = useState(filters.distance);
+  const isLocalChangeRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync từ parent khi reset filter từ bên ngoài (chip ×)
+  useEffect(() => {
+    if (!isLocalChangeRef.current) {
+      setLocalDistance(filters.distance);
+    }
+    isLocalChangeRef.current = false;
+  }, [filters.distance]);
+
+  function handleDistanceChange(value: number) {
+    isLocalChangeRef.current = true;
+    setLocalDistance(value);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => onDistanceChange(value), 300);
+  }
+
+  const fillPercent = ((localDistance - 500) / 9500) * 100;
 
   return (
     <aside className="w-full shrink-0 border border-[rgba(228,190,186,0.15)] bg-[#f4f4f1] lg:sticky lg:top-24 lg:max-h-[calc(100vh-112px)] lg:w-80 lg:overflow-y-auto">
@@ -78,7 +98,7 @@ export function MapFilterSidebar({
               現在地からの距離
             </h3>
             <span className="font-manrope text-[12px] font-bold text-[#d32f2f]">
-              {formatDistanceShort(filters.distance)}以内
+              {formatDistanceShort(localDistance)}以内
             </span>
           </div>
           <div className="flex flex-col gap-2 px-2">
@@ -95,16 +115,16 @@ export function MapFilterSidebar({
               <input
                 type="range"
                 min={500}
-                max={5000}
+                max={10000}
                 step={100}
-                value={filters.distance}
-                onChange={(e) => onDistanceChange(Number(e.target.value))}
+                value={localDistance}
+                onChange={(e) => handleDistanceChange(Number(e.target.value))}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               />
             </div>
             <div className="flex items-center justify-between font-manrope text-[10px] font-bold text-[#5b403d]">
               <span>500m</span>
-              <span>5km</span>
+              <span>10km</span>
             </div>
           </div>
         </section>

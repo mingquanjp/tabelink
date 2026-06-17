@@ -19,7 +19,7 @@ export function ReviewTextEditor({ value, onChange }: ReviewTextEditorProps) {
       <div className="flex items-end justify-between border-b border-[#e4beba] pb-2">
         <label
           htmlFor="review-body"
-          className="font-manrope text-base font-bold leading-6 tracking-[1px] text-[#5a6053]"
+          className="font-manrope text-xl font-bold leading-7 tracking-[1px] text-[#5a6053]"
         >
           レビュー本文
         </label>
@@ -45,7 +45,7 @@ export function ReviewTextEditor({ value, onChange }: ReviewTextEditorProps) {
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder="料理の魂、食感、店内の雰囲気などを綴ってください"
-        className="min-h-[300px] resize-none rounded-none border-[#af111c] bg-transparent px-3 py-2 font-manrope text-lg leading-[29px] text-[#1a1c1b] shadow-none placeholder:text-[#8f6f6c4c] focus-visible:border-[#af111c] focus-visible:ring-0"
+        className="min-h-[300px] resize-none rounded-none border-[#af111c] bg-transparent px-3 py-2 font-manrope text-[22px] leading-[34px] text-[#1a1c1b] shadow-none placeholder:text-[#8f6f6c4c] focus-visible:border-[#af111c] focus-visible:ring-0"
       />
     </section>
   );

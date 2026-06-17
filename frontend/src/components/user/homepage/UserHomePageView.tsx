@@ -103,7 +103,7 @@ function formatPostTime(value: string) {
 }
 
 function mapHomeProfile(profile: Awaited<ReturnType<typeof getUserHomeProfile>>): HomepageUser {
-  const name = profile.displayName ?? profile.fullName;
+  const name = profile.fullName || profile.displayName || homepageUser.name;
 
   return {
     ...homepageUser,

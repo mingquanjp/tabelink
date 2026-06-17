@@ -50,7 +50,7 @@ const initialFilters: MapFilterState = {
 };
 
 const qualityLabels: Record<keyof MapFilterState["quality"], string> = {
-  hygiene: "日本基準認証店のみ",
+  hygiene: "評価 4.0以上",
   japaneseStaff: "日本人スタッフ常駐",
   japaneseMenu: "日本語メニュー完備",
 };

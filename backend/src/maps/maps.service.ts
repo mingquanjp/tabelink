@@ -132,7 +132,7 @@ export class MapsService {
       }
       if (hasHygiene) {
         query.andWhere(
-          `EXISTS (SELECT 1 FROM review r WHERE r.restaurantid = restaurant.restaurantid AND r.status = 'Visible' GROUP BY r.restaurantid HAVING (AVG(COALESCE(r.toiletcleanliness, 0)) + AVG(COALESCE(r.dishcleanliness, 0)) + AVG(COALESCE(r.spacecleanliness, 0))) / 3.0 >= 4.0)`,
+          `EXISTS (SELECT 1 FROM review r WHERE r.restaurantid = restaurant.restaurantid AND r.status = 'Visible' GROUP BY r.restaurantid HAVING AVG(r.rating) >= 4.0)`,
         );
       }
     }

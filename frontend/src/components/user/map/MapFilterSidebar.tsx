@@ -29,7 +29,7 @@ type MapFilterSidebarProps = {
 };
 
 const qualityItems: Array<{ key: QualityFilterKey; label: string }> = [
-  { key: "hygiene", label: "衛生管理スコア 4.0以上" },
+  { key: "hygiene", label: "評価 4.0以上" },
   { key: "japaneseStaff", label: "日本人スタッフ常駐" },
   { key: "japaneseMenu", label: "日本語メニュー完備" },
 ];

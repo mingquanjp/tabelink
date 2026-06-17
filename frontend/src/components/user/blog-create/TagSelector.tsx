@@ -26,7 +26,7 @@ export function TagSelector({
 }: TagSelectorProps) {
   return (
     <section className="flex flex-col gap-4 border-t border-[#e4beba4c] pt-6">
-      <h2 className="font-manrope text-base font-bold leading-6 tracking-[1px] text-[#5a6053]">
+      <h2 className="font-manrope text-xl font-bold leading-7 tracking-[1px] text-[#5a6053]">
         タグ付け
       </h2>
       <div className="flex flex-wrap items-start gap-2">
@@ -34,7 +34,7 @@ export function TagSelector({
           <Badge
             key={tag}
             variant="secondary"
-            className="h-auto gap-2 rounded-xl bg-[#dfe5d4] px-4 py-3 font-jp text-xs font-medium leading-4 tracking-[0.6px] text-[#606659] hover:bg-[#dfe5d4]"
+            className="h-auto gap-2 rounded-xl bg-[#dfe5d4] px-4 py-3 font-jp text-sm font-medium leading-5 tracking-[0.6px] text-[#606659] hover:bg-[#dfe5d4]"
           >
             {tag}
             <button
@@ -63,12 +63,12 @@ export function TagSelector({
                 }
               }}
               placeholder="#タグ"
-              className="h-10 w-36 rounded-xl border-[#e4beba] bg-white font-jp text-xs shadow-none focus-visible:ring-0"
+              className="h-10 w-36 rounded-xl border-[#e4beba] bg-white font-jp text-sm shadow-none focus-visible:ring-0"
               autoFocus
             />
             <Button
               type="button"
-              className="h-10 rounded-xl bg-[#af111c] px-3 font-jp text-xs text-white hover:bg-[#980f18]"
+              className="h-10 rounded-xl bg-[#af111c] px-3 font-jp text-sm text-white hover:bg-[#980f18]"
               onClick={onAddTag}
             >
               追加
@@ -86,7 +86,7 @@ export function TagSelector({
           <Button
             type="button"
             variant="ghost"
-            className="h-auto rounded-xl border-2 border-dashed border-[#e4beba] px-3 py-2 font-manrope text-xs font-bold leading-4 tracking-[0.6px] text-[#8f6f6c] hover:bg-transparent"
+            className="h-auto rounded-xl border-2 border-dashed border-[#e4beba] px-3 py-2 font-manrope text-sm font-bold leading-5 tracking-[0.6px] text-[#8f6f6c] hover:bg-transparent"
             onClick={onStartAddTag}
           >
             <Plus className="mr-2 size-2" />

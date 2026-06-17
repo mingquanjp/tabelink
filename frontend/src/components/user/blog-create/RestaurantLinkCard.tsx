@@ -37,7 +37,7 @@ export function RestaurantLinkCard({
       <CardContent className="flex flex-col gap-4 p-6">
         <label
           htmlFor="restaurant-search"
-          className="font-manrope text-base font-bold leading-6 tracking-[1px] text-[#5a6053]"
+          className="font-manrope text-xl font-bold leading-7 tracking-[1px] text-[#5a6053]"
         >
           飲食店を紐付ける / LIÊN KẾT NHÀ HÀNG
         </label>
@@ -54,7 +54,7 @@ export function RestaurantLinkCard({
             role="combobox"
             aria-expanded={isOpen}
             aria-controls="restaurant-search-results"
-            className="h-auto border-0 bg-transparent p-0 font-manrope text-base font-medium text-[#1a1c1b] shadow-none placeholder:text-[#8f6f6c80] focus-visible:ring-0 md:text-base"
+            className="h-auto border-0 bg-transparent p-0 font-manrope text-xl font-medium text-[#1a1c1b] shadow-none placeholder:text-[#8f6f6c80] focus-visible:ring-0 md:text-xl"
           />
           {isSearching ? (
             <Loader2 className="size-[18px] animate-spin text-[#8f6f6c]" />
@@ -89,10 +89,10 @@ export function RestaurantLinkCard({
                     }`}
                   >
                     <span className="flex min-w-0 flex-col gap-1">
-                      <span className="font-manrope text-sm font-bold leading-5 text-[#1a1c1b] md:text-base md:leading-6">
+                      <span className="font-manrope text-base font-bold leading-6 text-[#1a1c1b] md:text-xl md:leading-7">
                         {getRestaurantName(restaurant)}
                       </span>
-                      <span className="font-manrope text-xs leading-4 text-[#5a6053]">
+                      <span className="font-manrope text-sm leading-5 text-[#5a6053]">
                         {restaurant.address}
                       </span>
                     </span>
@@ -103,7 +103,7 @@ export function RestaurantLinkCard({
                 );
               })
             ) : (
-              <div className="px-4 py-5 font-jp text-sm text-[#5a6053]">
+              <div className="px-4 py-5 font-jp text-base text-[#5a6053]">
                 {trimmedValue
                   ? "該当するレストランがありません"
                   : "レストラン名を入力してください"}

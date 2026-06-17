@@ -19,7 +19,7 @@ export function ReviewTextEditor({ value, onChange }: ReviewTextEditorProps) {
       <div className="flex items-end justify-between border-b border-[#e4beba] pb-2">
         <label
           htmlFor="review-body"
-          className="font-manrope text-[10px] font-bold leading-[15px] tracking-[1px] text-[#5a6053]"
+          className="font-manrope text-base font-bold leading-6 tracking-[1px] text-[#5a6053]"
         >
           レビュー本文
         </label>

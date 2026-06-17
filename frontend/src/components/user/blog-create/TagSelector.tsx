@@ -26,7 +26,7 @@ export function TagSelector({
 }: TagSelectorProps) {
   return (
     <section className="flex flex-col gap-4 border-t border-[#e4beba4c] pt-6">
-      <h2 className="font-manrope text-[10px] font-bold leading-[15px] tracking-[1px] text-[#5a6053]">
+      <h2 className="font-manrope text-base font-bold leading-6 tracking-[1px] text-[#5a6053]">
         タグ付け
       </h2>
       <div className="flex flex-wrap items-start gap-2">

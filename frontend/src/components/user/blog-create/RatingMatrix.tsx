@@ -13,7 +13,7 @@ export function RatingMatrix({ items, ratings, onChange }: RatingMatrixProps) {
     <section className="grid grid-cols-1 gap-8 border-y border-[#e4beba33] py-8 md:grid-cols-3">
       {items.map((item) => (
         <div key={item.key} className="flex flex-col items-start gap-3">
-          <h2 className="font-manrope text-[10px] font-bold leading-[15px] tracking-[1px] text-[#5a6053]">
+          <h2 className="font-manrope text-base font-bold leading-6 tracking-[1px] text-[#5a6053]">
             {item.label}
           </h2>
           <div className="flex items-center gap-1">

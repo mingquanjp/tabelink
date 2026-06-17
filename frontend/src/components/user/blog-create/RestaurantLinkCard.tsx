@@ -37,7 +37,7 @@ export function RestaurantLinkCard({
       <CardContent className="flex flex-col gap-4 p-6">
         <label
           htmlFor="restaurant-search"
-          className="font-manrope text-[10px] font-bold leading-[15px] tracking-[1px] text-[#5a6053]"
+          className="font-manrope text-base font-bold leading-6 tracking-[1px] text-[#5a6053]"
         >
           飲食店を紐付ける / LIÊN KẾT NHÀ HÀNG
         </label>

@@ -15,6 +15,7 @@ const POST_DETAIL_COMMENT_LIMIT = 20;
 
 interface FeedPostRow {
   blogId: number | string;
+  restaurantId: number | string | null;
   title: string | null;
   content: string;
   tasteRating: number | string | null;
@@ -245,6 +246,7 @@ export class FeedService {
     return `
       SELECT
         bp.BlogID AS "blogId",
+        bp.RestaurantID AS "restaurantId",
         bp.Title AS "title",
         bp.Content AS "content",
         bp.TasteRating AS "tasteRating",
@@ -274,6 +276,7 @@ export class FeedService {
         ${extraWhereSql}
       GROUP BY
         bp.BlogID,
+        bp.RestaurantID,
         bp.Title,
         bp.Content,
         bp.TasteRating,
@@ -424,6 +427,8 @@ export class FeedService {
 
     return {
       blogId,
+      restaurantId:
+        row.restaurantId === null ? null : Number(row.restaurantId),
       author: {
         accountId: Number(row.authorAccountId),
         name: row.authorDisplayName ?? row.authorFullName,

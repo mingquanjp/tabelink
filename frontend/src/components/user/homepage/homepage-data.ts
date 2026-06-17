@@ -194,6 +194,7 @@ export const homepageComments = [
 export type HomepageMediaType = "Photo" | "Video";
 export type HomepagePost = (typeof homepagePosts)[number] & {
   authorAccountId?: number;
+  restaurantId?: number | null;
   mediaType?: HomepageMediaType;
   avatarUrl?: string | null;
 };

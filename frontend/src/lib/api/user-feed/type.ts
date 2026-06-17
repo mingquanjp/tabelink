@@ -25,6 +25,7 @@ export type UserFeedRatings = {
 
 export type UserFeedPost = {
   blogId: number;
+  restaurantId: number | null;
   author: UserFeedAuthor;
   createdAt: string;
   hashtags: UserFeedHashtag[];

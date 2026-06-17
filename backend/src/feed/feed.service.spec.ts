@@ -19,6 +19,7 @@ describe('FeedService', () => {
 
   const postRow = {
     blogId: '100',
+    restaurantId: '1',
     title: 'Best pho in Hanoi',
     content: 'This restaurant is clean and friendly.',
     tasteRating: '5',
@@ -73,6 +74,7 @@ describe('FeedService', () => {
       items: [
         {
           blogId: 100,
+          restaurantId: 1,
           author: {
             accountId: 5,
             name: 'Chef Sato',

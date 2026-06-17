@@ -179,6 +179,7 @@ function mapFeedPost(post: UserFeedPost): HomepagePost {
 
   return {
     id: post.blogId,
+    restaurantId: post.restaurantId,
     authorAccountId: post.author.accountId,
     author: post.author.name,
     handle: post.author.handle,

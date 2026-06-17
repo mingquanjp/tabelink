@@ -25,6 +25,7 @@ export class FeedRatingsDto {
 
 export class FeedPostResponseDto {
   blogId!: number;
+  restaurantId!: number | null;
   author!: FeedAuthorDto;
   createdAt!: string;
   hashtags!: FeedHashtagDto[];

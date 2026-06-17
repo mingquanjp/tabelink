@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  ExternalLink,
   Heart,
   MessageCircle,
   Share2,
@@ -210,6 +211,15 @@ export function PostDetailsDialog({
                 <p className="mt-3 font-jp text-[13px] font-medium leading-6 text-[#4e554a]">
                   {post.body}
                 </p>
+                {post.restaurantId ? (
+                  <Link
+                    href={`/user/restaurants/${post.restaurantId}`}
+                    className="mt-4 inline-flex h-8 items-center gap-1.5 rounded-sm border border-[#af111c] px-3 font-jp text-[11px] font-semibold text-[#af111c] transition-colors hover:bg-[#af111c0d]"
+                  >
+                    <ExternalLink className="size-3.5" />
+                    レストランを見る
+                  </Link>
+                ) : null}
 
                 <div className="mt-5 grid grid-cols-3 gap-2 border-y border-[#f0eee8] py-4">
                   {Object.entries(post.metrics).map(([key, value]) => (
